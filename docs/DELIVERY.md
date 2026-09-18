@@ -2,7 +2,7 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** repository created at https://github.com/bizhello/datatale; foundation checks passed locally. DT-00 was committed and pushed as `7b8c0ba`. Sol medium requested changes on candidate `8fc2588`: reject raw reserved keys before Zod stripping, reject blank identities, and strengthen independent boundary tests. Terra medium committed fixes as `d706432`; Sol medium repeat review is pending. The conductor owns this file and reconciles it with actual Git state at session start.
+**Current state:** DT-00 foundation and DT-01a Dataset contract are integrated in main. PR #1 was squash-merged as `c0dcbd5` after Terra medium implementation, Sol medium repeat approval and conductor/CI checks. No executor is active. DT-01b and DT-02 are ready for the next dispatch; this trial stops after DT-01a.
 
 ## Work packages
 
@@ -12,7 +12,7 @@ These are bounded outcomes to decompose into 30–90 minute assignments where ne
 | --- | --- | --- | --- |
 | DT-00 | Establish baseline: inspect intended files, frozen install and foundation checks, baseline commit; record SHA | — | done |
 | DT-01 | Core contracts: canonical Dataset, AnalysisPlan, Facts and Report schemas; serializable bar/line/donut catalog; shared synthetic fixture and invalid-plan cases. Feature boundaries validate cross-entity references | DT-00 | active |
-| DT-02 | Visual shell: responsive layout, light/dark/system, custom identity/favicon, HeroUI Skeleton and accessible states; both-theme mobile/desktop evidence | DT-00 | queued |
+| DT-02 | Visual shell: responsive layout, light/dark/system, custom identity/favicon, HeroUI Skeleton and accessible states; both-theme mobile/desktop evidence | DT-00 | ready |
 | DT-03 | CSV input: picker/dropzone, preview, limits and canonical normalization; quoted newlines/BOM/duplicate headers/empty input tests | DT-01 | queued |
 | DT-04 | Verified metrics: profile, approved aggregations and semantic plan checks over all accepted rows; known totals, zero denominator, units and invalid-chart tests | DT-01 | queued |
 | DT-05 | Guest storage boundary: Neon/Drizzle and iron-session, source/report/message persistence, ownership, expiry and atomic/idempotent run claims; isolation and failure tests | DT-01, EXT-02 | queued |
@@ -29,11 +29,11 @@ Integrate incremental adapters and smoke tests as each package lands; DT-09 is t
 
 ## First implementation assignment
 
-DT-01 is split before dispatch. DT-01a implements the normalized tabular Dataset contract and its tests. DT-01b (queued) will add chart/analysis/fact/report contracts and the capability catalog; it depends on DT-01a. Text extraction and parsers remain later work. Completing DT-01a does not complete DT-01.
+DT-01 is split before dispatch. DT-01a implements the normalized tabular Dataset contract and its tests. DT-01b (ready) will add chart/analysis/fact/report contracts and the capability catalog; it depends on DT-01a. Text extraction and parsers remain later work. Completing DT-01a does not complete DT-01.
 
 DT-01a acceptance: Zod schema and inferred types for a versioned normalized table, unique column/row IDs, exact row keys, typed finite values and explicit nulls, product row/column limits, stable source-row references, synthetic valid/invalid fixtures and behavioral tests. No UI, parsers, provider or database calls. Only normalized table data is accepted; no coercion or guessing of missing values. Date values use validated YYYY-MM-DD strings. Public entry point exposes safe contracts only.
 
-Executor: GPT-5.6 Terra, medium. Reviewer: GPT-5.6 Sol, medium, dispatched after candidate completion. Allowed paths: `src/entities/dataset/**` and `tests/fixtures/dataset.ts`. Root dependencies and board updates belong to the conductor. Base: conductor's task setup commit on `feat/dt-01a-dataset-contract`; exact SHA supplied in assignment. Worktree: `/Users/andreybizhov/prog/datatale-worktrees/dt-01a`.
+Executor: GPT-5.6 Terra, medium. Reviewer: GPT-5.6 Sol, medium; repeat review approved `1230714` after all three findings were fixed. Allowed paths: `src/entities/dataset/**` and `tests/fixtures/dataset.ts`. Root dependencies and board updates belong to the conductor. Base: `7608aff` on `feat/dt-01a-dataset-contract`. Candidate: `1230714`; integration: `c0dcbd5` via PR #1. Worktree: `/Users/andreybizhov/prog/datatale-worktrees/dt-01a`.
 
 ## External prerequisites
 
@@ -60,7 +60,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| DT-01a | Sol medium / conductor | review | `7608aff` / `feat/dt-01a-dataset-contract` / dt-01a worktree | `src/entities/dataset/**`, `tests/fixtures/dataset.ts` | Repeat review of `d706432` and full final gates; PR #1 |
+| — | — | — | — | — | Trial complete; next dispatch awaits user direction |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 
@@ -69,6 +69,7 @@ For each active task, add its filled assignment from WORKFLOW under this section
 | Task | Integration SHA | Review result / reference | Checks and remaining limitations |
 | --- | --- | --- | --- |
 | DT-00 foundation | `7b8c0ba` | Conductor verification; no independent feature review claimed | Frozen install, lint, FSD, types, build, 2 component and 6 browser tests passed historically. See AI-WORKLOG. No product features verified |
+| DT-01a Dataset | `c0dcbd5` ([PR #1](https://github.com/bizhello/datatale/pull/1)) | Sol medium approved `1230714`; reserved-key, blank-ID and circular-test findings fixed in `d706432` | `bun run check:all`: 12 Vitest + 6 browser tests passed; GitHub CI passed. Squash tree matches reviewed candidate. No parser/AI/UI implementation claimed |
 
 Append one concise row per integrated task. Update task state and any changed README/domain contracts in the same integration handoff. Git retains prior board revisions; AI-WORKLOG retains selected real prompts/errors for the pitch.
 
