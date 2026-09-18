@@ -12,3 +12,4 @@ export {
   DATASET_SCHEMA_VERSION,
   datasetSchema,
 } from "./model/schema";
+export { type TextSource, textSourceSchema } from "./model/text-source";
