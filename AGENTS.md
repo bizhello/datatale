@@ -5,7 +5,7 @@ Read README.md for actual implementation status, DECISIONS.md for accepted choic
 ## Language and evidence
 
 - Write engineering docs, prompts, comments, identifiers, test descriptions, commits, PRs, and review comments in English. Preserve upstream files and explicitly quoted source/fixture text. UI language is controlled separately by docs/PRODUCT.md; do not silently translate the product.
-- Use concise English Conventional Commit subjects, such as `fix: reject invalid chart dimensions`. Describe the final change and actual validation in PRs.
+- Use concise English Conventional Commit subjects, such as `fix: reject invalid chart dimensions`. Describe the final change and actual validation in PRs. Keep model names, reasoning settings and agent transcripts in AI-WORKLOG, not PR descriptions.
 - Report implementation and verification accurately. Read package scripts before running commands; claim only checks actually performed.
 - Update the document that owns a changed decision in the same change. Do not create a second plan that silently contradicts the canonical docs.
 
@@ -14,6 +14,7 @@ Read README.md for actual implementation status, DECISIONS.md for accepted choic
 - Prefer the smallest coherent solution. Search for the existing owner before adding logic, types, dependencies, or abstractions.
 - Surface material refactoring opportunities with value, cost, and scope. Do not expand unrelated work silently.
 - Dependencies flow `app → widgets → features → entities → shared`. No sideways slice imports or imports into another slice's internals. See docs/ARCHITECTURE.md for explicit client/server entry points.
+- Reuse domain-neutral utilities and UI through `shared/lib`, `shared/config` and `shared/ui`; search before duplicating. Keep entity invariants in their owning entity and reuse its public API.
 - Keep calculations pure, application orchestration in features, HTTP concerns in Route Handlers, and rendering in UI modules. Do not put business rules in components or app/api.
 - TypeScript strict; derive boundary types from Zod. No unexplained `any`, `@ts-ignore`, disabled checks, or assertions used to bypass validation.
 - Create directories when implementation needs them. Existing `.gitkeep` files are temporary scaffolding, not evidence of completed features or tests.
@@ -43,6 +44,7 @@ Read README.md for actual implementation status, DECISIONS.md for accepted choic
 - Before implementation, require a task ID, verified base, isolated worktree, reserved write paths and acceptance cases. If isolation is unavailable, allow only one code writer.
 - Executors own assigned code/tests and return documentation deltas. The conductor owns shared config, dependencies, canonical docs and integration. Coordinate public API changes before consumers continue.
 - Review exact candidate commits independently. Mark done only after integration, applicable checks and canonical-document updates. Record status on every handoff/blocker/integration; never infer completion from silence.
+- Use the GitHub CLI profile documented in docs/WORKFLOW.md for PR operations; verify its account before writes and preserve unrelated account settings.
 - Follow the Git flow in docs/WORKFLOW.md: feat/fix/docs/chore task branches, independent review, passing checks, conductor-owned squash merge to main. Main is the Vercel production branch once connected.
 - Use task IDs in commits. Git stores board history; AI-WORKLOG stores selected actual AI-use evidence. Do not create competing status or history files.
 

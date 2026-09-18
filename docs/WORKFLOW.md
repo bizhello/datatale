@@ -2,7 +2,7 @@
 
 One conductor owns integration and the live board in [DELIVERY.md](DELIVERY.md). Executors implement bounded tasks in isolated Git worktrees. A reviewer evaluates immutable candidate commits before integration. Start with two executors; add a third only for an independent ready task and when the host supports the additional concurrent agent.
 
-This is an operating protocol, not an autonomous scheduler. It runs while an agent session is active. The conductor records transitions as they happen; Markdown does not update itself.
+This is an operating protocol, not an autonomous scheduler. It runs while an agent session is active. The conductor records transitions as they happen; Markdown does not update itself. During an authorized delivery cycle, remain active with bounded agent waits and process completion messages immediately: executor handoff → review → corrections → repeat review → delivery report. Do not end the turn after dispatch and leave the next transition waiting for a user status request. If blocked on user input, record the exact blocker and stop dependent work.
 
 ## Roles and write ownership
 
@@ -36,13 +36,26 @@ Use short-lived task branches from `main`; `main` is the production branch when 
 | Documentation | `docs/dt-01-contracts` | `docs: clarify dataset contracts (DT-01)` |
 | Tooling | `chore/dt-00-foundation` | `chore: configure quality gates (DT-00)` |
 
+### GitHub CLI account
+
+Use the console for PR creation, edits, checks and merges. On the conductor's current workstation, DataTale uses the dedicated `bizhello` profile:
+
+```bash
+GH_CONFIG_DIR="$HOME/.config/gh-bizhello" gh auth status
+GH_CONFIG_DIR="$HOME/.config/gh-bizhello" gh pr create --repo bizhello/datatale --body-file /path/to/pr-body.md
+GH_CONFIG_DIR="$HOME/.config/gh-bizhello" gh pr checks PR_NUMBER --repo bizhello/datatale
+GH_CONFIG_DIR="$HOME/.config/gh-bizhello" gh pr merge PR_NUMBER --repo bizhello/datatale --squash --match-head-commit REVIEWED_SHA
+```
+
+Verify the account and repository permissions before writes. The default `gh` profile belongs to a different work account; do not switch it globally or infer API permissions from successful SSH pushes. Credentials stay in the OS keychain. Other machines must authenticate their own authorized profile. Merge only after the independent review and CI gates below pass.
+
 Use slashes in branch names; colons belong in Conventional Commit subjects, not branch names. Do not switch branches in another agent's working directory. Create the assigned branch in its own worktree. Fixes requested during review stay on that feature branch; a bug in already integrated code gets a new fix branch from current main. A production hotfix follows the same checks with narrow scope.
 
 1. Start from verified current main. Once GitHub exists, fetch first and record the actual base SHA. Dependent tasks wait for their prerequisite to land; avoid stacked branches for this MVP.
 2. Open a draft PR to main early. Vercel branch/PR deployments are previews with preview-scoped credentials; main deployments use production configuration. The conductor owns provisioning and deployment settings.
 3. Review the final candidate. Test its combination with current main in an isolated integration checkout. If main changes, refresh the candidate/merge result and rerun affected checks; obtain renewed review of conflicts or semantic changes.
 4. The conductor squash-merges one approved PR at a time, after CI and applicable preview checks. Prefer a merge queue when available; otherwise require an up-to-date branch and serialize merges. Run a production smoke check after deployment.
-5. Record the resulting main SHA and verification in DELIVERY, then remove the completed task branch/worktree after confirming its changes are integrated. Record the merge SHA in a follow-up documentation update or linked PR; a commit cannot contain its own SHA.
+5. Reconcile DELIVERY and affected canonical docs with the merged behavior before dispatching another task. Keep PR descriptions about behavior and verification; store model/session evidence in AI-WORKLOG. Record the resulting main SHA and verification in DELIVERY, then remove the completed task branch/worktree after confirming its changes are integrated. Record the merge SHA in a follow-up documentation update or linked PR; a commit cannot contain its own SHA.
 
 Before a GitHub remote exists, apply the same review/check sequence locally, with conductor-owned squash merges to main. Local integration does not imply a deployment. After initial repository setup, protect main against direct pushes and force pushes, and require the CI verify job. Record independent agent review evidence; an agent's text approval is not automatically a GitHub review approval. Enable GitHub approval requirements only with an available independent reviewer identity.
 

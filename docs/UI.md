@@ -27,6 +27,14 @@ HeroUI v3 has no mandatory HeroUIProvider. A next-themes ThemeProvider has a sep
 
 Check 360/390/768/1280/1440 CSS px, a 320px smoke, landscape and 200% zoom. The document must not overflow horizontally. Long filenames, Russian labels and large numbers must not break the layout. Resize the chart container, not just its outer card. Verify the mobile keyboard separately; desktop resizing is not enough.
 
+## Expanded chart view
+
+Each chart card has a top-right Lucide expand button with an accessible label including the chart title and a tooltip. Keep it visible on touch devices and provide an approximately 44px hit target.
+
+Open a large HeroUI modal on desktop and a full-screen dialog on mobile. Show the title, units, legend, interactive chart and access to its rationale/evidence. Resize the chart to the available container; do not enlarge a screenshot. Reuse the same renderer, computed data and controlled filter/legend state. Opening or closing must not trigger analysis, additional AI calls or duplicate report saves.
+
+Provide a visible close button, Escape dismissal, focus containment/restoration and background scroll locking. Preserve the report's scroll position on close. Handle rotation, mobile safe areas, both themes, reduced motion and long labels without page overflow. No browser fullscreen permission or additional modal library is needed.
+
 ## Loading, feedback and errors
 
 Use HeroUI Skeleton shaped like the final hero/metric/chart cards to minimize layout shift. Skeletons are placeholders, not the completed layout with invented values. Announce the current stage once; do not repeatedly read decorative skeletons or every streamed token to screen readers.

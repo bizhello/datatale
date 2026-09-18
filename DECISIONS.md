@@ -24,6 +24,8 @@ Target stack. README.md records the installed implementation. Install each depen
 
 ## Provider selection
 
-Choose AI SDK with Vercel AI Gateway or a supported direct provider API after verifying account eligibility, regional terms, billing and a live production fixture. Gateway does not guarantee model access for users in Russia. ChatGPT subscriptions do not include API inference credit.
+Use AI SDK with `@ai-sdk/openai` and the project-provided OpenAI-compatible gateway at `https://ai-gateway.spiro.vc/v1`. Initial requested model: `gpt-5.6-terra`. Configure a server-only `createOpenAI` instance with explicit `OPENAI_BASE_URL` and `OPENAI_API_KEY`; select the model through `AI_MODEL`. This gateway has its own subscription/access terms; Vercel AI Gateway billing is not part of this route.
+
+Local smoke checks on 2026-09-18 confirmed Chat Completions access to `gpt-5.6-terra` and one valid strict JSON-schema response. Select `provider.chat(modelId)` explicitly when implementing the SDK adapter; Responses API support was not tested. Streaming, quotas, data retention, SDK integration and invocation from Vercel remain unverified. A successful schema smoke check is not an evaluation of grounded analysis.
 
 Keep model configuration server-side. Compare candidates using grounded fixtures, failure rate, latency and cost. See [AI contracts](docs/AI.md) and [deployment](docs/DEPLOYMENT.md).

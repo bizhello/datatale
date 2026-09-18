@@ -18,7 +18,7 @@ Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, pr
 | Browser | Playwright + axe | Full user journey, mobile/theme/state regressions |
 | Model quality | Versioned fixtures + real provider evaluation | Unsupported claims, chart choices, refusals |
 
-Enable required CI checks in GitHub branch settings once a remote exists. The committed workflow alone does not protect a branch. Do not use production credentials/data in CI. Provider-mocked tests run on every PR; paid model evals run deliberately before release and when prompts/catalog/model change.
+Enable required CI checks in GitHub branch settings once a remote exists. The committed workflow alone does not protect a branch. Do not use production credentials/data in CI. CI runs on PRs and pushes to main. Changes limited to root README/AGENTS/CLAUDE/DECISIONS or Markdown under docs skip the expensive suite; the `verify` gate still runs. All other paths, including prompts, dependencies, workflows and unknown paths, run the full suite. Missing comparison history defaults to full checks. Require `verify` in branch protection. Provider-mocked tests run on code/configuration PRs; paid model evals run deliberately before release and when prompts/catalog/model change.
 
 ## Required tests per change
 
@@ -58,6 +58,7 @@ The existing suite covers the starter only. Domain integration coverage grows wi
 | Races | Replace file/cancel mid-request, late response, interrupted stream, expired run deadline |
 | Storage failure | No success/saved label before commit; rollback and retry preserve ownership |
 | UI states | Upload → analyze → charts → chat → evidence → reopen/delete; empty/error/loading/retry paths |
+| Expanded chart | Every supported kind opens/resizes/closes on desktop and mobile; keyboard focus returns to the trigger; legend/filter state and report scroll survive; opening makes no AI request or save |
 | Themes/responsive | Reload/system theme, no hydration flash; mobile keyboard, all target widths, long labels, reduced motion |
 | Onboarding | First-visit welcome, demo steps, persisted skip/completion, replay, cookie independence, unavailable storage/targets, unmount cleanup, focus/Escape, mobile and reduced motion |
 | Branding | Metadata and custom favicon served; no default framework icon |
