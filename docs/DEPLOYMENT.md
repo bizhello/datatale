@@ -8,7 +8,7 @@ Verified on 2026-09-18:
 
 - Vercel project `datatale` deploys GitHub `bizhello/datatale` main. Initial deployment of `e134ab2` succeeded; https://datatale.vercel.app returns HTTPS 200. Install: `bun install --frozen-lockfile`; build: `bun run build`.
 - Neon `datatale-db` uses Free, region `iad1`, with Auth disabled. Connected only to Vercel Production. Preview/development storage, session configuration and migrations remain pending; application persistence is not implemented.
-- `datatale.bizhov.ru` is assigned to Vercel Production. Existing authoritative DNS is Cloudflare (`nancy`/`roan`), not Spaceweb. Added CNAME `datatale` → `0c0e950f6ced7c09.vercel-dns-017.com`, DNS only, TTL Auto. No previous subdomain record existed; apex/mail/nameservers were preserved. Authoritative DNS resolves; HTTPS verification is pending.
+- `datatale.bizhov.ru` is assigned to Vercel Production. Existing authoritative DNS is Cloudflare (`nancy`/`roan`), not Spaceweb. Added CNAME `datatale` → `0c0e950f6ced7c09.vercel-dns-017.com`, DNS only, TTL Auto. No previous subdomain record existed; apex/mail/nameservers were preserved. Authoritative DNS resolves; https://datatale.bizhov.ru returns HTTPS 200 with certificate verification enabled.
 - AI Gateway requests a payment card to unlock $5 initial credits. No API key was created and no live inference was performed. The user must complete billing setup; ChatGPT subscription usage does not fund application inference.
 
 Keep credentials server-only and configure eligible provider/model access and inference limits before release. Infrastructure readiness does not imply implemented AI or persistence.

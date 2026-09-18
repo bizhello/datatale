@@ -4,7 +4,7 @@ Turn a CSV, an Excel workbook, or a short report into a grounded story, interact
 
 **Current implementation: development foundation and static preview.** Next.js, React and HeroUI are installed. Bun, Biome, strict TypeScript, Steiger, Vitest and Playwright/axe are configured. GitHub repository: https://github.com/bizhello/datatale. The foundation passed GitHub CI. The normalized table Dataset contract and its tests are implemented and merged in [PR #1](https://github.com/bizhello/datatale/pull/1). Upload, AI analysis, charts, chat, persistence, themes and onboarding remain planned.
 
-Live starter: https://datatale.vercel.app. See [deployment status](docs/DEPLOYMENT.md) for infrastructure and pending external setup.
+Live starter: https://datatale.bizhov.ru (also https://datatale.vercel.app). See [deployment status](docs/DEPLOYMENT.md) for infrastructure and pending external setup.
 
 ## Development
 

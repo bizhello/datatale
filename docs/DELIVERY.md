@@ -2,7 +2,7 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** DT-00 foundation and DT-01a Dataset contract are integrated in main. PR #1 was squash-merged as `c0dcbd5` after independent repeat review and conductor/CI checks. No executor is active. DT-01b and DT-02 are ready for the next dispatch; new product implementation is paused by user request. Infrastructure and workflow maintenance may continue.
+**Current state:** DT-00 foundation and DT-01a Dataset contract are integrated in main. PR #1 was squash-merged as `c0dcbd5` after independent repeat review and conductor/CI checks. No executor is active. DT-01b and DT-02 are ready for the next dispatch; new product implementation is paused by user request. Infrastructure and workflow maintenance are tracked in [draft PR #3](https://github.com/bizhello/datatale/pull/3); independent review and merge remain pending.
 
 ## Work packages
 
@@ -41,7 +41,7 @@ Executor: GPT-5.6 Terra, medium. Reviewer: GPT-5.6 Sol, medium; repeat review ap
 | --- | --- | --- |
 | EXT-01 | Eligible provider/model, server credentials, budget and successful small live fixture | User supplies account access; conductor configures/verifies. Unresolved |
 | EXT-02 | Neon development/test access and session-secret configuration; isolated schema and reviewed migrations | Production Neon provisioned; isolated development/test storage and session configuration remain unresolved. |
-| EXT-03 | GitHub/Vercel project access and permission/access for the subdomain DNS record | Vercel main deployed; Cloudflare CNAME added. Custom-domain HTTPS verification pending. |
+| EXT-03 | GitHub/Vercel project access and permission/access for the subdomain DNS record | Vercel main deployed; Cloudflare CNAME added. Custom domain returns HTTPS 200. |
 
 Never put credentials in this board. Local implementation and provider/storage doubles can progress in explicit child tasks while access is pending; a mocked check does not satisfy live acceptance. Ask for missing access early and continue independent ready work.
 
