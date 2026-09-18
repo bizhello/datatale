@@ -8,6 +8,22 @@ function workbookWithSheet(sheetXml: string) {
 }
 
 describe("XLSX preflight", () => {
+  it("enforces physical cell limits across worksheet XML entries", () => {
+    const letter = (index: number) =>
+      index < 26
+        ? String.fromCharCode(65 + index)
+        : `A${String.fromCharCode(65 + index - 26)}`;
+    const sheet = (rows: number) =>
+      `<worksheet><dimension ref="A1:AD${rows}"/><sheetData>${Array.from({ length: rows }, (_, row) => `<row>${Array.from({ length: 30 }, (_, column) => `<c r="${letter(column)}${row + 1}"/>`).join("")}</row>`).join("")}</sheetData></worksheet>`;
+    expect(() =>
+      preflightXlsx(
+        zipSync({
+          "a.xml": strToU8(sheet(2501)),
+          "b.xml": strToU8(sheet(2501)),
+        }),
+      ),
+    ).toThrow(/слишком много ячеек/);
+  });
   it("accepts the real multi-sheet XLSX fixture", () => {
     expect(preflightXlsx(createMultiSheetXlsx())).toBe(false);
   });

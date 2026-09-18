@@ -55,7 +55,7 @@ function inferType(values: unknown[]) {
           plainNumberPattern.test(value) &&
           !identifierPattern.test(value) &&
           (Number.isSafeInteger(Number(value)) ||
-            (value.includes(".") && Number.isFinite(Number(value))))),
+            (value.includes(".") && isLosslessDecimal(value)))),
     )
   )
     return "number" as const;
@@ -72,6 +72,13 @@ function inferType(values: unknown[]) {
   )
     return "date" as const;
   return "string" as const;
+}
+
+function isLosslessDecimal(value: string) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return false;
+  const canonical = value.replace(/(\.\d*?[1-9])0+$|\.0+$/, "$1");
+  return String(number) === canonical;
 }
 
 function scalarFor(
@@ -135,7 +142,10 @@ export function normalizeTable(
     .some(
       (value) =>
         typeof value === "string" &&
-        (/\d[,.]\d/.test(value) ||
+        ((plainNumberPattern.test(value) &&
+          value.includes(".") &&
+          !isLosslessDecimal(value)) ||
+          /\d,\d/.test(value) ||
           /[€$₽£]/.test(value) ||
           /^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}$/.test(value)),
     );

@@ -45,6 +45,21 @@ describe("normalizeTable", () => {
       ),
     ).toThrow(/5\s*000/);
   });
+  it("keeps precision-losing decimals as strings and warns", () => {
+    const result = normalizeTable(
+      {
+        headers: ["Точное"],
+        rows: [["1.234567890123456789"], ["2.000000000000000001"]],
+      },
+      { kind: "csv" },
+    );
+    if ("rawText" in result.source) throw new Error("Expected table");
+    expect(result.source.columns[0]?.scalarType).toBe("string");
+    expect(result.source.rows[0]?.values.column_1).toBe("1.234567890123456789");
+    expect(result.warnings.map((warning) => warning.code)).toContain(
+      "ambiguous-value",
+    );
+  });
 });
 describe("normalizeText", () => {
   it("keeps raw prose and paragraph provenance", () => {

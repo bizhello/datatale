@@ -14,6 +14,7 @@ export function preflightXlsx(bytes: Uint8Array) {
   let inflated = 0;
   let failure: ImportError | undefined;
   let formulas = false;
+  const physicalCells = { count: 0 };
   const fail = (message: string, code: string) => {
     failure ??= new ImportError(message, code);
   };
@@ -26,9 +27,13 @@ export function preflightXlsx(bytes: Uint8Array) {
     const inspect =
       file.name.endsWith(".xml") || file.name.endsWith(".xml.rels");
     const checker = inspect
-      ? createWorksheetChecker(fail, () => {
-          formulas = true;
-        })
+      ? createWorksheetChecker(
+          fail,
+          () => {
+            formulas = true;
+          },
+          physicalCells,
+        )
       : undefined;
     const decoder = inspect ? new TextDecoder() : undefined;
     file.ondata = (error, chunk, final) => {
@@ -66,10 +71,10 @@ export function preflightXlsx(bytes: Uint8Array) {
 function createWorksheetChecker(
   fail: (message: string, code: string) => void,
   foundFormula: () => void,
+  physicalCells: { count: number },
 ) {
   let worksheet = false;
   let dimension = false;
-  let cells = 0;
   const parser = new Parser({ proxy: true });
   parser.on("openTag", (element) => {
     const name = element.name.split(":").at(-1);
@@ -79,9 +84,9 @@ function createWorksheetChecker(
       validateRange(element.attrs.ref, fail);
     }
     if (worksheet && name === "c") {
-      cells += 1;
+      physicalCells.count += 1;
       validateCoordinate(element.attrs.r, fail);
-      if (cells > inputLimits.physicalCells)
+      if (physicalCells.count > inputLimits.physicalCells)
         fail("Лист содержит слишком много ячеек.", "cells-limit");
     }
     if (worksheet && name === "f") foundFormula();

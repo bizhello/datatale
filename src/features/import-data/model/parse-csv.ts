@@ -19,9 +19,12 @@ export function parseCsv(text: string, filename: string): ImportResult {
       previousCursor = meta.cursor;
     },
   });
-  if (errors.length)
+  const fatalErrors = errors.filter(
+    (error) => error.code !== "UndetectableDelimiter",
+  );
+  if (fatalErrors.length)
     throw new ImportError(
-      `CSV не удалось прочитать: ${errors[0]?.message ?? "неизвестная ошибка"}.`,
+      "CSV не удалось прочитать. Проверьте кавычки и разделители.",
       "invalid-csv",
     );
   const [header, ...body] = records;

@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { parseCsv } from "./parse-csv";
 
 describe("CSV to Dataset", () => {
+  it("accepts a valid one-column CSV despite Papa's advisory delimiter warning", () => {
+    const result = parseCsv("Score\n1\n2", "score.csv");
+    if ("rawText" in result.source) throw new Error("Expected dataset");
+    expect(result.source.rows.map((row) => row.values.score)).toEqual([1, 2]);
+  });
   it("keeps BOM headers, quoted commas/newlines, nulls and physical provenance", () => {
     const result = parseCsv(
       "\uFEFFКод,Описание,Сумма\r\n001," +
