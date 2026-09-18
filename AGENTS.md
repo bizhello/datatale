@@ -64,3 +64,8 @@ Load one relevant SKILL.md first; do not preload all rule books.
 | HeroUI APIs | `.agents/skills/heroui-react/SKILL.md` |
 
 Preserve pinned upstream skills. Project contracts govern dependencies and private-data handling.
+
+## Code Consistency
+
+- **Import adapters**: Preserve source precision and provenance before canonical conversion; validate parser changes with real source-format fixtures, not only already-normalized objects.
+- **Workbook resource bounds**: Apply budgets across every sheet decoded eagerly by the reader, including alternate XML paths. A per-sheet check does not establish a workbook-wide limit.
