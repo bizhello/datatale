@@ -2,7 +2,7 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** repository created at https://github.com/bizhello/datatale; foundation checks passed locally. DT-00 was committed and pushed as `7b8c0ba`. DT-01a is assigned to Terra medium in an isolated feature worktree; Sol medium reviews after handoff. The conductor owns this file and reconciles it with actual Git state at session start.
+**Current state:** repository created at https://github.com/bizhello/datatale; foundation checks passed locally. DT-00 was committed and pushed as `7b8c0ba`. DT-01a code candidate `4babf3d` was completed by Terra medium; independent Sol medium review is next. The conductor owns this file and reconciles it with actual Git state at session start.
 
 ## Work packages
 
@@ -60,7 +60,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| DT-01a | Terra medium | active | `7b8c0ba` + task setup / `feat/dt-01a-dataset-contract` / dt-01a worktree | `src/entities/dataset/**`, `tests/fixtures/dataset.ts` | Implement and hand off candidate for Sol medium review |
+| DT-01a | Sol medium / conductor | review | `7608aff` / `feat/dt-01a-dataset-contract` / dt-01a worktree | `src/entities/dataset/**`, `tests/fixtures/dataset.ts` | Review candidate `4babf3d` and conductor-owned FSD exception; PR #1 |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 
