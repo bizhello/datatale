@@ -2,7 +2,7 @@
 
 **Make failures visible at the boundary that owns the rule.** Type checking, runtime validation, semantic tests and browser review protect different risks. None makes the project impossible to break.
 
-Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Initial tests cover demo labeling, disclosure, viewport overflow and automated accessibility in Chromium and WebKit. Domain/integration tests and live-model evaluations are added with their features.
+Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Input coverage includes parser contracts, source provenance, workbook preflight, UI recovery, viewport overflow and automated accessibility in Chromium and WebKit. Model/provider/storage evaluations remain separate release work.
 
 ## Gate design
 
@@ -38,7 +38,7 @@ Integration tests are required when behavior crosses a meaningful boundary, not 
 
 Colocate unit/component/integration files under their owning `src` slice using `*.test.ts` or `*.test.tsx`; `*.integration.test.ts` matches the current Vitest include. Shared fixture files live in `tests/fixtures`; browser workflows live in `tests/e2e`. Storage tests must use disposable, isolated data. When adding them, configure the test database and CI execution in that same task; missing prerequisites must fail the required gate rather than silently skip it.
 
-The existing suite covers the starter only. Domain integration coverage grows with feature implementation. Passing mocks cannot close the live-provider or production acceptance requirements.
+Parser integration exercises synthetic CSV/XLSX and canonical Dataset validation. Browser coverage exercises the real worker; controlled component/controller tests cover deterministic asynchronous races. Passing mocks cannot close the live-provider or production acceptance requirements.
 
 ## Risk-to-test map
 

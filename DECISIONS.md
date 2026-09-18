@@ -11,7 +11,7 @@ Target stack. README.md records the installed implementation. Install each depen
 | UI | HeroUI v3, Tailwind v4, Lucide |
 | Themes/animation | next-themes, Motion, HeroUI Skeleton |
 | Guided tour | Driver |
-| Input | react-dropzone, Papa Parse, read-excel-file; fflate for bounded XLSX archive inspection |
+| Input | react-dropzone, Papa Parse, read-excel-file; fflate for bounded XLSX archive inspection and saxen for XML bounds |
 | Charts/evidence | Recharts, TanStack Table |
 | Contracts | Zod, inferred types |
 | AI | AI SDK (`ai`, `@ai-sdk/react`) |
