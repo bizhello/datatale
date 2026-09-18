@@ -37,6 +37,12 @@ Create additional slices with their first consumer. Guest workspace contracts be
 - Dataset calculations are pure functions; report model code contains no React. Chart renderer modules may import React/Recharts, but server prompts must import only the serializable capability catalog.
 - Provider construction, DB client, cookie configuration and secret validation are server-only. Pass external dependencies at the operation boundary for testing; avoid a universal service container.
 
+## Component organization
+
+Keep one React component per production TSX file. Component props may be declared beside the component; other named state/protocol types belong in the owning slice's type module. A screen component composes child components and consumes a feature hook; reducers and asynchronous lifecycle orchestration belong in `model`, and cohesive pure helpers in `lib`. Keep domain-specific demo data/configuration within the feature.
+
+Use direct relative imports inside a slice and preserve its narrow public API. Do not add a global types or utilities bucket, a barrel for every directory, or one file for every trivial expression. Extract components around meaningful UI responsibilities (input, loading, error, preview), preserving React identity and existing behavior.
+
 ## State ownership
 
 | State | Owner |
