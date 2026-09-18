@@ -7,6 +7,14 @@ export const DATASET_MIN_ROWS = 1;
 export const DATASET_MAX_ROWS = 5_000;
 
 const nonemptyString = z.string().min(1);
+const nonblankIdentity = nonemptyString.refine(
+  (value) => value.trim().length > 0,
+  { message: "Identity must contain a non-whitespace character." },
+);
+const datasetColumnId = nonblankIdentity.refine(
+  (value) => value !== "__proto__",
+  { message: "Column ID __proto__ is reserved." },
+);
 
 const calendarDate = z.iso.date();
 
@@ -19,7 +27,7 @@ export const datasetScalarTypeSchema = z.enum([
 
 export const datasetColumnSchema = z
   .object({
-    id: nonemptyString,
+    id: datasetColumnId,
     label: nonemptyString,
     scalarType: datasetScalarTypeSchema,
     unit: nonemptyString.optional(),
@@ -33,10 +41,27 @@ const datasetValueSchema = z.union([
   z.null(),
 ]);
 
+const datasetValuesSchema = z
+  .unknown()
+  .superRefine((value, context) => {
+    if (
+      typeof value === "object" &&
+      value !== null &&
+      Object.hasOwn(value, "__proto__")
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Row value key __proto__ is reserved.",
+        path: ["__proto__"],
+      });
+    }
+  })
+  .pipe(z.record(z.string(), datasetValueSchema));
+
 export const datasetRowSchema = z
   .object({
-    id: nonemptyString,
-    values: z.record(z.string(), datasetValueSchema),
+    id: nonblankIdentity,
+    values: datasetValuesSchema,
     provenance: z
       .object({
         sourceRowNumber: z.number().int().positive(),
@@ -76,7 +101,7 @@ function isValueCompatibleWithColumn(
 export const datasetSchema = z
   .object({
     version: z.literal(DATASET_SCHEMA_VERSION),
-    id: nonemptyString,
+    id: nonblankIdentity,
     source: datasetSourceSchema,
     columns: z
       .array(datasetColumnSchema)

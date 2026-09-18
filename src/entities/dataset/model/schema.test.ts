@@ -74,6 +74,13 @@ describe("datasetSchema", () => {
     const invalidProvenance = cloneFixture();
     requiredItem(rowsOf(invalidProvenance), 0).provenance.sourceRowNumber = 0;
 
+    const fractionalProvenance = cloneFixture();
+    requiredItem(rowsOf(fractionalProvenance), 0).provenance.sourceRowNumber =
+      1.5;
+
+    const negativeProvenance = cloneFixture();
+    requiredItem(rowsOf(negativeProvenance), 0).provenance.sourceRowNumber = -1;
+
     expect(datasetSchema.safeParse(malformedId).success).toBe(false);
     expect(datasetSchema.safeParse(emptyColumnId).success).toBe(false);
     expect(datasetSchema.safeParse(emptyRowId).success).toBe(false);
@@ -81,6 +88,33 @@ describe("datasetSchema", () => {
     expect(datasetSchema.safeParse(duplicateColumn).success).toBe(false);
     expect(datasetSchema.safeParse(duplicateRow).success).toBe(false);
     expect(datasetSchema.safeParse(invalidProvenance).success).toBe(false);
+    expect(datasetSchema.safeParse(fractionalProvenance).success).toBe(false);
+    expect(datasetSchema.safeParse(negativeProvenance).success).toBe(false);
+  });
+
+  it("rejects whitespace-only identities without transforming valid identity text", () => {
+    const whitespaceDatasetId = cloneFixture();
+    whitespaceDatasetId.id = " \t";
+
+    const whitespaceColumnId = cloneFixture();
+    requiredItem(whitespaceColumnId.columns as Array<{ id: string }>, 0).id =
+      " ";
+
+    const whitespaceRowId = cloneFixture();
+    requiredItem(rowsOf(whitespaceRowId), 0).id = "\n";
+
+    const preservedIdentity = cloneFixture();
+    preservedIdentity.id = " dataset-sales-q1 ";
+
+    const result = datasetSchema.safeParse(preservedIdentity);
+
+    expect(datasetSchema.safeParse(whitespaceDatasetId).success).toBe(false);
+    expect(datasetSchema.safeParse(whitespaceColumnId).success).toBe(false);
+    expect(datasetSchema.safeParse(whitespaceRowId).success).toBe(false);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.id).toBe(" dataset-sales-q1 ");
+    }
   });
 
   it("rejects values that do not match their declared scalar type", () => {
@@ -114,6 +148,35 @@ describe("datasetSchema", () => {
     expect(datasetSchema.safeParse(missingKey).success).toBe(false);
     expect(datasetSchema.safeParse(extraKey).success).toBe(false);
     expect(datasetSchema.safeParse(nullValues).success).toBe(true);
+  });
+
+  it("rejects reserved __proto__ column IDs and raw row value keys", () => {
+    const reservedColumn = cloneFixture();
+    requiredItem(reservedColumn.columns as Array<{ id: string }>, 0).id =
+      "__proto__";
+
+    const rawProtoKey = JSON.parse(
+      JSON.stringify(syntheticDatasetFixture),
+    ) as Record<string, unknown>;
+    requiredItem(rowsOf(rawProtoKey), 0).values = JSON.parse(
+      '{"date":"2026-01-31","revenue":1200,"paid":true,"note":"January","__proto__":42}',
+    ) as Record<string, unknown>;
+
+    const reservedColumnResult = datasetSchema.safeParse(reservedColumn);
+    const rawProtoKeyResult = datasetSchema.safeParse(rawProtoKey);
+
+    expect(reservedColumnResult.success).toBe(false);
+    expect(rawProtoKeyResult.success).toBe(false);
+    if (!reservedColumnResult.success) {
+      expect(reservedColumnResult.error.issues).toContainEqual(
+        expect.objectContaining({ path: ["columns", 0, "id"] }),
+      );
+    }
+    if (!rawProtoKeyResult.success) {
+      expect(rawProtoKeyResult.error.issues).toContainEqual(
+        expect.objectContaining({ path: ["rows", 0, "values", "__proto__"] }),
+      );
+    }
   });
 
   it("rejects invalid and non-finite numbers", () => {
@@ -150,19 +213,16 @@ describe("datasetSchema", () => {
     noColumns.columns = [];
 
     const tooManyColumns = cloneFixture();
-    tooManyColumns.columns = Array.from(
-      { length: DATASET_MAX_COLUMNS + 1 },
-      (_, index) => ({
-        id: `column-${index}`,
-        label: `Column ${index}`,
-        scalarType: "string",
-      }),
-    );
+    tooManyColumns.columns = Array.from({ length: 31 }, (_, index) => ({
+      id: `column-${index}`,
+      label: `Column ${index}`,
+      scalarType: "string",
+    }));
     tooManyColumns.rows = [
       {
         id: "row-1",
         values: Object.fromEntries(
-          Array.from({ length: DATASET_MAX_COLUMNS + 1 }, (_, index) => [
+          Array.from({ length: 31 }, (_, index) => [
             `column-${index}`,
             "value",
           ]),
@@ -186,30 +246,49 @@ describe("datasetSchema", () => {
       },
     ];
 
+    const exactMaxColumns = cloneFixture();
+    exactMaxColumns.columns = Array.from({ length: 30 }, (_, index) => ({
+      id: `column-${index}`,
+      label: `Column ${index}`,
+      scalarType: "string",
+    }));
+    exactMaxColumns.rows = [
+      {
+        id: "row-1",
+        values: Object.fromEntries(
+          Array.from({ length: 30 }, (_, index) => [
+            `column-${index}`,
+            "value",
+          ]),
+        ),
+        provenance: { sourceRowNumber: 1 },
+      },
+    ];
+
     const maxRows = cloneFixture();
-    maxRows.rows = Array.from({ length: DATASET_MAX_ROWS }, (_, index) => ({
+    maxRows.rows = Array.from({ length: 5_000 }, (_, index) => ({
       id: `row-${index}`,
       values: { date: "2026-01-01", revenue: index, paid: true, note: "ok" },
       provenance: { sourceRowNumber: index + 1 },
     }));
 
     const tooManyRows = cloneFixture();
-    tooManyRows.rows = Array.from(
-      { length: DATASET_MAX_ROWS + 1 },
-      (_, index) => ({
-        id: `row-${index}`,
-        values: { date: "2026-01-01", revenue: index, paid: true, note: "ok" },
-        provenance: { sourceRowNumber: index + 1 },
-      }),
-    );
+    tooManyRows.rows = Array.from({ length: 5_001 }, (_, index) => ({
+      id: `row-${index}`,
+      values: { date: "2026-01-01", revenue: index, paid: true, note: "ok" },
+      provenance: { sourceRowNumber: index + 1 },
+    }));
 
     expect(DATASET_MIN_COLUMNS).toBe(1);
+    expect(DATASET_MAX_COLUMNS).toBe(30);
     expect(DATASET_MIN_ROWS).toBe(1);
+    expect(DATASET_MAX_ROWS).toBe(5_000);
     expect(datasetSchema.safeParse(wrongVersion).success).toBe(false);
     expect(datasetSchema.safeParse(noColumns).success).toBe(false);
     expect(datasetSchema.safeParse(tooManyColumns).success).toBe(false);
     expect(datasetSchema.safeParse(noRows).success).toBe(false);
     expect(datasetSchema.safeParse(smallestDataset).success).toBe(true);
+    expect(datasetSchema.safeParse(exactMaxColumns).success).toBe(true);
     expect(datasetSchema.safeParse(maxRows).success).toBe(true);
     expect(datasetSchema.safeParse(tooManyRows).success).toBe(false);
   });
