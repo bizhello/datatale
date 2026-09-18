@@ -60,7 +60,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| DT-01b.1 | dt01b_executor | active | `b6754a173dd48cb7ee729c9ba13b602a24f611e9` / `feat/dt-01b-chart-contracts` / `/Users/andreybizhov/prog/datatale-worktrees/dt-01b` | `src/entities/report/**`, `tests/fixtures/report.ts` | Candidate `3f89a55`, draft PR #5. Scoped report usage-only Steiger exception added with removal condition; full check:all passed (20 Vitest, build, 6 browser tests). Review requested changes: prevent catalog/schema aggregation drift with shared ownership or bidirectional contract coverage. Executor correction active; repeat exact-commit review required, no merge |
+| DT-01b.1 | conductor | review | `b6754a173dd48cb7ee729c9ba13b602a24f611e9` / `feat/dt-01b-chart-contracts` / `/Users/andreybizhov/prog/datatale-worktrees/dt-01b` | `src/entities/report/**`, `tests/fixtures/report.ts` | Candidate `e020a26`, PR #5. Independent repeat review approved after catalog/schema drift correction; 21 Vitest, lint, architecture, types and build passed. Prior full browser suite: 6 passed. Scoped report usage exception retained. Awaiting integration; no merge |
 
 ### DT-01b.1 assignment
 
