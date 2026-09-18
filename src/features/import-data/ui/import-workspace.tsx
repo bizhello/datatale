@@ -10,15 +10,14 @@ import { SourcePreview } from "./source-preview";
 export function ImportWorkspace() {
   const {
     state,
-    acceptFile,
     acceptText,
     cancel,
     changeText,
     clear,
-    rejectFile,
     retry,
     selectSheet,
     showDemo,
+    dropzone,
   } = useImportWorkspace();
   const canEdit = state.status === "empty" || state.status === "error";
   return (
@@ -44,10 +43,9 @@ export function ImportWorkspace() {
       {canEdit && (
         <InputOptions
           text={state.text}
-          onAcceptFile={acceptFile}
-          onRejectFile={rejectFile}
           onChangeText={changeText}
           onAcceptText={acceptText}
+          dropzone={dropzone}
         />
       )}
       {canEdit && (

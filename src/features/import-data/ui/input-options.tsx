@@ -1,43 +1,34 @@
 import { Button } from "@heroui/react";
 import { FileSpreadsheet, FileText, Upload } from "lucide-react";
-import { useDropzone } from "react-dropzone";
+import type { DropzoneState } from "react-dropzone";
 
 type InputOptionsProps = {
   text: string;
-  onAcceptFile: (file: File) => void;
-  onRejectFile: () => void;
   onChangeText: (text: string) => void;
   onAcceptText: () => void;
+  dropzone: Pick<
+    DropzoneState,
+    "getRootProps" | "getInputProps" | "isDragActive"
+  >;
 };
 
 export function InputOptions({
   text,
-  onAcceptFile,
-  onRejectFile,
   onChangeText,
   onAcceptText,
+  dropzone,
 }: InputOptionsProps) {
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: {
-      "text/csv": [".csv"],
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
-        ".xlsx",
-      ],
-    },
-    maxFiles: 1,
-    multiple: false,
-    onDropAccepted: ([file]) => file && onAcceptFile(file),
-    onDropRejected: onRejectFile,
-  });
-
   return (
     <div className="input-grid">
       <div
-        {...getRootProps({
-          className: `dropzone ${isDragActive ? "dropzone-active" : ""}`,
+        {...dropzone.getRootProps({
+          className: `dropzone ${dropzone.isDragActive ? "dropzone-active" : ""}`,
         })}
       >
-        <input {...getInputProps()} aria-label="Выбрать CSV или XLSX файл" />
+        <input
+          {...dropzone.getInputProps()}
+          aria-label="Выбрать CSV или XLSX файл"
+        />
         <span className="input-icon">
           <Upload aria-hidden="true" />
         </span>

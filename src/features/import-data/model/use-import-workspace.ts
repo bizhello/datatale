@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useDropzone } from "react-dropzone";
 import { demoTable, demoText } from "../config/import-workspace";
 import { ImportError } from "../lib/import-error";
 import { errorMessage, isAbort } from "../lib/import-errors";
@@ -174,6 +175,18 @@ export function useImportWorkspace() {
         "Выберите один CSV или XLSX-файл размером до 2 МБ. XLS нужно сохранить как XLSX.",
     });
   }, [cancelActive]);
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    accept: {
+      "text/csv": [".csv"],
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+        ".xlsx",
+      ],
+    },
+    maxFiles: 1,
+    multiple: false,
+    onDropAccepted: ([file]) => file && acceptFile(file),
+    onDropRejected: rejectFile,
+  });
 
   return {
     state,
@@ -186,5 +199,6 @@ export function useImportWorkspace() {
     retry,
     selectSheet,
     showDemo,
+    dropzone: { getRootProps, getInputProps, isDragActive },
   };
 }
