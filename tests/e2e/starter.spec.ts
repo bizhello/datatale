@@ -151,9 +151,19 @@ test("preserves XLSX numeric precision before canonical conversion", async ({
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     buffer: Buffer.from(zipSync(archive)),
   });
-  await expect(page.getByRole("status")).toHaveText(
-    "Предупреждение при обработке источника Неоднозначные даты, суммы и десятичные значения сохранены как текст.",
-  );
+  const warning = page.getByRole("status");
+  await expect(warning).toBeVisible();
+  await expect(
+    warning.getByText("Предупреждение при обработке источника", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    warning.getByText(
+      "Неоднозначные даты, суммы и десятичные значения сохранены как текст.",
+      { exact: true },
+    ),
+  ).toBeVisible();
   await expect(
     page.getByRole("gridcell", {
       name: "2.000000000000000001",
