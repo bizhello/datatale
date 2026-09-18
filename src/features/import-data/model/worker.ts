@@ -1,9 +1,9 @@
 import { Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
-import Papa from "papaparse";
 import readXlsxFile from "read-excel-file/web-worker";
 import { Parser } from "saxen";
 import { inputLimits } from "@/shared/config";
 import { normalizeTable } from "./normalize";
+import { parseCsv } from "./parse-csv";
 import { ImportError } from "./types";
 
 type WorkerRequest = { id: number; file: File; selectedSheet?: string };
@@ -169,43 +169,7 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
         "legacy-xls",
       );
     if (name.endsWith(".csv")) {
-      const text = await file.text();
-      let previousCursor = 0;
-      const parsedRows: Array<{ row: string[]; sourceRowNumber: number }> = [];
-      const parseErrors: Papa.ParseError[] = [];
-      Papa.parse<string[]>(text, {
-        skipEmptyLines: false,
-        step: ({ data, errors, meta }) => {
-          parseErrors.push(...errors);
-          const sourceRowNumber = text
-            .slice(0, previousCursor)
-            .split(/\r\n|\r|\n/).length;
-          previousCursor = meta.cursor;
-          parsedRows.push({ row: data, sourceRowNumber });
-        },
-      });
-      if (parseErrors.length)
-        throw new ImportError(
-          `CSV не удалось прочитать: ${parseErrors[0]?.message ?? "неизвестная ошибка"}.`,
-          "invalid-csv",
-        );
-      const [headerRecord, ...unfilteredRows] = parsedRows;
-      const headers = headerRecord?.row;
-      if (!headers)
-        throw new ImportError("В CSV нет заголовка.", "empty-header");
-      const records = unfilteredRows.filter(({ row }) =>
-        row.some((cell) => String(cell ?? "").trim()),
-      );
-      const result = normalizeTable(
-        {
-          headers,
-          rows: records.map(({ row }) => row),
-          sourceRowNumbers: records.map(
-            ({ sourceRowNumber }) => sourceRowNumber,
-          ),
-        },
-        { kind: "csv", filename: file.name },
-      );
+      const result = parseCsv(await file.text(), file.name);
       self.postMessage({ id, kind: "success", result });
       return;
     }
@@ -229,7 +193,12 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
     if (!headers)
       throw new ImportError("В выбранном листе нет заголовка.", "empty-header");
     const result = normalizeTable(
-      { headers: headers.map(String), rows },
+      {
+        headers: headers.map((header) =>
+          header === null ? "" : String(header),
+        ),
+        rows,
+      },
       { kind: "xlsx", filename: file.name, sheet: selected.sheet },
     );
     self.postMessage({
