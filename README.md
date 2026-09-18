@@ -2,7 +2,7 @@
 
 Turn a CSV, an Excel workbook, or a short report into a grounded story, interactive charts, and answers supported by the source.
 
-**Current implementation: development foundation and static preview.** Next.js, React and HeroUI are installed. Bun, Biome, strict TypeScript, Steiger, Vitest and Playwright/axe are configured. GitHub repository: https://github.com/bizhello/datatale. CI is configured; the initial remote run is pending. Upload, AI analysis, charts, chat, persistence, themes and onboarding remain planned.
+**Current implementation: development foundation and static preview.** Next.js, React and HeroUI are installed. Bun, Biome, strict TypeScript, Steiger, Vitest and Playwright/axe are configured. GitHub repository: https://github.com/bizhello/datatale. The foundation passed GitHub CI. The normalized table Dataset contract and its tests are implemented; the first feature PR is under review. Upload, AI analysis, charts, chat, persistence, themes and onboarding remain planned.
 
 ## Development
 
