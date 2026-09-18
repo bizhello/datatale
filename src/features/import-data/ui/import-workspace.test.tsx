@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ImportError, type ImportResult } from "../model/types";
+import { ImportError } from "../lib/import-error";
+import type { ImportResult } from "../model/types";
 
 type Deferred = {
   promise: Promise<ImportResult>;

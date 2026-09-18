@@ -1,6 +1,7 @@
 import Papa from "papaparse";
+import { ImportError } from "../lib/import-error";
 import { normalizeTable } from "./normalize";
-import { ImportError, type ImportResult } from "./types";
+import type { ImportResult } from "./types";
 
 export function parseCsv(text: string, filename: string): ImportResult {
   const source = text.startsWith("\uFEFF") ? text.slice(1) : text;

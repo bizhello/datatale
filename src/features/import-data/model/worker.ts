@@ -2,11 +2,11 @@ import { Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 import readXlsxFile from "read-excel-file/web-worker";
 import { Parser } from "saxen";
 import { inputLimits } from "@/shared/config";
+import { ImportError } from "../lib/import-error";
 import { normalizeTable } from "./normalize";
 import { parseCsv } from "./parse-csv";
-import { ImportError } from "./types";
+import type { WorkerRequest } from "./worker-protocol";
 
-type WorkerRequest = { id: number; file: File; selectedSheet?: string };
 let retainedSheets:
   | Awaited<ReturnType<typeof readXlsxFile<string>>>
   | undefined;

@@ -5,12 +5,8 @@ import {
   textSourceSchema,
 } from "@/entities/dataset";
 import { inputLimits } from "@/shared/config";
-import {
-  ImportError,
-  type ImportResult,
-  type ImportWarning,
-  type ParsedTable,
-} from "./types";
+import { ImportError } from "../lib/import-error";
+import type { ImportResult, ImportWarning, ParsedTable } from "./types";
 
 const identifierPattern = /^0\d+$/;
 const plainNumberPattern = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/;

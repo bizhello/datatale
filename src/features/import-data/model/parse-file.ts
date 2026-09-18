@@ -1,14 +1,7 @@
 import { inputLimits } from "@/shared/config";
+import { ImportError } from "../lib/import-error";
 import type { ImportResult } from "./types";
-import { ImportError } from "./types";
-
-type WorkerResponse =
-  | { id: number; kind: "success"; result: ImportResult }
-  | {
-      id: number;
-      kind: "error";
-      error: { message: string; code: string; sheetNames?: string[] };
-    };
+import type { WorkerResponse } from "./worker-protocol";
 
 export function parseFileInWorker(file: File, initialSheet?: string) {
   const worker = new Worker(new URL("./worker.ts", import.meta.url));
