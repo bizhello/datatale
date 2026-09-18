@@ -69,7 +69,6 @@ For each active task, add its filled assignment from WORKFLOW under this section
 | Task | Integration SHA | Review result / reference | Checks and remaining limitations |
 | --- | --- | --- | --- |
 | DT-00 foundation | `7b8c0ba` | Conductor verification; no independent feature review claimed | Frozen install, lint, FSD, types, build, 2 component and 6 browser tests passed historically. See AI-WORKLOG. No product features verified |
-
 | DT-01a Dataset | `c0dcbd5` ([PR #1](https://github.com/bizhello/datatale/pull/1)) | Sol medium approved `1230714`; reserved-key, blank-ID and circular-test findings fixed in `d706432` | `bun run check:all`: 12 Vitest + 6 browser tests passed; GitHub CI passed. Squash tree matches reviewed candidate. No parser/AI/UI implementation claimed |
 
 Append one concise row per integrated task. Update task state and any changed README/domain contracts in the same integration handoff. Git retains prior board revisions; AI-WORKLOG retains selected real prompts/errors for the pitch.
