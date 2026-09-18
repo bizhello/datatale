@@ -20,7 +20,7 @@ These are acceptance packages, not mandatory separate PRs. Dispatch complete use
 | DT-07 | Report rendering: exhaustive Recharts registry, hero, evidence and chart rationale; 2–3 useful interactive charts from canonical fixtures, touch/keyboard, both themes and expanded chart dialog per UI.md | DT-01, DT-02 | queued |
 | DT-08 | Grounded chat: owner-checked source context, bounded calculations, stream/error handling and exact insufficient-data refusal; supported/absent/injection cases | DT-05, DT-06 | queued |
 | DT-09 | Connected journey: thin API routes, input → analysis → charts → chat, stage state/cancel/retry; history reopen/delete without repeat inference; production E2E | DT-03, DT-05, DT-06, DT-07, DT-08 | queued |
-| DT-10 | XLSX/text input: sheet selection, explicit text quantities with quotations, bounded parsing and honest no-chart state; integrate and test through the same journey | DT-09 | queued |
+| DT-10 | XLSX/text input: sheet selection, explicit text quantities with quotations, bounded parsing and honest no-chart state; integrate and test through the same journey | DT-01a for input; AI dashboard for extraction | active (input: DT-INPUT) |
 | DT-11 | Release: real-model quality, production/mobile/theme/error checks, GitHub README, Vercel/subdomain and 3–5 minute pitch with actual AI evidence | DT-10, EXT-03 | queued |
 | DT-12 | Enhancement: skippable/replayable Driver.js demo tour; persistence, mobile, focus and reduced-motion checks | DT-09 | queued |
 | DT-13 | Enhancement: reuse a blueprint with new input, explicit mapping and recalculation; no carried-over facts | DT-10 | queued |
@@ -53,7 +53,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| DT-INPUT | Executor: Terra medium; conductor: dependencies/docs; reviewer: Sol medium | active (plan review) | `f397e159b7ddf7392ce0363b80da36a2c3b7400e` / `feat/dt-input-workspace` / `../datatale-worktrees/input-workspace` | Executor: `src/features/import-data/**`, `src/entities/dataset/**`, `src/widgets/dashboard-shell/**`, `src/shared/**`, `src/app/{layout.tsx,globals.css,providers.tsx}`, `tests/e2e/**`, `tests/fixtures/import/**`; conductor: root config, dependencies, docs | Review plan, then implement the whole input journey; no AI/storage dependency |
+| DT-INPUT | Executor: Terra medium; conductor: dependencies/docs; reviewer: Sol medium | active (implementation) | `f397e159b7ddf7392ce0363b80da36a2c3b7400e` / `feat/dt-input-workspace` / `../datatale-worktrees/input-workspace` | Executor: `src/features/import-data/**`, `src/entities/dataset/**`, `src/widgets/dashboard-shell/**`, `src/shared/**`, `src/app/{layout.tsx,globals.css,providers.tsx}`, `tests/e2e/**`, `tests/fixtures/import/**`; conductor: root config, dependencies, docs | Implement reviewed whole input journey; no AI/storage dependency |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 
