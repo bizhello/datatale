@@ -101,3 +101,7 @@ The conductor defined component ownership in AGENTS and ARCHITECTURE. The execut
 **Request (translated summary):** use the selected HeroUI library consistently instead of hand-built labels, text areas, selects, tables and states.
 
 **Assignment:** adopt version-matched HeroUI v3.2.6 primitives for the existing input workspace and shell while preserving parser, worker, dropzone and public behavior. The hidden file input remains native because `react-dropzone` owns its props and document lifecycle. No new dependency or AI/dashboard functionality is in scope. Responsive, theme, keyboard, behavior and full regression evidence are required before integration.
+
+**Corrections:** the first full browser run used the old native-table `cell` role for a numeric-precision assertion. HeroUI exposes data cells as `gridcell`; the rendered value was exact, so the selector was corrected and the full suite repeated. Conductor review also removed a one-off named theme type from the component file and restored right alignment after the character counter moved into `TextField.Description`, preserving the component-ownership rule and prior visual hierarchy.
+
+**Verification:** focused component tests passed 8/8. Final `bun run check:all` passed Biome, Steiger boundaries, strict types, 49 Vitest tests, the production build and 24 Playwright cases across desktop/mobile Chromium and mobile WebKit. Independent exact-candidate review and hosted evidence are recorded in the linked PR before integration.
