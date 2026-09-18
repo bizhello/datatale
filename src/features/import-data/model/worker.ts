@@ -23,7 +23,7 @@ export function preflightXlsx(bytes: Uint8Array) {
       fail("В книге слишком много архивных частей.", "zip-entries");
       return;
     }
-    const inspect = /^xl\/worksheets\/[^/]+\.xml$/.test(file.name);
+    const inspect = file.name.endsWith(".xml");
     const checker = inspect
       ? createWorksheetChecker(fail, () => {
           formulas = true;
@@ -66,22 +66,24 @@ function createWorksheetChecker(
   fail: (message: string, code: string) => void,
   foundFormula: () => void,
 ) {
+  let worksheet = false;
   let dimension = false;
   let cells = 0;
   const parser = new Parser({ proxy: true });
   parser.on("openTag", (element) => {
     const name = element.name.split(":").at(-1);
-    if (name === "dimension") {
+    if (name === "worksheet") worksheet = true;
+    if (worksheet && name === "dimension") {
       dimension = true;
       validateRange(element.attrs.ref, fail);
     }
-    if (name === "c") {
+    if (worksheet && name === "c") {
       cells += 1;
       validateCoordinate(element.attrs.r, fail);
       if (cells > inputLimits.physicalCells)
         fail("Лист содержит слишком много ячеек.", "cells-limit");
     }
-    if (name === "f") foundFormula();
+    if (worksheet && name === "f") foundFormula();
   });
   parser.on("error", () =>
     fail("XLSX содержит некорректный XML листа.", "invalid-xlsx"),
@@ -92,7 +94,7 @@ function createWorksheetChecker(
     },
     end() {
       parser.end();
-      if (!dimension)
+      if (worksheet && !dimension)
         fail("В XLSX нет корректного размера листа.", "dimensions-limit");
     },
   };

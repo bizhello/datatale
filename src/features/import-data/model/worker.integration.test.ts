@@ -20,6 +20,25 @@ describe("XLSX preflight", () => {
       ),
     ).toThrow(/Размер листа/);
   });
+  it("guards worksheet XML at alternate archive paths but accepts metadata XML", () => {
+    expect(() =>
+      preflightXlsx(
+        zipSync({
+          "custom/alternate.xml": strToU8(
+            '<worksheet><dimension ref="A1:AF5002"/><sheetData><row><c r="AF5002"/></row></sheetData></worksheet>',
+          ),
+        }),
+      ),
+    ).toThrow(/Размер листа/);
+    expect(() =>
+      preflightXlsx(
+        zipSync({
+          "xl/styles.xml": strToU8("<styleSheet><cellXfs/></styleSheet>"),
+          "xl/workbook.xml": strToU8("<workbook><sheets/></workbook>"),
+        }),
+      ),
+    ).not.toThrow();
+  });
   it("rejects malformed worksheet XML and recognizes cached formulas", () => {
     expect(() =>
       preflightXlsx(
