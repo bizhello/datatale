@@ -2,7 +2,7 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** foundation, Dataset and chart planning contracts are integrated (PRs #1, #3–#6). The complete local input workspace is implemented in [PR #7](https://github.com/bizhello/datatale/pull/7): responsive themes, CSV/XLSX/text, bounded parsing, preview, cancellation and sheet-error recovery. The linked PR records review, checks and authoritative merge status. Next is the AI-dashboard feature, including remaining Facts/Report contracts. AI analysis, charts, chat, persistence and onboarding are still unimplemented.
+**Current state:** DT-INPUT is integrated as `5033231` via [PR #7](https://github.com/bizhello/datatale/pull/7), with independent review, passing CI and production smoke. DT-INPUT-STRUCTURE is in [PR #8](https://github.com/bizhello/datatale/pull/8): separate component files and state/helper ownership while preserving input behavior; final review and integration are pending. AI-dashboard work remains next; analysis, charts, chat, persistence and onboarding are not implemented.
 
 ## Work packages
 
@@ -53,7 +53,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| DT-INPUT | Conductor; independent Sol reviewer | integrating — see [PR #7](https://github.com/bizhello/datatale/pull/7) for final status | `f397e159b7ddf7392ce0363b80da36a2c3b7400e` / `feat/dt-input-workspace` / `../datatale-worktrees/input-workspace` | Code frozen for exact-candidate review; conductor owns review corrections and integration | Executor lanes completed; review corrections applied; linked PR records repeat review and CI |
+| DT-INPUT-STRUCTURE | Executor: Terra medium; conductor: docs/integration; reviewer: Sol medium | review | `5033231959a910015c58334ca9eda54ea51fcc83` / `refactor/dt-input-components` / `../datatale-worktrees/input-components` | Executor: `src/features/import-data/**`, `src/widgets/dashboard-shell/**`; conductor: canonical docs | PR #8; implementation and local gates complete (49 unit / 21 browser tests); independent final-candidate review and hosted checks pending |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 

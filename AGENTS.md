@@ -67,5 +67,7 @@ Preserve pinned upstream skills. Project contracts govern dependencies and priva
 
 ## Code Consistency
 
+- **Component files**: Keep exactly one production React component per TSX file. Colocate its props type with the component; put other named types in the owning slice's type module. Move reusable helpers, reducers and lifecycle orchestration out of component files into cohesive `lib`/`model` modules or hooks. Keep feature-specific logic in its feature; use `shared` only for genuinely domain-neutral reuse. Do not split individual expressions or event handlers into files merely to reduce line counts.
+
 - **Import adapters**: Preserve source precision and provenance before canonical conversion; validate parser changes with real source-format fixtures, not only already-normalized objects.
 - **Workbook resource bounds**: Apply budgets across every sheet decoded eagerly by the reader, including alternate XML paths. A per-sheet check does not establish a workbook-wide limit.

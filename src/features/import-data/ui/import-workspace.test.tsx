@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ImportError, type ImportResult } from "../model/types";
+import { ImportError } from "../lib/import-error";
+import type { ImportResult } from "../model/types";
 
 type Deferred = {
   promise: Promise<ImportResult>;
@@ -170,5 +171,32 @@ describe("ImportWorkspace", () => {
     await Promise.resolve();
     expect(cancel).toHaveBeenCalled();
     expect(screen.queryByText("sales.xlsx")).not.toBeInTheDocument();
+  });
+
+  it("keeps document drop protection after input controls unmount", async () => {
+    const initial = deferred();
+    parser.mockReturnValue({
+      promise: initial.promise,
+      selectSheet: vi.fn(),
+      cancel: vi.fn(),
+    });
+    render(<ImportWorkspace />);
+    fireEvent.change(screen.getByLabelText("Выбрать CSV или XLSX файл"), {
+      target: {
+        files: [new File(["a"], "sales.xlsx")],
+      },
+    });
+    expect(
+      await screen.findByRole("button", { name: "Отменить" }),
+    ).toBeVisible();
+    const loadingDrop = new Event("drop", { bubbles: true, cancelable: true });
+    document.dispatchEvent(loadingDrop);
+    expect(loadingDrop.defaultPrevented).toBe(true);
+
+    initial.resolve(sales("Продажи"));
+    expect(await screen.findByText("sales.xlsx")).toBeVisible();
+    const readyDrop = new Event("drop", { bubbles: true, cancelable: true });
+    document.dispatchEvent(readyDrop);
+    expect(readyDrop.defaultPrevented).toBe(true);
   });
 });
