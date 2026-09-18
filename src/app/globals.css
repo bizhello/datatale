@@ -302,7 +302,6 @@ footer {
 .preview {
   margin-top: 28px;
   padding: clamp(22px, 3vw, 32px);
-  animation: rise-in 220ms ease-out both;
 }
 .preview-header {
   display: flex;
@@ -448,16 +447,6 @@ footer span:last-child {
 @keyframes spin {
   to {
     transform: rotate(360deg);
-  }
-}
-@keyframes rise-in {
-  from {
-    opacity: 0;
-    transform: translateY(5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 @media (prefers-reduced-motion: reduce) {

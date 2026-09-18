@@ -1,5 +1,15 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { strToU8, unzipSync, zipSync } from "fflate";
+import { createMultiSheetXlsx } from "../fixtures/import/xlsx";
+
+function xlsxWithInvalidFirstSheet() {
+  const archive = unzipSync(createMultiSheetXlsx());
+  archive["xl/worksheets/sheet1.xml"] = strToU8(
+    '<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1"/><sheetData/></worksheet>',
+  );
+  return zipSync(archive);
+}
 
 test("accepts text locally and exposes an honest preview", async ({ page }) => {
   await page.goto("/");
@@ -27,6 +37,38 @@ test("uploads a CSV in the browser and labels its bounded preview", async ({
   ).toBeVisible();
   await expect(page.getByText("Показаны первые 2 строк из 2")).toBeVisible();
   await expect(page.getByRole("button", { name: "Убрать" })).toBeVisible();
+});
+
+test("selects another sheet from an uploaded XLSX without replacing the file", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Выбрать CSV или XLSX файл").setInputFiles({
+    name: "example.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from(createMultiSheetXlsx()),
+  });
+  await expect(
+    page.getByRole("heading", { name: "example.xlsx" }),
+  ).toBeVisible();
+  await page.getByLabel("Лист").selectOption("Заметки");
+  await expect(page.getByRole("cell", { name: "Готово" })).toBeVisible();
+});
+
+test("recovers from an invalid first XLSX sheet with another sheet", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Выбрать CSV или XLSX файл").setInputFiles({
+    name: "recovery.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from(xlsxWithInvalidFirstSheet()),
+  });
+  await expect(page.getByRole("alert")).toBeVisible();
+  await page.getByLabel("Попробовать другой лист").selectOption("Заметки");
+  await expect(page.getByRole("cell", { name: "Готово" })).toBeVisible();
 });
 
 test("fits mobile and has no automated accessibility violations", async ({

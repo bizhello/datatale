@@ -11,6 +11,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import type { Dataset } from "@/entities/dataset";
@@ -467,13 +468,23 @@ function Preview({
   onSheet: (value: string) => void;
   onClear: () => void;
 }) {
+  const prefersReducedMotion = useReducedMotion();
   const text = isTextSource(state.result.source)
     ? state.result.source
     : undefined;
   const data = text ? undefined : (state.result.source as Dataset);
   const sheets = state.result.sheetNames ?? [];
   return (
-    <div className="preview" aria-live="polite">
+    <motion.div
+      className="preview"
+      aria-live="polite"
+      initial={prefersReducedMotion ? false : { opacity: 1, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: prefersReducedMotion ? 0 : 0.18,
+        ease: "easeOut",
+      }}
+    >
       <div className="preview-header">
         <div>
           <p className="eyebrow">ПРОВЕРЕННЫЙ ИСТОЧНИК</p>
@@ -532,7 +543,7 @@ function Preview({
         Источник проверен. Анализ и сохранение отчёта появятся в следующем
         этапе.
       </p>
-    </div>
+    </motion.div>
   );
 }
 function TablePreview({ data }: { data: Dataset }) {
