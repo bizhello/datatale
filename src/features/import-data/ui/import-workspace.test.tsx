@@ -44,6 +44,17 @@ const sales = (sheet: string): ImportResult => ({
 afterEach(() => parser.mockReset());
 
 describe("ImportWorkspace", () => {
+  it("does not silently truncate text beyond the acceptance limit", () => {
+    render(<ImportWorkspace />);
+    const source = "т".repeat(30_001);
+    fireEvent.change(screen.getByLabelText("Текст отчёта"), {
+      target: { value: source },
+    });
+    expect(screen.getByLabelText("Текст отчёта")).toHaveValue(source);
+    fireEvent.click(screen.getByRole("button", { name: "Проверить текст" }));
+    expect(screen.getByRole("alert")).toBeVisible();
+  });
+
   it("keeps the workbook controller when selecting another sheet", async () => {
     const initial = deferred();
     const nextSheet = deferred();

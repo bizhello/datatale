@@ -59,6 +59,7 @@ type Action =
     }
   | { type: "ready"; requestId?: number; state: ReadyState }
   | { type: "error"; requestId: number; message: string }
+  | { type: "file-error"; file: File; message: string }
   | { type: "local-error"; message: string }
   | { type: "empty" };
 
@@ -91,6 +92,13 @@ function reducer(state: ImportState, action: Action): ImportState {
         : state;
     case "local-error":
       return { status: "error", text: state.text, message: action.message };
+    case "file-error":
+      return {
+        status: "error",
+        text: state.text,
+        file: action.file,
+        message: action.message,
+      };
     case "empty":
       return { status: "empty", text: state.text };
   }
@@ -163,7 +171,20 @@ export function ImportWorkspace() {
     (file: File) => {
       cancelActive();
       const requestId = requestIdRef.current;
-      const controller = parseFileInWorker(file);
+      let controller: ParserController;
+      try {
+        controller = parseFileInWorker(file);
+      } catch (reason) {
+        dispatch({
+          type: "file-error",
+          file,
+          message: errorMessage(
+            reason,
+            "Не удалось запустить обработку файла в браузере.",
+          ),
+        });
+        return;
+      }
       controllerRef.current = controller;
       dispatch({ type: "start", file, requestId });
       settleFile(controller, requestId, file, controller.promise);
@@ -298,7 +319,6 @@ export function ImportWorkspace() {
                 dispatch({ type: "text", text: event.target.value });
               }}
               placeholder="Вставьте короткий отчёт или заметки…"
-              maxLength={30_000}
             />
             <div>
               <span>{state.text.length.toLocaleString("ru-RU")} / 30 000</span>
