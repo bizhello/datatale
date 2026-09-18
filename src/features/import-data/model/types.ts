@@ -6,6 +6,7 @@ export type ParsedTable = {
   headers: string[];
   rows: unknown[][];
   sourceRowOffset?: number;
+  sourceRowNumbers?: number[];
 };
 export type ImportResult = {
   source: ImportSource;
