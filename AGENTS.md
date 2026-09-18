@@ -44,6 +44,7 @@ Read README.md for actual implementation status, DECISIONS.md for accepted choic
 - Before implementation, require a task ID, verified base, isolated worktree, reserved write paths and acceptance cases. If isolation is unavailable, allow only one code writer.
 - Executors own assigned code/tests and return documentation deltas. The conductor owns shared config, dependencies, canonical docs and integration. Coordinate public API changes before consumers continue.
 - Review exact candidate commits independently. Mark done only after integration, applicable checks and canonical-document updates. Record status on every handoff/blocker/integration; never infer completion from silence.
+- Use the GitHub CLI profile documented in docs/WORKFLOW.md for PR operations; verify its account before writes and preserve unrelated account settings.
 - Follow the Git flow in docs/WORKFLOW.md: feat/fix/docs/chore task branches, independent review, passing checks, conductor-owned squash merge to main. Main is the Vercel production branch once connected.
 - Use task IDs in commits. Git stores board history; AI-WORKLOG stores selected actual AI-use evidence. Do not create competing status or history files.
 

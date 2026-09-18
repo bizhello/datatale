@@ -36,6 +36,19 @@ Use short-lived task branches from `main`; `main` is the production branch when 
 | Documentation | `docs/dt-01-contracts` | `docs: clarify dataset contracts (DT-01)` |
 | Tooling | `chore/dt-00-foundation` | `chore: configure quality gates (DT-00)` |
 
+### GitHub CLI account
+
+Use the console for PR creation, edits, checks and merges. On the conductor's current workstation, DataTale uses the dedicated `bizhello` profile:
+
+```bash
+GH_CONFIG_DIR="$HOME/.config/gh-bizhello" gh auth status
+GH_CONFIG_DIR="$HOME/.config/gh-bizhello" gh pr create --repo bizhello/datatale --body-file /path/to/pr-body.md
+GH_CONFIG_DIR="$HOME/.config/gh-bizhello" gh pr checks PR_NUMBER --repo bizhello/datatale
+GH_CONFIG_DIR="$HOME/.config/gh-bizhello" gh pr merge PR_NUMBER --repo bizhello/datatale --squash --match-head-commit REVIEWED_SHA
+```
+
+Verify the account and repository permissions before writes. The default `gh` profile belongs to a different work account; do not switch it globally or infer API permissions from successful SSH pushes. Credentials stay in the OS keychain. Other machines must authenticate their own authorized profile. Merge only after the independent review and CI gates below pass.
+
 Use slashes in branch names; colons belong in Conventional Commit subjects, not branch names. Do not switch branches in another agent's working directory. Create the assigned branch in its own worktree. Fixes requested during review stay on that feature branch; a bug in already integrated code gets a new fix branch from current main. A production hotfix follows the same checks with narrow scope.
 
 1. Start from verified current main. Once GitHub exists, fetch first and record the actual base SHA. Dependent tasks wait for their prerequisite to land; avoid stacked branches for this MVP.
