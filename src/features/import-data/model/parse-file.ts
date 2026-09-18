@@ -1,4 +1,4 @@
-import { inputLimits } from "@/shared/config/input-limits";
+import { inputLimits } from "@/shared/config";
 import type { ImportResult } from "./types";
 
 type WorkerResponse =

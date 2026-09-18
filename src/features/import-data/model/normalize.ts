@@ -4,7 +4,7 @@ import {
   datasetSchema,
   textSourceSchema,
 } from "@/entities/dataset";
-import { inputLimits } from "@/shared/config/input-limits";
+import { inputLimits } from "@/shared/config";
 import {
   ImportError,
   type ImportResult,

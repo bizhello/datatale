@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Providers } from "./providers";
+import { Providers } from "./theme-provider";
 
 export const metadata: Metadata = {
   title: "DataTale — у данных есть история",
@@ -13,7 +13,7 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <body>
-        <Providers>{children}</Providers>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

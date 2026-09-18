@@ -1,7 +1,7 @@
 import { Unzip, UnzipInflate } from "fflate";
 import Papa from "papaparse";
 import readXlsxFile from "read-excel-file/web-worker";
-import { inputLimits } from "@/shared/config/input-limits";
+import { inputLimits } from "@/shared/config";
 import { normalizeTable } from "./normalize";
 import { ImportError } from "./types";
 

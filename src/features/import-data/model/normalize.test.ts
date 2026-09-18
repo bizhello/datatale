@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inputLimits } from "@/shared/config/input-limits";
+import { inputLimits } from "@/shared/config";
 import { normalizeTable, normalizeText } from "./normalize";
 
 describe("normalizeTable", () => {
