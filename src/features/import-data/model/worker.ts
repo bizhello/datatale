@@ -1,6 +1,7 @@
-import { Unzip, UnzipInflate } from "fflate";
+import { Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 import Papa from "papaparse";
 import readXlsxFile from "read-excel-file/web-worker";
+import { Parser } from "saxen";
 import { inputLimits } from "@/shared/config";
 import { normalizeTable } from "./normalize";
 import { ImportError } from "./types";
@@ -8,11 +9,11 @@ import { ImportError } from "./types";
 type WorkerRequest = { id: number; file: File; selectedSheet?: string };
 let retainedSheets: Awaited<ReturnType<typeof readXlsxFile>> | undefined;
 
-function preflightXlsx(bytes: Uint8Array) {
+export function preflightXlsx(bytes: Uint8Array) {
   let entries = 0;
   let inflated = 0;
   let failure: ImportError | undefined;
-  const worksheetXml: string[] = [];
+  let formulas = false;
   const fail = (message: string, code: string) => {
     failure ??= new ImportError(message, code);
   };
@@ -23,7 +24,13 @@ function preflightXlsx(bytes: Uint8Array) {
       return;
     }
     const inspect = /^xl\/worksheets\/[^/]+\.xml$/.test(file.name);
-    file.ondata = (error, chunk) => {
+    const checker = inspect
+      ? createWorksheetChecker(fail, () => {
+          formulas = true;
+        })
+      : undefined;
+    const decoder = inspect ? new TextDecoder() : undefined;
+    file.ondata = (error, chunk, final) => {
       if (error) {
         fail("Не удалось распаковать XLSX-файл.", "invalid-xlsx");
         return;
@@ -31,53 +38,88 @@ function preflightXlsx(bytes: Uint8Array) {
       inflated += chunk.length;
       if (inflated > inputLimits.zipInflatedBytes)
         fail("XLSX после распаковки превышает 16 МБ.", "zip-size");
-      if (inspect && !failure)
-        worksheetXml.push(new TextDecoder().decode(chunk));
+      if (checker && decoder && !failure)
+        checker.write(decoder.decode(chunk, { stream: true }));
+      if (final && checker && decoder && !failure) {
+        checker.write(decoder.decode());
+        checker.end();
+      }
     };
     file.start();
   });
   unzip.register(UnzipInflate);
+  unzip.register(UnzipPassThrough);
   try {
-    for (let offset = 0; offset < bytes.length && !failure; offset += 64 * 1024)
+    for (let offset = 0; offset < bytes.length && !failure; offset += 8 * 1024)
       unzip.push(
-        bytes.subarray(offset, Math.min(bytes.length, offset + 64 * 1024)),
-        offset + 64 * 1024 >= bytes.length,
+        bytes.subarray(offset, Math.min(bytes.length, offset + 8 * 1024)),
+        offset + 8 * 1024 >= bytes.length,
       );
   } catch {
     fail("Файл не является корректной XLSX-книгой.", "invalid-xlsx");
   }
   if (failure) throw failure;
-  const xml = worksheetXml.join("");
-  const dimensions = [
-    ...xml.matchAll(/<dimension[^>]*\bref="([A-Z]+\d+)(?::([A-Z]+\d+))?"/g),
-  ];
-  for (const match of dimensions) {
-    const last = match[2] ?? match[1];
-    if (
-      !last ||
-      coordinateColumn(last) > inputLimits.columns ||
-      coordinateRow(last) > inputLimits.rows + 1
-    )
-      throw new ImportError(
-        "Размер листа выходит за допустимые границы.",
-        "dimensions-limit",
-      );
-  }
+  return formulas;
+}
+
+function createWorksheetChecker(
+  fail: (message: string, code: string) => void,
+  foundFormula: () => void,
+) {
+  let dimension = false;
   let cells = 0;
-  for (const match of xml.matchAll(/<c[^>]*\br="([A-Z]+\d+)"/g)) {
-    cells += 1;
-    const coordinate = match[1];
-    if (
-      !coordinate ||
-      coordinateColumn(coordinate) > inputLimits.columns ||
-      coordinateRow(coordinate) > inputLimits.rows + 1 ||
-      cells > inputLimits.physicalCells
-    )
-      throw new ImportError(
-        "Лист содержит недопустимые координаты или слишком много ячеек.",
-        "cells-limit",
-      );
+  const parser = new Parser({ proxy: true });
+  parser.on("openTag", (element) => {
+    const name = element.name.split(":").at(-1);
+    if (name === "dimension") {
+      dimension = true;
+      validateRange(element.attrs.ref, fail);
+    }
+    if (name === "c") {
+      cells += 1;
+      validateCoordinate(element.attrs.r, fail);
+      if (cells > inputLimits.physicalCells)
+        fail("Лист содержит слишком много ячеек.", "cells-limit");
+    }
+    if (name === "f") foundFormula();
+  });
+  parser.on("error", () =>
+    fail("XLSX содержит некорректный XML листа.", "invalid-xlsx"),
+  );
+  return {
+    write(value: string) {
+      parser.write(value);
+    },
+    end() {
+      parser.end();
+      if (!dimension)
+        fail("В XLSX нет корректного размера листа.", "dimensions-limit");
+    },
+  };
+}
+
+function validateRange(
+  value: unknown,
+  fail: (message: string, code: string) => void,
+) {
+  if (typeof value !== "string") {
+    fail("В XLSX нет корректного размера листа.", "dimensions-limit");
+    return;
   }
+  for (const coordinate of value.split(":"))
+    validateCoordinate(coordinate, fail);
+}
+function validateCoordinate(
+  value: unknown,
+  fail: (message: string, code: string) => void,
+) {
+  if (
+    typeof value !== "string" ||
+    !/^[A-Z]+[1-9]\d*$/.test(value) ||
+    coordinateColumn(value) > inputLimits.columns ||
+    coordinateRow(value) > inputLimits.rows + 1
+  )
+    fail("Размер листа выходит за допустимые границы.", "dimensions-limit");
 }
 
 function coordinateColumn(coordinate: string) {
@@ -128,17 +170,40 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
       );
     if (name.endsWith(".csv")) {
       const text = await file.text();
-      const parsed = Papa.parse<string[]>(text, { skipEmptyLines: "greedy" });
-      if (parsed.errors.length)
+      let previousCursor = 0;
+      const parsedRows: Array<{ row: string[]; sourceRowNumber: number }> = [];
+      const parseErrors: Papa.ParseError[] = [];
+      Papa.parse<string[]>(text, {
+        skipEmptyLines: false,
+        step: ({ data, errors, meta }) => {
+          parseErrors.push(...errors);
+          const sourceRowNumber = text
+            .slice(0, previousCursor)
+            .split(/\r\n|\r|\n/).length;
+          previousCursor = meta.cursor;
+          parsedRows.push({ row: data, sourceRowNumber });
+        },
+      });
+      if (parseErrors.length)
         throw new ImportError(
-          `CSV не удалось прочитать: ${parsed.errors[0]?.message ?? "неизвестная ошибка"}.`,
+          `CSV не удалось прочитать: ${parseErrors[0]?.message ?? "неизвестная ошибка"}.`,
           "invalid-csv",
         );
-      const [headers, ...rows] = parsed.data;
+      const [headerRecord, ...unfilteredRows] = parsedRows;
+      const headers = headerRecord?.row;
       if (!headers)
         throw new ImportError("В CSV нет заголовка.", "empty-header");
+      const records = unfilteredRows.filter(({ row }) =>
+        row.some((cell) => String(cell ?? "").trim()),
+      );
       const result = normalizeTable(
-        { headers, rows },
+        {
+          headers,
+          rows: records.map(({ row }) => row),
+          sourceRowNumbers: records.map(
+            ({ sourceRowNumber }) => sourceRowNumber,
+          ),
+        },
         { kind: "csv", filename: file.name },
       );
       self.postMessage({ id, kind: "success", result });
@@ -147,7 +212,7 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
     if (!name.endsWith(".xlsx"))
       throw new ImportError("Выберите CSV или XLSX-файл.", "unsupported-file");
     const bytes = new Uint8Array(await file.arrayBuffer());
-    preflightXlsx(bytes);
+    const hasCachedFormula = preflightXlsx(bytes);
     const sheets = retainedSheets ?? (await readXlsxFile(file));
     retainedSheets = sheets;
     const sheetNames = sheets.map((sheet) => sheet.sheet);
@@ -170,7 +235,20 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
     self.postMessage({
       id,
       kind: "success",
-      result: { ...result, sheetNames },
+      result: {
+        ...result,
+        sheetNames,
+        warnings: hasCachedFormula
+          ? [
+              ...result.warnings,
+              {
+                code: "cached-formula",
+                message:
+                  "Значения формул взяты из сохранённого Excel-кэша и не пересчитывались.",
+              },
+            ]
+          : result.warnings,
+      },
     });
   } catch (error) {
     const known =
@@ -183,7 +261,11 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
     self.postMessage({
       id: data.id,
       kind: "error",
-      error: { message: known.message, code: known.code },
+      error: {
+        message: known.message,
+        code: known.code,
+        sheetNames: retainedSheets?.map((sheet) => sheet.sheet),
+      },
     });
   }
 };

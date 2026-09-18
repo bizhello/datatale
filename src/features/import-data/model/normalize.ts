@@ -161,7 +161,11 @@ export function normalizeTable(
     return {
       id: `row_${index + 1}`,
       values,
-      provenance: { sourceRowNumber: index + 1 + (table.sourceRowOffset ?? 1) },
+      provenance: {
+        sourceRowNumber:
+          table.sourceRowNumbers?.[index] ??
+          index + 1 + (table.sourceRowOffset ?? 1),
+      },
     };
   });
   const dataset = datasetSchema.parse({

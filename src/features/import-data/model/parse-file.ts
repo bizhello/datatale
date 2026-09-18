@@ -1,9 +1,14 @@
 import { inputLimits } from "@/shared/config";
 import type { ImportResult } from "./types";
+import { ImportError } from "./types";
 
 type WorkerResponse =
   | { id: number; kind: "success"; result: ImportResult }
-  | { id: number; kind: "error"; error: { message: string; code: string } };
+  | {
+      id: number;
+      kind: "error";
+      error: { message: string; code: string; sheetNames?: string[] };
+    };
 
 export function parseFileInWorker(file: File, initialSheet?: string) {
   const worker = new Worker(new URL("./worker.ts", import.meta.url));
@@ -40,7 +45,13 @@ export function parseFileInWorker(file: File, initialSheet?: string) {
         clear();
         data.kind === "success"
           ? resolve(data.result)
-          : reject(new Error(data.error.message));
+          : reject(
+              new ImportError(
+                data.error.message,
+                data.error.code,
+                data.error.sheetNames,
+              ),
+            );
       };
       worker.onerror = () => {
         if (active) {
