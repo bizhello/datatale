@@ -2,7 +2,7 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** DT-00 foundation and DT-01a Dataset contract are integrated in main. PR #1 was squash-merged as `c0dcbd5` after independent repeat review and conductor/CI checks. The original favicon and SVG source from [PR #4](https://github.com/bizhello/datatale/pull/4) are integrated as `b6754a1` after independent review and passing PR CI. DT-02 remains incomplete: themes, shell and other UI states are still planned. DT-01b and the remaining DT-02 scope are ready for the next dispatch; DT-01b.1 chart planning contracts are merged as `54a0308` via PR #5 after repeat independent approval and passing CI. The next contract slice is Facts and Report (DT-01b.2). Infrastructure and workflow maintenance are tracked in [draft PR #3](https://github.com/bizhello/datatale/pull/3); independent review and merge remain pending.
+**Current state:** DT-00 foundation and DT-01a Dataset contract are integrated in main. PR #1 was squash-merged as `c0dcbd5` after independent repeat review and conductor/CI checks. The original favicon and SVG source from [PR #4](https://github.com/bizhello/datatale/pull/4) are integrated as `b6754a1` after independent review and passing PR CI. DT-02 remains incomplete: themes, shell and other UI states are still planned. DT-01b and the remaining DT-02 scope are ready for the next dispatch; DT-01b.1 chart planning contracts are merged as `54a0308` via PR #5 after repeat independent approval and passing CI. The next contract slice is Facts and Report (DT-01b.2). Infrastructure and workflow maintenance are integrated as `6842cad` via [PR #3](https://github.com/bizhello/datatale/pull/3), after independent approval and passing CI. No executor assignment is currently active.
 
 ## Work packages
 
@@ -60,16 +60,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| DT-01b.1 | conductor | done | `b6754a173dd48cb7ee729c9ba13b602a24f611e9` / `feat/dt-01b-chart-contracts` / `/Users/andreybizhov/prog/datatale-worktrees/dt-01b` | `src/entities/report/**`, `tests/fixtures/report.ts` | Merged `54a0308` after repeat approval of `e020a26`; GitHub CI passed, including browser checks. Main synced |
-
-### DT-01b.1 assignment
-
-- Outcome: serializable bar/line/donut capability catalog, chart specification and AnalysisPlan Zod schemas, inferred public types and meaningful tests. This is the first bounded part of DT-01b; Facts and Report persistence contracts follow separately.
-- Base: verified main `b6754a1`. Read the task worktree's AGENTS, ARCHITECTURE, AI, QUALITY and dataset public contract. Current workflow/provider decisions are in the maintenance worktree; no provider calls are needed here.
-- Acceptance: exact allowlisted chart kinds; aggregation/field-reference structure; no executable expressions or supplied series in a plan; nonblank unique chart IDs; finite bounded chart limits; 2–3 charts for a charted plan and an explicit no-chart outcome with a reason. Catalog must serialize to JSON and its prompt description must derive from the same metadata. Unknown keys/kinds, invalid combinations, oversized limits and missing references fail shape validation. Referenced dataset-column existence and arithmetic remain feature-owned semantic checks.
-- Ownership: report slice and report fixture only. No cross-entity imports, UI, APIs, DB/AI calls, dependencies, lockfiles or global config edits. Request conductor changes if the new unconsumed entity triggers Steiger; do not suppress rules locally or add fake consumers.
-- Verification: frozen install; focused Vitest cases with independently known expectations; lint, architecture, typecheck and build. Report blockers rather than weakening gates. Use CLI profile from WORKFLOW for a draft PR only after a candidate exists; never merge without independent review.
-- Handoff: exact commit, exported APIs, checks and limitations, documentation deltas and actual AI-use evidence. The conductor owns this board.
+| — | — | — | — | — | DT-01b.1 integrated; next planned slice is DT-01b.2 |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 
@@ -79,6 +70,9 @@ For each active task, add its filled assignment from WORKFLOW under this section
 | --- | --- | --- | --- |
 | DT-00 foundation | `7b8c0ba` | Conductor verification; no independent feature review claimed | Frozen install, lint, FSD, types, build, 2 component and 6 browser tests passed historically. See AI-WORKLOG. No product features verified |
 | DT-01a Dataset | `c0dcbd5` ([PR #1](https://github.com/bizhello/datatale/pull/1)) | Sol medium approved `1230714`; reserved-key, blank-ID and circular-test findings fixed in `d706432` | `bun run check:all`: 12 Vitest + 6 browser tests passed; GitHub CI passed. Squash tree matches reviewed candidate. No parser/AI/UI implementation claimed |
+
+| DT-01b.1 Chart planning | `54a0308` ([PR #5](https://github.com/bizhello/datatale/pull/5)) | Repeat independent review approved `e020a26` after catalog/schema drift correction | 21 Vitest tests, build and hosted browser CI passed; semantic dataset validation and rendering remain planned |
+| DT-00 workflow/infrastructure | `6842cad` ([PR #3](https://github.com/bizhello/datatale/pull/3)) | Independent review approved `70c3c4c`; classifier and final-gate probes passed | Hosted CI passed; infrastructure limitations remain in DEPLOYMENT |
 
 Append one concise row per integrated task. Update task state and any changed README/domain contracts in the same integration handoff. Git retains prior board revisions; AI-WORKLOG retains selected real prompts/errors for the pitch.
 
