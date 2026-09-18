@@ -40,7 +40,12 @@ function labelFor(header: unknown, index: number, used: Map<string, number>) {
 }
 
 function inferType(values: unknown[]) {
-  const populated = values.filter((value) => value !== null);
+  const populated = values.filter(
+    (value) =>
+      value !== null &&
+      value !== undefined &&
+      !(typeof value === "string" && !value.trim()),
+  );
   if (populated.length === 0) return "string" as const;
   if (
     populated.every(
@@ -49,7 +54,8 @@ function inferType(values: unknown[]) {
         (typeof value === "string" &&
           plainNumberPattern.test(value) &&
           !identifierPattern.test(value) &&
-          Number.isFinite(Number(value))),
+          (Number.isSafeInteger(Number(value)) ||
+            (value.includes(".") && Number.isFinite(Number(value))))),
     )
   )
     return "number" as const;

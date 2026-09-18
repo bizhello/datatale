@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Providers } from "./theme-provider";
+import { ThemeProvider } from "./theme-provider";
 
 export const metadata: Metadata = {
   title: "DataTale — у данных есть история",

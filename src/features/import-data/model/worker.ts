@@ -6,6 +6,7 @@ import { normalizeTable } from "./normalize";
 import { ImportError } from "./types";
 
 type WorkerRequest = { id: number; file: File; selectedSheet?: string };
+let retainedSheets: Awaited<ReturnType<typeof readXlsxFile>> | undefined;
 
 function preflightXlsx(bytes: Uint8Array) {
   let entries = 0;
@@ -147,7 +148,8 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
       throw new ImportError("Выберите CSV или XLSX-файл.", "unsupported-file");
     const bytes = new Uint8Array(await file.arrayBuffer());
     preflightXlsx(bytes);
-    const sheets = await readXlsxFile(file);
+    const sheets = retainedSheets ?? (await readXlsxFile(file));
+    retainedSheets = sheets;
     const sheetNames = sheets.map((sheet) => sheet.sheet);
     const selected = sheets.find(
       (sheet) => sheet.sheet === (selectedSheet ?? sheetNames[0]),
