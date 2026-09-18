@@ -38,6 +38,7 @@ type ReadyState = {
   file?: File;
   result: ImportResult;
   selectedSheet?: string | undefined;
+  isDemo?: boolean;
 };
 type ImportState =
   | { status: "empty"; text: string }
@@ -73,6 +74,7 @@ type Action =
     }
   | { type: "file-error"; file: File; message: string }
   | { type: "local-error"; message: string }
+  | { type: "cancel" }
   | { type: "empty" };
 
 function reducer(state: ImportState, action: Action): ImportState {
@@ -113,6 +115,8 @@ function reducer(state: ImportState, action: Action): ImportState {
         message: action.message,
       };
     case "empty":
+      return { status: "empty", text: "" };
+    case "cancel":
       return { status: "empty", text: state.text };
   }
 }
@@ -128,6 +132,16 @@ function isTextSource(
 ): source is Extract<ImportResult["source"], { rawText: string }> {
   return "rawText" in source;
 }
+
+const scalarTypeLabel: Record<
+  Dataset["columns"][number]["scalarType"],
+  string
+> = {
+  string: "Текст",
+  number: "Число",
+  date: "Дата",
+  boolean: "Да/нет",
+};
 
 export function ImportWorkspace() {
   const [state, dispatch] = useReducer(reducer, { status: "empty", text: "" });
@@ -257,6 +271,7 @@ export function ImportWorkspace() {
       state: {
         status: "ready",
         text: demoText,
+        isDemo: true,
         result: normalizeTable(demoTable, {
           kind: "csv",
           filename: "demo.csv",
@@ -267,6 +282,10 @@ export function ImportWorkspace() {
   const clear = useCallback(() => {
     cancelActive();
     dispatch({ type: "empty" });
+  }, [cancelActive]);
+  const cancel = useCallback(() => {
+    cancelActive();
+    dispatch({ type: "cancel" });
   }, [cancelActive]);
   const retry = useCallback(() => {
     if (state.status === "error" && state.file) acceptFile(state.file);
@@ -301,6 +320,16 @@ export function ImportWorkspace() {
           проверьте источник.
         </p>
       </div>
+      {state.status === "error" && (
+        <ErrorState
+          message={state.message}
+          onRetry={retry}
+          onClear={clear}
+          retryable={Boolean(state.file)}
+          sheetNames={state.sheetNames}
+          onSheet={selectSheet}
+        />
+      )}
       {canEdit && (
         <div className="input-grid">
           <div
@@ -354,17 +383,7 @@ export function ImportWorkspace() {
         </Button>
       )}
       {state.status === "loading" && (
-        <LoadingState onCancel={clear} sheet={state.selectingSheet} />
-      )}
-      {state.status === "error" && (
-        <ErrorState
-          message={state.message}
-          onRetry={retry}
-          onClear={clear}
-          retryable={Boolean(state.file)}
-          sheetNames={state.sheetNames}
-          onSheet={selectSheet}
-        />
+        <LoadingState onCancel={cancel} sheet={state.selectingSheet} />
       )}
       {state.status === "ready" && (
         <Preview state={state} onSheet={selectSheet} onClear={clear} />
@@ -499,6 +518,11 @@ function Preview({
               ? `${text.paragraphs.length} абз. · ${text.rawText.length.toLocaleString("ru-RU")} символов`
               : `${data?.rows.length.toLocaleString("ru-RU")} строк · ${data?.columns.length} столбцов`}
           </p>
+          {state.isDemo ? (
+            <p className="demo-source">
+              Синтетический демо-набор · не AI-анализ
+            </p>
+          ) : null}
         </div>
         <Button variant="tertiary" onPress={onClear}>
           <X /> Убрать
@@ -560,7 +584,7 @@ function TablePreview({ data }: { data: Dataset }) {
             {data.columns.map((column) => (
               <th key={column.id} scope="col">
                 {column.label}
-                <small>{column.scalarType}</small>
+                <small>{scalarTypeLabel[column.scalarType]}</small>
               </th>
             ))}
           </tr>

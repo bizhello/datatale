@@ -44,6 +44,31 @@ const sales = (sheet: string): ImportResult => ({
 afterEach(() => parser.mockReset());
 
 describe("ImportWorkspace", () => {
+  it("clears accepted text and demo sources when removing them", async () => {
+    render(<ImportWorkspace />);
+    fireEvent.change(screen.getByLabelText("Текст отчёта"), {
+      target: { value: "Первый абзац." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Проверить текст" }));
+    expect(await screen.findByText("Текст готов к анализу")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Убрать" }));
+    expect(screen.getByLabelText("Текст отчёта")).toHaveValue("");
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Загрузить синтетический демо-набор",
+      }),
+    );
+    expect(
+      await screen.findByText("Синтетический демо-набор · не AI-анализ"),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Убрать" }));
+    expect(screen.getByLabelText("Текст отчёта")).toHaveValue("");
+    expect(
+      screen.queryByText("Синтетический демо-набор · не AI-анализ"),
+    ).not.toBeInTheDocument();
+  });
+
   it("does not silently truncate text beyond the acceptance limit", () => {
     render(<ImportWorkspace />);
     const source = "т".repeat(30_001);

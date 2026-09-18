@@ -71,6 +71,24 @@ test("recovers from an invalid first XLSX sheet with another sheet", async ({
   await expect(page.getByRole("cell", { name: "Готово" })).toBeVisible();
 });
 
+test("shows an invalid upload error in the mobile viewport", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByLabel("Выбрать CSV или XLSX файл").setInputFiles({
+    name: "unsupported.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("not a table"),
+  });
+  const error = page.locator(".error-state");
+  await expect(error).toBeVisible();
+  const box = await error.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box?.y).toBeLessThan(844);
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(844);
+});
+
 test("fits mobile and has no automated accessibility violations", async ({
   page,
 }) => {
