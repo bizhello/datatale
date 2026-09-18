@@ -2,7 +2,7 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** DT-INPUT and its component-ownership refactor are integrated through `169a04c` via [PR #7](https://github.com/bizhello/datatale/pull/7) and [PR #8](https://github.com/bizhello/datatale/pull/8), with independent review, passing CI and production smoke. DT-INPUT-HEROUI is active: adopt the installed HeroUI v3 primitives across the delivered input workspace without changing parsing or source lifecycle behavior. AI-dashboard work remains next; analysis, charts, chat, persistence and onboarding are not implemented.
+**Current state:** DT-INPUT, its component-ownership refactor, and HeroUI input adoption are integrated through `169a04c` and `e13220c` via [PR #7](https://github.com/bizhello/datatale/pull/7), [PR #8](https://github.com/bizhello/datatale/pull/8), and [PR #9](https://github.com/bizhello/datatale/pull/9). Hosted mobile-WebKit CI exposed a hydration race in the text-acceptance test after PR #9; its correction is in progress. AI-dashboard work remains next; analysis, charts, chat, persistence and onboarding are not implemented.
 
 ## Work packages
 
@@ -53,7 +53,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| DT-INPUT-HEROUI | Executor: Terra medium; conductor: docs/integration; reviewer: Sol medium | review | `169a04cfb84990bcebc57d8647ddf1aba09d790a` / `feat/dt-input-heroui` / `../datatale-worktrees/input-heroui` | Executor: `src/features/import-data/ui/**`, `src/widgets/dashboard-shell/ui/**`, `src/app/globals.css`, `src/features/import-data/model/use-import-workspace.ts` dropzone controls only, related UI/E2E tests; conductor: canonical docs | Review findings and visible file-picker regression fixed; rerun exact-candidate independent review and hosted checks, then integrate through PR |
+| DT-INPUT-HEROUI correction | Executor: Terra medium; conductor: docs/integration; reviewer: Sol medium | review | `e13220c8312450e6dd53d0fcc2ffbd98c9b062cd` / `fix/mobile-webkit-text-acceptance` / `../datatale-worktrees/mobile-webkit-text-acceptance` | `src/widgets/dashboard-shell/ui/dashboard-shell.tsx`, `src/features/import-data/ui/input-options.tsx`, `tests/e2e/starter.spec.ts`; conductor: canonical docs | Candidate passed `bun run check` and all 27 browser cases; await exact-candidate review and hosted CI |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 
@@ -67,6 +67,7 @@ For each active task, add its filled assignment from WORKFLOW under this section
 | DT-00 workflow/infrastructure | `6842cad` ([PR #3](https://github.com/bizhello/datatale/pull/3)) | Independent review approved `70c3c4c`; classifier and final-gate probes passed | Hosted CI passed; infrastructure limitations remain in DEPLOYMENT |
 | DT-INPUT local workspace | [PR #7](https://github.com/bizhello/datatale/pull/7) records merge SHA/status | Independent review corrections applied; linked PR records final verdict | Combined local check: 48 Vitest tests, build and 21 Playwright cases passed. Source remains local and ephemeral; AI/storage not implemented |
 | DT-INPUT component ownership | `169a04c` ([PR #8](https://github.com/bizhello/datatale/pull/8)) | Sol medium approved exact candidate `61f5c11`; squash tree matched reviewed candidate | `bun run check:all`: 49 Vitest + 21 Playwright tests passed; hosted CI, Vercel deployment and production HTTP smoke passed |
+| DT-INPUT HeroUI adoption | `e13220c` ([PR #9](https://github.com/bizhello/datatale/pull/9)) | Integrated after review; post-merge hosted mobile-WebKit CI found a text-entry hydration-race test failure | Correction is in progress; do not treat the prior hosted browser result as final evidence |
 
 Append one concise row per integrated task. Update task state and any changed README/domain contracts in the same integration handoff. Git retains prior board revisions; AI-WORKLOG retains selected real prompts/errors for the pitch.
 

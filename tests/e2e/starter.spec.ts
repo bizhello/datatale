@@ -13,7 +13,13 @@ function xlsxWithInvalidFirstSheet() {
 
 test("accepts text locally and exposes an honest preview", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Текст отчёта").fill("Первый абзац.\n\nВторой абзац.");
+  await expect(page.locator(".page-shell")).toHaveAttribute(
+    "data-hydrated",
+    "true",
+  );
+  const text = page.getByLabel("Текст отчёта");
+  await text.fill("Первый абзац.\n\nВторой абзац.");
+  await expect(text).toHaveValue("Первый абзац.\n\nВторой абзац.");
   await page.getByRole("button", { name: "Проверить текст" }).click();
   await expect(page.getByText("Текст готов к анализу")).toBeVisible();
   await expect(
