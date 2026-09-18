@@ -104,3 +104,9 @@ States: idle → parsing → ready-to-analyze → analyzing → ready; failed/ca
 Use idempotency keys and a server-side run claim to prevent duplicate paid requests. Bound execution, attempts and output. A small MVP run may use one request; do not claim durable background execution after tab closure. Reopening checks state, not automatically reruns inference. Expired run leases expose an explicit retry.
 
 Add a chart by extending capability metadata, schema and renderer mapping plus contract tests. Add a parser through import-data and canonical Dataset, leaving analysis unchanged. Swap a provider at the AI boundary after fixture evaluation. Change storage through entity repositories, not UI.
+
+## Dataset contract (DT-01a)
+
+`entities/dataset` exports the version-1 normalized table schema, inferred types and row/column bounds. It validates 1–30 columns and 1–5,000 rows, unique nonblank identities, exact declared row keys, explicit nulls, finite typed values and ISO calendar dates. The reserved column/key `__proto__` is rejected before Zod record parsing; source headers must be mapped to safe internal field IDs by future parsers.
+
+Each row carries a positive original `sourceRowNumber`; reordering does not rewrite that reference. This is table provenance, not a text-quotation citation contract. Parsers and request boundaries remain responsible for byte/decompression limits and source-specific metadata. The schema does not parse CSV/XLSX, calculate metrics or claim to validate AI conclusions.
