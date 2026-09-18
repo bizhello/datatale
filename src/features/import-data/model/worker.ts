@@ -23,7 +23,8 @@ export function preflightXlsx(bytes: Uint8Array) {
       fail("В книге слишком много архивных частей.", "zip-entries");
       return;
     }
-    const inspect = file.name.endsWith(".xml");
+    const inspect =
+      file.name.endsWith(".xml") || file.name.endsWith(".xml.rels");
     const checker = inspect
       ? createWorksheetChecker(fail, () => {
           formulas = true;

@@ -24,7 +24,7 @@ describe("XLSX preflight", () => {
     expect(() =>
       preflightXlsx(
         zipSync({
-          "custom/alternate.xml": strToU8(
+          "custom/alternate.xml.rels": strToU8(
             '<worksheet><dimension ref="A1:AF5002"/><sheetData><row><c r="AF5002"/></row></sheetData></worksheet>',
           ),
         }),
