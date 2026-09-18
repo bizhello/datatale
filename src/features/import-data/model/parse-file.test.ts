@@ -11,11 +11,17 @@ class ControlledWorker {
     ControlledWorker.instances.push(this);
   }
   emit(data: unknown) {
-    this.onmessage?.({ data } as MessageEvent);
+    this.onmessage?.(new MessageEvent("message", { data }));
   }
   fail() {
     this.onerror?.(new Event("error"));
   }
+}
+
+function getWorker() {
+  const worker = ControlledWorker.instances[0];
+  if (!worker) throw new Error("Expected the parser to create a worker.");
+  return worker;
 }
 
 async function controller() {
@@ -47,7 +53,7 @@ describe("parseFileInWorker lifecycle", () => {
   it("ignores stale IDs and settles the matching response", async () => {
     const { parseFileInWorker } = await controller();
     const job = parseFileInWorker(file);
-    const worker = ControlledWorker.instances[0]!;
+    const worker = getWorker();
     worker.emit({ id: 999, ...success });
     expect(worker.terminate).not.toHaveBeenCalled();
     const id = worker.postMessage.mock.calls[0]?.[0].id as number;
@@ -58,7 +64,7 @@ describe("parseFileInWorker lifecycle", () => {
     vi.useFakeTimers();
     const { parseFileInWorker } = await controller();
     const job = parseFileInWorker(file);
-    const worker = ControlledWorker.instances[0]!;
+    const worker = getWorker();
     job.cancel();
     await expect(job.promise).rejects.toMatchObject({ name: "AbortError" });
     expect(worker.terminate).toHaveBeenCalledOnce();
@@ -69,7 +75,7 @@ describe("parseFileInWorker lifecycle", () => {
     vi.useFakeTimers();
     const { parseFileInWorker } = await controller();
     const job = parseFileInWorker(file);
-    const worker = ControlledWorker.instances[0]!;
+    const worker = getWorker();
     const pending = expect(job.promise).rejects.toThrow(/15 секунд/);
     await vi.advanceTimersByTimeAsync(15_000);
     await pending;
@@ -78,7 +84,7 @@ describe("parseFileInWorker lifecycle", () => {
   it("keeps a workbook worker alive after a recoverable error and selects a sheet", async () => {
     const { parseFileInWorker } = await controller();
     const job = parseFileInWorker(file);
-    const worker = ControlledWorker.instances[0]!;
+    const worker = getWorker();
     const firstId = worker.postMessage.mock.calls[0]?.[0].id as number;
     worker.emit({
       id: firstId,
@@ -102,7 +108,7 @@ describe("parseFileInWorker lifecycle", () => {
   it("maps worker.onerror to an actionable rejection", async () => {
     const { parseFileInWorker } = await controller();
     const job = parseFileInWorker(file);
-    const worker = ControlledWorker.instances[0]!;
+    const worker = getWorker();
     worker.fail();
     await expect(job.promise).rejects.toThrow(/завершился с ошибкой/);
     expect(worker.terminate).toHaveBeenCalledOnce();
