@@ -40,8 +40,8 @@ Executor: GPT-5.6 Terra, medium. Reviewer: GPT-5.6 Sol, medium; repeat review ap
 | ID | Required evidence | Owner / current state |
 | --- | --- | --- |
 | EXT-01 | Eligible provider/model, server credentials, budget and successful small live fixture | User supplies account access; conductor configures/verifies. Unresolved |
-| EXT-02 | Neon development/test access and session-secret configuration; isolated schema and reviewed migrations | User supplies access; conductor configures/verifies. Unresolved |
-| EXT-03 | GitHub/Vercel project access and permission/access for the subdomain DNS record | User supplies access; conductor deploys/verifies. Unresolved |
+| EXT-02 | Neon development/test access and session-secret configuration; isolated schema and reviewed migrations | Production Neon provisioned; isolated development/test storage and session configuration remain unresolved. |
+| EXT-03 | GitHub/Vercel project access and permission/access for the subdomain DNS record | Vercel main deployed; Cloudflare CNAME added. Custom-domain HTTPS verification pending. |
 
 Never put credentials in this board. Local implementation and provider/storage doubles can progress in explicit child tasks while access is pending; a mocked check does not satisfy live acceptance. Ask for missing access early and continue independent ready work.
 

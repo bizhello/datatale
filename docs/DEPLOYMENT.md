@@ -4,15 +4,20 @@
 
 ## Provisioning status
 
-As of 2026-09-18, this session has not verified or changed Vercel import, Neon, AI Gateway or DNS. Browser management is unavailable; provisioning remains pending. Keep existing apex, mail and nameservers unchanged. Use Spaceweb DNS directly for the Vercel subdomain; no additional DNS proxy is required for the MVP.
+Verified on 2026-09-18:
 
-ChatGPT subscription usage does not fund application API inference. Configure AI Gateway credits or separately billed provider API access, subject to provider eligibility. Keep credentials in server-only Vercel environment settings. Do not treat resource provisioning as implemented persistence or AI functionality.
+- Vercel project `datatale` deploys GitHub `bizhello/datatale` main. Initial deployment of `e134ab2` succeeded; https://datatale.vercel.app returns HTTPS 200. Install: `bun install --frozen-lockfile`; build: `bun run build`.
+- Neon `datatale-db` uses Free, region `iad1`, with Auth disabled. Connected only to Vercel Production. Preview/development storage, session configuration and migrations remain pending; application persistence is not implemented.
+- `datatale.bizhov.ru` is assigned to Vercel Production. Existing authoritative DNS is Cloudflare (`nancy`/`roan`), not Spaceweb. Added CNAME `datatale` → `0c0e950f6ced7c09.vercel-dns-017.com`, DNS only, TTL Auto. No previous subdomain record existed; apex/mail/nameservers were preserved. Authoritative DNS resolves; HTTPS verification is pending.
+- AI Gateway requests a payment card to unlock $5 initial credits. No API key was created and no live inference was performed. The user must complete billing setup; ChatGPT subscription usage does not fund application inference.
+
+Keep credentials server-only and configure eligible provider/model access and inference limits before release. Infrastructure readiness does not imply implemented AI or persistence.
 
 ## Environment and provisioning
 
 Use Next.js on Vercel's stable Node.js 24 runtime; Bun is the package manager/task runner. Use the pinned packageManager version, `bun install --frozen-lockfile` and `bun run build`.
 
-Connect Neon through the Vercel Marketplace when persistence is implemented. Apply reviewed Drizzle migrations separately from request cold starts; use isolated preview/test storage. Use bounded normalized JSONB, not original workbooks. Do not point preview tests at production data.
+Use the provisioned Neon database through the Vercel Marketplace connection. Co-locate future server functions with the database in `iad1`. Apply reviewed Drizzle migrations separately from request cold starts; use isolated preview/test storage. Use bounded normalized JSONB, not original workbooks. Do not point preview tests at production data.
 
 Maintain `.env.example` alongside environment consumers, with placeholders for AI, database and session configuration. Preview/Production secrets must be scoped separately. No `NEXT_PUBLIC_*` for provider, DB or cookie secrets. Rotate compromised keys and session encryption secrets through a reviewed process.
 
