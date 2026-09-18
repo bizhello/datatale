@@ -14,7 +14,7 @@ export function DashboardShell() {
       ? theme
       : "system";
   return (
-    <div className="page-shell">
+    <div className="page-shell" data-hydrated={mounted ? "true" : undefined}>
       <a href="#main" className="skip-link">
         Перейти к содержимому
       </a>
