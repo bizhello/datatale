@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { strToU8, unzipSync, zipSync } from "fflate";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { createMultiSheetXlsx } from "../fixtures/import/xlsx";
 
 function xlsxWithInvalidFirstSheet() {
@@ -106,4 +106,28 @@ test("fits mobile and has no automated accessibility violations", async ({
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();
   expect(results.violations).toEqual([]);
+});
+
+test("preserves XLSX numeric precision before canonical conversion", async ({
+  page,
+}) => {
+  const archive = unzipSync(createMultiSheetXlsx());
+  const sheet = archive["xl/worksheets/sheet1.xml"];
+  if (!sheet) throw new Error("Expected the sales worksheet fixture.");
+  archive["xl/worksheets/sheet1.xml"] = strToU8(
+    strFromU8(sheet).replace(
+      '<c r="B2" t="inlineStr"><is><t>12</t></is></c>',
+      '<c r="B2"><v>2.000000000000000001</v></c>',
+    ),
+  );
+  await page.goto("/");
+  await page.getByLabel("Выбрать CSV или XLSX файл").setInputFiles({
+    name: "precise.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from(zipSync(archive)),
+  });
+  await expect(
+    page.getByRole("cell", { name: "2.000000000000000001", exact: true }),
+  ).toBeVisible();
 });
