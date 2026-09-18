@@ -15,11 +15,18 @@ describe("XLSX preflight", () => {
         : `A${String.fromCharCode(65 + index - 26)}`;
     const sheet = (rows: number) =>
       `<worksheet><dimension ref="A1:AD${rows}"/><sheetData>${Array.from({ length: rows }, (_, row) => `<row>${Array.from({ length: 30 }, (_, column) => `<c r="${letter(column)}${row + 1}"/>`).join("")}</row>`).join("")}</sheetData></worksheet>`;
+    const atLimit = {
+      "a.xml": strToU8(sheet(2501)),
+      "b.xml": strToU8(sheet(2500)),
+    };
+    expect(() => preflightXlsx(zipSync(atLimit))).not.toThrow();
     expect(() =>
       preflightXlsx(
         zipSync({
-          "a.xml": strToU8(sheet(2501)),
-          "b.xml": strToU8(sheet(2501)),
+          ...atLimit,
+          "c.xml": strToU8(
+            '<worksheet><dimension ref="A1"/><sheetData><row><c r="A1"/></row></sheetData></worksheet>',
+          ),
         }),
       ),
     ).toThrow(/слишком много ячеек/);

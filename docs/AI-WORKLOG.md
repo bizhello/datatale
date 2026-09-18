@@ -78,3 +78,6 @@ For each substantive change, append the actual short prompt or a labeled transla
 
 
 **Independent feature review:** Sol reviewed `610d013` and requested fixes despite green local and hosted CI. Direct probes exposed single-column CSV rejection, precision loss in long decimals and a workbook cell budget incorrectly reset per sheet. UI review found off-screen mobile errors, retained source text after removal and missing demo labeling. Corrections and repeat-review evidence belong to PR #7; no model-quality claim follows from import tests.
+
+
+**Review correction verification:** the conductor additionally found that a safe-integer shortcut still rounded an isolated value `2.000000000000000001`, hidden by a mixed-value column regression. Conversion now checks decimals independently, and the XLSX reader retains numeric text before normalization. A real browser-worker regression confirms exact Excel value preservation. Final combined `bun run check:all` passed 48 Vitest tests and 21 Playwright cases, including the mobile error viewport check. Workbook cell tests accept exactly 150,030 cells across sheets and reject one extra cell. Repeat review is recorded in PR #7.
