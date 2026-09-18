@@ -2,7 +2,7 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** DT-00 foundation and DT-01a Dataset contract are integrated in main. PR #1 was squash-merged as `c0dcbd5` after independent repeat review and conductor/CI checks. The original favicon and SVG source from [PR #4](https://github.com/bizhello/datatale/pull/4) are integrated as `b6754a1` after independent review and passing PR CI. DT-02 remains incomplete: themes, shell and other UI states are still planned. DT-01b and the remaining DT-02 scope are ready for the next dispatch; new product implementation is paused by user request. Infrastructure and workflow maintenance are tracked in [draft PR #3](https://github.com/bizhello/datatale/pull/3); independent review and merge remain pending.
+**Current state:** DT-00 foundation and DT-01a Dataset contract are integrated in main. PR #1 was squash-merged as `c0dcbd5` after independent repeat review and conductor/CI checks. The original favicon and SVG source from [PR #4](https://github.com/bizhello/datatale/pull/4) are integrated as `b6754a1` after independent review and passing PR CI. DT-02 remains incomplete: themes, shell and other UI states are still planned. DT-01b and the remaining DT-02 scope are ready for the next dispatch; the user resumed one executor task: DT-01b.1 chart planning contracts. Other product tasks are not dispatched. Infrastructure and workflow maintenance are tracked in [draft PR #3](https://github.com/bizhello/datatale/pull/3); independent review and merge remain pending.
 
 ## Work packages
 
@@ -60,7 +60,16 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| — | — | — | — | — | Trial complete; next dispatch awaits user direction |
+| DT-01b.1 | dt01b_executor | active | `b6754a173dd48cb7ee729c9ba13b602a24f611e9` / `feat/dt-01b-chart-contracts` / `/Users/andreybizhov/prog/datatale-worktrees/dt-01b` | `src/entities/report/**`, `tests/fixtures/report.ts` | Implement chart catalog and AnalysisPlan contracts; return candidate for independent review, no merge |
+
+### DT-01b.1 assignment
+
+- Outcome: serializable bar/line/donut capability catalog, chart specification and AnalysisPlan Zod schemas, inferred public types and meaningful tests. This is the first bounded part of DT-01b; Facts and Report persistence contracts follow separately.
+- Base: verified main `b6754a1`. Read the task worktree's AGENTS, ARCHITECTURE, AI, QUALITY and dataset public contract. Current workflow/provider decisions are in the maintenance worktree; no provider calls are needed here.
+- Acceptance: exact allowlisted chart kinds; aggregation/field-reference structure; no executable expressions or supplied series in a plan; nonblank unique chart IDs; finite bounded chart limits; 2–3 charts for a charted plan and an explicit no-chart outcome with a reason. Catalog must serialize to JSON and its prompt description must derive from the same metadata. Unknown keys/kinds, invalid combinations, oversized limits and missing references fail shape validation. Referenced dataset-column existence and arithmetic remain feature-owned semantic checks.
+- Ownership: report slice and report fixture only. No cross-entity imports, UI, APIs, DB/AI calls, dependencies, lockfiles or global config edits. Request conductor changes if the new unconsumed entity triggers Steiger; do not suppress rules locally or add fake consumers.
+- Verification: frozen install; focused Vitest cases with independently known expectations; lint, architecture, typecheck and build. Report blockers rather than weakening gates. Use CLI profile from WORKFLOW for a draft PR only after a candidate exists; never merge without independent review.
+- Handoff: exact commit, exported APIs, checks and limitations, documentation deltas and actual AI-use evidence. The conductor owns this board.
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 
