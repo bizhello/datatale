@@ -70,7 +70,6 @@ For each active task, add its filled assignment from WORKFLOW under this section
 | --- | --- | --- | --- |
 | DT-00 foundation | `7b8c0ba` | Conductor verification; no independent feature review claimed | Frozen install, lint, FSD, types, build, 2 component and 6 browser tests passed historically. See AI-WORKLOG. No product features verified |
 | DT-01a Dataset | `c0dcbd5` ([PR #1](https://github.com/bizhello/datatale/pull/1)) | Sol medium approved `1230714`; reserved-key, blank-ID and circular-test findings fixed in `d706432` | `bun run check:all`: 12 Vitest + 6 browser tests passed; GitHub CI passed. Squash tree matches reviewed candidate. No parser/AI/UI implementation claimed |
-
 | DT-01b.1 Chart planning | `54a0308` ([PR #5](https://github.com/bizhello/datatale/pull/5)) | Repeat independent review approved `e020a26` after catalog/schema drift correction | 21 Vitest tests, build and hosted browser CI passed; semantic dataset validation and rendering remain planned |
 | DT-00 workflow/infrastructure | `6842cad` ([PR #3](https://github.com/bizhello/datatale/pull/3)) | Independent review approved `70c3c4c`; classifier and final-gate probes passed | Hosted CI passed; infrastructure limitations remain in DEPLOYMENT |
 
