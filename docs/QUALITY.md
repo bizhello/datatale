@@ -1,0 +1,80 @@
+# Quality gates for AI-assisted development
+
+**Make failures visible at the boundary that owns the rule.** Type checking, runtime validation, semantic tests and browser review protect different risks. None makes the project impossible to break.
+
+Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Initial tests cover demo labeling, disclosure, viewport overflow and automated accessibility in Chromium and WebKit. Domain/integration tests and live-model evaluations are added with their features.
+
+## Gate design
+
+| Gate | Implementation | Catches |
+| --- | --- | --- |
+| Reproducible install | Pinned Bun, one lockfile, frozen install in CI | Environment/dependency drift |
+| Style/lint | Biome over owned source/config | Common code and formatting errors |
+| Types | TypeScript strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes | Invalid states, unsafe indexing and contracts |
+| Boundaries | Steiger/FSD plugin with explicit Next adapter exceptions | Wrong-direction and internal slice imports |
+| Unit/contracts | Vitest | Calculations, validation, exhaustive catalog/renderer coverage |
+| Integration | Vitest + isolated test storage/provider doubles | Ownership, idempotency, persistence and failure mapping |
+| Build | Next production build | Client/server leakage and build-only failures |
+| Browser | Playwright + axe | Full user journey, mobile/theme/state regressions |
+| Model quality | Versioned fixtures + real provider evaluation | Unsupported claims, chart choices, refusals |
+
+Enable required CI checks in GitHub branch settings once a remote exists. The committed workflow alone does not protect a branch. Do not use production credentials/data in CI. Provider-mocked tests run on every PR; paid model evals run deliberately before release and when prompts/catalog/model change.
+
+## Required tests per change
+
+A behavioral feature is incomplete without tests for its acceptance and meaningful failure cases. Declare these in the assignment before implementation; the reviewer checks their coverage before approval.
+
+| Change | Required evidence |
+| --- | --- |
+| Calculation, parsing or schema rule | Focused Vitest cases with independently known expected values, boundaries and invalid input |
+| Interactive UI | Component behavior tests; Playwright for changed critical user journeys, mobile and keyboard behavior |
+| Boundary between real components | Integration test exercising the connected components, including error propagation and validation |
+| Route plus persistence/session | Integration against isolated test storage for ownership, transaction behavior, expiry and failure; mock external inference rather than the entire data path |
+| AI orchestration | Integration of actual validators/calculations with controlled provider responses; separate live-model evaluations for output quality |
+| Bug fix | Regression test that reproduces the defect and passes after the correction |
+| Documentation or cosmetic formatting only | Relevant static/manual verification; no artificial behavioral tests |
+
+Integration tests are required when behavior crosses a meaningful boundary, not merely because two packages are imported. Examples: parser → Dataset validation, AI plan → semantic checks → calculations, route → guest ownership → repository. Do not mock every internal step and claim the result proves integration.
+
+Colocate unit/component/integration files under their owning `src` slice using `*.test.ts` or `*.test.tsx`; `*.integration.test.ts` matches the current Vitest include. Shared fixture files live in `tests/fixtures`; browser workflows live in `tests/e2e`. Storage tests must use disposable, isolated data. When adding them, configure the test database and CI execution in that same task; missing prerequisites must fail the required gate rather than silently skip it.
+
+The existing suite covers the starter only. Domain integration coverage grows with feature implementation. Passing mocks cannot close the live-provider or production acceptance requirements.
+
+## Risk-to-test map
+
+| Risk | Required evidence |
+| --- | --- |
+| Parser corruption | Quoted commas/newlines, BOM, missing/duplicate headers, malformed workbook, multiple sheets, oversized/decompressed input |
+| Wrong arithmetic | Known sums/counts/ratios, zero denominator, missing values, negative values, units/currency mismatch, sorted dates |
+| Sample presented as population | Calculation over all accepted rows, not preview; explicit rejected limits |
+| Invalid chart plan | Unknown kind/field, disallowed aggregation, line without time, donut with negatives/zero/non-additive data |
+| Catalog/prompt/renderer drift | Enumerate catalog kinds; every kind has supported schema/validator and renderer; generated prompt lists exactly those capabilities |
+| Prompt regression | Versioned fixtures with expected properties, source refs and rejection reasons; no brittle exact prose snapshots |
+| Unsupported information | Exact required refusal on an absent fact; separate unsupported-operation test |
+| Prompt injection | Instructions embedded in cells/paragraphs do not change policy/tools or expose other sources |
+| Guest isolation | Two independent cookies cannot read/chat/delete each other's reports even with known IDs |
+| Cookie/retention | Missing/tampered/expired cookie, workspace revocation, report expiry, refresh cadence and CSRF mutation cases |
+| Duplicate spending | Concurrent identical idempotency keys claim one run; refresh does not call model again |
+| Races | Replace file/cancel mid-request, late response, interrupted stream, expired run deadline |
+| Storage failure | No success/saved label before commit; rollback and retry preserve ownership |
+| UI states | Upload → analyze → charts → chat → evidence → reopen/delete; empty/error/loading/retry paths |
+| Themes/responsive | Reload/system theme, no hydration flash; mobile keyboard, all target widths, long labels, reduced motion |
+| Onboarding | First-visit welcome, demo steps, persisted skip/completion, replay, cookie independence, unavailable storage/targets, unmount cleanup, focus/Escape, mobile and reduced motion |
+| Branding | Metadata and custom favicon served; no default framework icon |
+
+Keep fixtures small and synthetic; numeric ground truth is calculated independently of the implementation under test. Colocate unit tests with owners; put shared fixtures and browser workflows under tests/. Integration storage must be isolated and cleaned.
+
+## Change protocol
+
+For parallel work, use the assignment, independent review and integration gates in [WORKFLOW.md](WORKFLOW.md). Branch-level checks do not replace checks on the integrated tree.
+
+1. Identify the behavioral contract and existing owner. Read only the relevant docs/skill.
+2. For a substantive bug, write a reproducing test before the fix when practical. For a new feature, define acceptance and failure cases before implementation.
+3. Implement a small vertical change. Use validated discriminated outcomes and narrow interfaces; avoid speculative generic frameworks.
+4. Run targeted tests, then relevant broader gates once. Inspect the complete diff for secrets, unrelated edits and disabled checks.
+5. Update canonical docs only if behavior/decision changed. Record real AI mistakes and corrections in AI-WORKLOG.
+6. Before delivery, run production and model checks that mocks cannot prove. State any unperformed checks explicitly.
+
+Do not test low-impact formatting or a function's private mechanics just to increase counts. Do not claim 100% coverage means correctness. Prioritize boundary/branch cases in calculations, permissions and model validation. A regression fix includes a durable behavioral test rather than only another instruction to the agent.
+
+Steiger excludes only `.gitkeep` placeholders. Import checks cover resolved code imports; the installed plugin does not catch the tested CSS side-effect import into a higher layer. Review stylesheet ownership explicitly. Biome uses the recommended preset and fails on warnings; the two reduced-motion declarations retain documented local `!important` exceptions.
