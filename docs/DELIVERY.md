@@ -2,7 +2,7 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** foundation, Dataset and chart planning contracts are integrated (PRs #1, #3–#6). DT-INPUT is active: one complete CSV/XLSX/text import workspace with responsive themes, previews, bounded parsing and error recovery. Facts/Report contracts will ship with the AI-dashboard feature rather than as a standalone schema PR. AI analysis, charts, chat and storage remain unimplemented.
+**Current state:** foundation, Dataset and chart planning contracts are integrated (PRs #1, #3–#6). The complete local input workspace is implemented in [PR #7](https://github.com/bizhello/datatale/pull/7): responsive themes, CSV/XLSX/text, bounded parsing, preview, cancellation and sheet-error recovery. The linked PR records review, checks and authoritative merge status. Next is the AI-dashboard feature, including remaining Facts/Report contracts. AI analysis, charts, chat, persistence and onboarding are still unimplemented.
 
 ## Work packages
 
@@ -12,15 +12,15 @@ These are acceptance packages, not mandatory separate PRs. Dispatch complete use
 | --- | --- | --- | --- |
 | DT-00 | Establish baseline: inspect intended files, frozen install and foundation checks, baseline commit; record SHA | — | done |
 | DT-01 | Core contracts: canonical Dataset, AnalysisPlan, Facts and Report schemas; serializable bar/line/donut catalog; shared synthetic fixture and invalid-plan cases. Feature boundaries validate cross-entity references | DT-00 | queued |
-| DT-02 | Visual shell: responsive layout, light/dark/system, custom identity/favicon, HeroUI Skeleton and accessible states; both-theme mobile/desktop evidence | DT-00 | active (DT-INPUT) |
-| DT-03 | CSV input: picker/dropzone, preview, limits and canonical normalization; quoted newlines/BOM/duplicate headers/empty input tests | DT-01a | active (DT-INPUT) |
+| DT-02 | Visual shell: responsive layout, light/dark/system, custom identity/favicon, HeroUI Skeleton and accessible states; both-theme mobile/desktop evidence | DT-00 | implemented in PR #7 |
+| DT-03 | CSV input: picker/dropzone, preview, limits and canonical normalization; quoted newlines/BOM/duplicate headers/empty input tests | DT-01a | implemented in PR #7 |
 | DT-04 | Verified metrics: profile, approved aggregations and semantic plan checks over all accepted rows; known totals, zero denominator, units and invalid-chart tests | DT-01 | queued |
 | DT-05 | Guest storage boundary: Neon/Drizzle and iron-session, source/report/message persistence, ownership, expiry and atomic/idempotent run claims; isolation and failure tests | DT-01, EXT-02 | queued |
 | DT-06 | AI analysis: catalog-generated prompt context, bounded plan repair, checked facts and 2–3 sentence narrative with evidence; invalid output, injection, timeout and real-provider fixtures | DT-04, EXT-01 | queued |
 | DT-07 | Report rendering: exhaustive Recharts registry, hero, evidence and chart rationale; 2–3 useful interactive charts from canonical fixtures, touch/keyboard, both themes and expanded chart dialog per UI.md | DT-01, DT-02 | queued |
 | DT-08 | Grounded chat: owner-checked source context, bounded calculations, stream/error handling and exact insufficient-data refusal; supported/absent/injection cases | DT-05, DT-06 | queued |
 | DT-09 | Connected journey: thin API routes, input → analysis → charts → chat, stage state/cancel/retry; history reopen/delete without repeat inference; production E2E | DT-03, DT-05, DT-06, DT-07, DT-08 | queued |
-| DT-10 | XLSX/text input: sheet selection, explicit text quantities with quotations, bounded parsing and honest no-chart state; integrate and test through the same journey | DT-01a for input; AI dashboard for extraction | active (input: DT-INPUT) |
+| DT-10 | XLSX/text input: sheet selection, explicit text quantities with quotations, bounded parsing and honest no-chart state; integrate and test through the same journey | DT-01a for input; AI dashboard for extraction | input implemented in PR #7; extraction queued |
 | DT-11 | Release: real-model quality, production/mobile/theme/error checks, GitHub README, Vercel/subdomain and 3–5 minute pitch with actual AI evidence | DT-10, EXT-03 | queued |
 | DT-12 | Enhancement: skippable/replayable Driver.js demo tour; persistence, mobile, focus and reduced-motion checks | DT-09 | queued |
 | DT-13 | Enhancement: reuse a blueprint with new input, explicit mapping and recalculation; no carried-over facts | DT-10 | queued |
@@ -53,12 +53,11 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| DT-INPUT parser | Executor: Terra medium; conductor: dependencies/docs; reviewer: Sol medium | active (implementation) | `f397e159b7ddf7392ce0363b80da36a2c3b7400e` / `feat/dt-input-workspace` / `../datatale-worktrees/input-workspace` | Parser executor: `src/features/import-data/model/**`, `src/entities/dataset/**`, `src/shared/config/**`, `tests/fixtures/import/**`; conductor: root config, dependencies, docs | Implement reviewed whole input journey; no AI/storage dependency |
-| DT-INPUT UI | Second Terra medium executor | active | `4ac042342d24dda91c99f4af03bc695a57a40af4` / `feat/dt-input-ui` / `../datatale-worktrees/input-ui` | `src/features/import-data/ui/**`, `src/features/import-data/index.ts`, `src/widgets/dashboard-shell/**`, `src/app/{layout.tsx,globals.css,theme-provider.tsx}`, `tests/e2e/**` | Finish reducer, theme, polished responsive UI and browser tests; merge into the same feature PR |
+| DT-INPUT | Conductor; independent Sol reviewer | integrating — see [PR #7](https://github.com/bizhello/datatale/pull/7) for final status | `f397e159b7ddf7392ce0363b80da36a2c3b7400e` / `feat/dt-input-workspace` / `../datatale-worktrees/input-workspace` | Code frozen for exact-candidate review; conductor owns review corrections and integration | Both executor lanes completed; final review/CI gate before merge |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 
-## Integrated evidence
+## Delivery evidence
 
 | Task | Integration SHA | Review result / reference | Checks and remaining limitations |
 | --- | --- | --- | --- |
@@ -66,6 +65,8 @@ For each active task, add its filled assignment from WORKFLOW under this section
 | DT-01a Dataset | `c0dcbd5` ([PR #1](https://github.com/bizhello/datatale/pull/1)) | Sol medium approved `1230714`; reserved-key, blank-ID and circular-test findings fixed in `d706432` | `bun run check:all`: 12 Vitest + 6 browser tests passed; GitHub CI passed. Squash tree matches reviewed candidate. No parser/AI/UI implementation claimed |
 | DT-01b.1 Chart planning | `54a0308` ([PR #5](https://github.com/bizhello/datatale/pull/5)) | Repeat independent review approved `e020a26` after catalog/schema drift correction | 21 Vitest tests, build and hosted browser CI passed; semantic dataset validation and rendering remain planned |
 | DT-00 workflow/infrastructure | `6842cad` ([PR #3](https://github.com/bizhello/datatale/pull/3)) | Independent review approved `70c3c4c`; classifier and final-gate probes passed | Hosted CI passed; infrastructure limitations remain in DEPLOYMENT |
+
+| DT-INPUT local workspace | [PR #7](https://github.com/bizhello/datatale/pull/7) records merge SHA/status | Independent final review required; executor lanes completed | Combined local check: 41 Vitest tests, build and 15 Playwright cases passed. Source remains local and ephemeral; AI/storage not implemented |
 
 Append one concise row per integrated task. Update task state and any changed README/domain contracts in the same integration handoff. Git retains prior board revisions; AI-WORKLOG retains selected real prompts/errors for the pitch.
 
