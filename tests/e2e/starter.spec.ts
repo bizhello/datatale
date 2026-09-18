@@ -39,6 +39,22 @@ test("uploads a CSV in the browser and labels its bounded preview", async ({
   await expect(page.getByRole("button", { name: "Убрать" })).toBeVisible();
 });
 
+test("opens the file chooser from the visible upload button", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const fileChooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Выбрать файл" }).click();
+  await (await fileChooser).setFiles({
+    name: "button-upload.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("Месяц,Выручка\nЯнварь,128000"),
+  });
+  await expect(
+    page.getByRole("heading", { name: "button-upload.csv" }),
+  ).toBeVisible();
+});
+
 test("selects another sheet from an uploaded XLSX without replacing the file", async ({
   page,
 }) => {
@@ -52,8 +68,9 @@ test("selects another sheet from an uploaded XLSX without replacing the file", a
   await expect(
     page.getByRole("heading", { name: "example.xlsx" }),
   ).toBeVisible();
-  await page.getByLabel("Лист").selectOption("Заметки");
-  await expect(page.getByRole("cell", { name: "Готово" })).toBeVisible();
+  await page.getByLabel("Лист").click();
+  await page.getByRole("option", { name: "Заметки" }).click();
+  await expect(page.getByRole("gridcell", { name: "Готово" })).toBeVisible();
 });
 
 test("recovers from an invalid first XLSX sheet with another sheet", async ({
@@ -67,8 +84,9 @@ test("recovers from an invalid first XLSX sheet with another sheet", async ({
     buffer: Buffer.from(xlsxWithInvalidFirstSheet()),
   });
   await expect(page.getByRole("alert")).toBeVisible();
-  await page.getByLabel("Попробовать другой лист").selectOption("Заметки");
-  await expect(page.getByRole("cell", { name: "Готово" })).toBeVisible();
+  await page.getByLabel("Попробовать другой лист").click();
+  await page.getByRole("option", { name: "Заметки" }).click();
+  await expect(page.getByRole("gridcell", { name: "Готово" })).toBeVisible();
 });
 
 test("shows an invalid upload error in the mobile viewport", async ({
@@ -108,6 +126,28 @@ test("fits mobile and has no automated accessibility violations", async ({
   expect(results.violations).toEqual([]);
 });
 
+test("selects light, dark, and system themes with the keyboard", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+
+  const light = page.getByRole("radio", { name: "Светлая тема" });
+  await light.focus();
+  await light.press("Space");
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
+
+  const dark = page.getByRole("radio", { name: "Тёмная тема" });
+  await dark.focus();
+  await dark.press("Space");
+  await expect(page.locator("html")).toHaveClass(/dark/);
+
+  const system = page.getByRole("radio", { name: "Системная тема" });
+  await system.focus();
+  await system.press("Space");
+  await expect(page.locator("html")).toHaveClass(/dark/);
+});
+
 test("preserves XLSX numeric precision before canonical conversion", async ({
   page,
 }) => {
@@ -127,7 +167,23 @@ test("preserves XLSX numeric precision before canonical conversion", async ({
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     buffer: Buffer.from(zipSync(archive)),
   });
+  const warning = page.getByRole("status");
+  await expect(warning).toBeVisible();
   await expect(
-    page.getByRole("cell", { name: "2.000000000000000001", exact: true }),
+    warning.getByText("Предупреждение при обработке источника", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    warning.getByText(
+      "Неоднозначные даты, суммы и десятичные значения сохранены как текст.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("gridcell", {
+      name: "2.000000000000000001",
+      exact: true,
+    }),
   ).toBeVisible();
 });

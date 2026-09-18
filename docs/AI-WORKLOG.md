@@ -94,3 +94,16 @@ The conductor defined component ownership in AGENTS and ARCHITECTURE. The execut
 **Lifecycle correction:** extraction initially moved `useDropzone` into conditional input controls, which removed its document drop-prevention listeners during loading and preview. The conductor checked the installed library lifecycle; the hook now stays mounted with workspace orchestration. A regression case covers both states. [PR #8](https://github.com/bizhello/datatale/pull/8) records final verification and independent review.
 
 **Verification:** `bun run check:all` passed lint, architecture, strict types, 49 Vitest tests, production build and 21 Playwright cases. The new document-drop regression fails with the pre-fix hook lifetime and passes after restoration; the restored source exactly matches the checked candidate.
+
+
+## 2026-09-19 — HeroUI input-system adoption (DT-INPUT-HEROUI)
+
+**Request (translated summary):** use the selected HeroUI library consistently instead of hand-built labels, text areas, selects, tables and states.
+
+**Assignment:** adopt version-matched HeroUI v3.2.6 primitives for the existing input workspace and shell while preserving parser, worker, dropzone and public behavior. The hidden file input remains native because `react-dropzone` owns its props and document lifecycle. No new dependency or AI/dashboard functionality is in scope. Responsive, theme, keyboard, behavior and full regression evidence are required before integration.
+
+**Corrections:** the first full browser run used the old native-table `cell` role for a numeric-precision assertion. HeroUI exposes data cells as `gridcell`; the rendered value was exact, so the selector was corrected and the full suite repeated. Conductor review also removed a one-off named theme type from the component file and restored right alignment after the character counter moved into `TextField.Description`, preserving the component-ownership rule and prior visual hierarchy.
+
+**Verification:** focused component tests passed 8/8. Final `bun run check:all` passed Biome, Steiger boundaries, strict types, 49 Vitest tests, the production build and 24 Playwright cases across desktop/mobile Chromium and mobile WebKit. Independent exact-candidate review and hosted evidence are recorded in the linked PR before integration.
+
+**Review and user corrections:** independent review found paragraph elements nested under HeroUI `Alert.Description`, which renders a `span` in the installed v3 source. Warning messages now use valid block-styled spans and a real workbook browser case verifies the warning status and exact numeric value in all three projects. The user then found that the visible HeroUI file button did not open the picker although the surrounding dropzone did. A direct filechooser probe reproduced it; the button now calls react-dropzone's official `open()` control explicitly. A browser regression clicks that visible button, selects a valid CSV and reaches the ready preview across desktop Chromium, mobile Chromium and mobile WebKit.

@@ -1,4 +1,4 @@
-import { Button } from "@heroui/react";
+import { Alert, Button, Label, ListBox, Select } from "@heroui/react";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 
 type ErrorStateProps = {
@@ -19,28 +19,38 @@ export function ErrorState({
   onSheet,
 }: ErrorStateProps) {
   return (
-    <div className="error-state" role="alert">
-      <AlertTriangle aria-hidden="true" />
-      <div>
-        <strong>Не получилось загрузить источник</strong>
-        <p>{message}</p>
+    <Alert className="error-state" role="alert" status="danger">
+      <Alert.Indicator>
+        <AlertTriangle aria-hidden="true" />
+      </Alert.Indicator>
+      <Alert.Content>
+        <Alert.Title>Не получилось загрузить источник</Alert.Title>
+        <Alert.Description>{message}</Alert.Description>
         {sheetNames && sheetNames.length > 1 ? (
-          <label className="sheet-select">
-            Попробовать другой лист
-            <select
-              defaultValue=""
-              onChange={(event) => onSheet(event.target.value)}
-            >
-              <option value="" disabled>
-                Выберите лист
-              </option>
-              {sheetNames.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            className="sheet-select"
+            placeholder="Выберите лист"
+            variant="secondary"
+            onChange={(value) => {
+              if (typeof value === "string") onSheet(value);
+            }}
+          >
+            <Label>Попробовать другой лист</Label>
+            <Select.Trigger>
+              <Select.Value />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover>
+              <ListBox>
+                {sheetNames.map((name) => (
+                  <ListBox.Item key={name} id={name} textValue={name}>
+                    {name}
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                ))}
+              </ListBox>
+            </Select.Popover>
+          </Select>
         ) : null}
         <div className="error-actions">
           {retryable && (
@@ -52,7 +62,7 @@ export function ErrorState({
             Начать заново
           </Button>
         </div>
-      </div>
-    </div>
+      </Alert.Content>
+    </Alert>
   );
 }

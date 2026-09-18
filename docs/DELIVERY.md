@@ -2,7 +2,7 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** DT-INPUT is integrated as `5033231` via [PR #7](https://github.com/bizhello/datatale/pull/7), with independent review, passing CI and production smoke. DT-INPUT-STRUCTURE is in [PR #8](https://github.com/bizhello/datatale/pull/8): separate component files and state/helper ownership while preserving input behavior; final review and integration are pending. AI-dashboard work remains next; analysis, charts, chat, persistence and onboarding are not implemented.
+**Current state:** DT-INPUT and its component-ownership refactor are integrated through `169a04c` via [PR #7](https://github.com/bizhello/datatale/pull/7) and [PR #8](https://github.com/bizhello/datatale/pull/8), with independent review, passing CI and production smoke. DT-INPUT-HEROUI is active: adopt the installed HeroUI v3 primitives across the delivered input workspace without changing parsing or source lifecycle behavior. AI-dashboard work remains next; analysis, charts, chat, persistence and onboarding are not implemented.
 
 ## Work packages
 
@@ -53,7 +53,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| DT-INPUT-STRUCTURE | Executor: Terra medium; conductor: docs/integration; reviewer: Sol medium | review | `5033231959a910015c58334ca9eda54ea51fcc83` / `refactor/dt-input-components` / `../datatale-worktrees/input-components` | Executor: `src/features/import-data/**`, `src/widgets/dashboard-shell/**`; conductor: canonical docs | PR #8; implementation and local gates complete (49 unit / 21 browser tests); independent final-candidate review and hosted checks pending |
+| DT-INPUT-HEROUI | Executor: Terra medium; conductor: docs/integration; reviewer: Sol medium | review | `169a04cfb84990bcebc57d8647ddf1aba09d790a` / `feat/dt-input-heroui` / `../datatale-worktrees/input-heroui` | Executor: `src/features/import-data/ui/**`, `src/widgets/dashboard-shell/ui/**`, `src/app/globals.css`, `src/features/import-data/model/use-import-workspace.ts` dropzone controls only, related UI/E2E tests; conductor: canonical docs | Review findings and visible file-picker regression fixed; rerun exact-candidate independent review and hosted checks, then integrate through PR |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 
@@ -66,6 +66,7 @@ For each active task, add its filled assignment from WORKFLOW under this section
 | DT-01b.1 Chart planning | `54a0308` ([PR #5](https://github.com/bizhello/datatale/pull/5)) | Repeat independent review approved `e020a26` after catalog/schema drift correction | 21 Vitest tests, build and hosted browser CI passed; semantic dataset validation and rendering remain planned |
 | DT-00 workflow/infrastructure | `6842cad` ([PR #3](https://github.com/bizhello/datatale/pull/3)) | Independent review approved `70c3c4c`; classifier and final-gate probes passed | Hosted CI passed; infrastructure limitations remain in DEPLOYMENT |
 | DT-INPUT local workspace | [PR #7](https://github.com/bizhello/datatale/pull/7) records merge SHA/status | Independent review corrections applied; linked PR records final verdict | Combined local check: 48 Vitest tests, build and 21 Playwright cases passed. Source remains local and ephemeral; AI/storage not implemented |
+| DT-INPUT component ownership | `169a04c` ([PR #8](https://github.com/bizhello/datatale/pull/8)) | Sol medium approved exact candidate `61f5c11`; squash tree matched reviewed candidate | `bun run check:all`: 49 Vitest + 21 Playwright tests passed; hosted CI, Vercel deployment and production HTTP smoke passed |
 
 Append one concise row per integrated task. Update task state and any changed README/domain contracts in the same integration handoff. Git retains prior board revisions; AI-WORKLOG retains selected real prompts/errors for the pitch.
 

@@ -1,4 +1,4 @@
-import { Button } from "@heroui/react";
+import { Alert, Button, Label, ListBox, Select } from "@heroui/react";
 import { AlertTriangle, CheckCircle2, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { isTextSource } from "../lib/source-guards";
@@ -53,29 +53,47 @@ export function SourcePreview({ state, onSheet, onClear }: SourcePreviewProps) {
         </Button>
       </div>
       {sheets.length > 1 && (
-        <label className="sheet-select">
-          Лист{" "}
-          <select
-            value={state.selectedSheet ?? ""}
-            onChange={(event) => onSheet(event.target.value)}
-          >
-            {sheets.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          className="sheet-select"
+          value={state.selectedSheet ?? null}
+          variant="secondary"
+          onChange={(value) => {
+            if (typeof value === "string") onSheet(value);
+          }}
+        >
+          <Label>Лист</Label>
+          <Select.Trigger>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox>
+              {sheets.map((name) => (
+                <ListBox.Item key={name} id={name} textValue={name}>
+                  {name}
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+              ))}
+            </ListBox>
+          </Select.Popover>
+        </Select>
       )}
       {state.result.warnings.length > 0 && (
-        <div className="warning" role="status">
-          <AlertTriangle aria-hidden="true" />
-          <div>
-            {state.result.warnings.map((warning) => (
-              <p key={warning.code}>{warning.message}</p>
-            ))}
-          </div>
-        </div>
+        <Alert className="warning" role="status" status="warning">
+          <Alert.Indicator>
+            <AlertTriangle aria-hidden="true" />
+          </Alert.Indicator>
+          <Alert.Content>
+            <Alert.Title>Предупреждение при обработке источника</Alert.Title>
+            <Alert.Description>
+              {state.result.warnings.map((warning) => (
+                <span className="warning-message" key={warning.code}>
+                  {warning.message}
+                </span>
+              ))}
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
       )}
       {text ? (
         <article className="text-preview">
