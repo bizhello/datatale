@@ -2,7 +2,7 @@
 
 One conductor owns integration and the live board in [DELIVERY.md](DELIVERY.md). Executors implement bounded tasks in isolated Git worktrees. A reviewer evaluates immutable candidate commits before integration. Start with two executors; add a third only for an independent ready task and when the host supports the additional concurrent agent.
 
-This is an operating protocol, not an autonomous scheduler. It runs while an agent session is active. The conductor records transitions as they happen; Markdown does not update itself.
+This is an operating protocol, not an autonomous scheduler. It runs while an agent session is active. The conductor records transitions as they happen; Markdown does not update itself. During an authorized delivery cycle, remain active with bounded agent waits and process completion messages immediately: executor handoff → review → corrections → repeat review → delivery report. Do not end the turn after dispatch and leave the next transition waiting for a user status request. If blocked on user input, record the exact blocker and stop dependent work.
 
 ## Roles and write ownership
 
