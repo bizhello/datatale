@@ -15,7 +15,7 @@ type InputOptionsProps = {
   onAcceptText: () => void;
   dropzone: Pick<
     DropzoneState,
-    "getRootProps" | "getInputProps" | "isDragActive"
+    "getRootProps" | "getInputProps" | "isDragActive" | "open"
   >;
 };
 
@@ -41,7 +41,7 @@ export function InputOptions({
         </span>
         <h2>CSV или Excel</h2>
         <p>Перетащите файл сюда или выберите его. До 2 МБ, до 5 000 строк.</p>
-        <Button variant="secondary">
+        <Button type="button" variant="secondary" onPress={dropzone.open}>
           <FileSpreadsheet /> Выбрать файл
         </Button>
         <small>XLS нужно сохранить как XLSX</small>

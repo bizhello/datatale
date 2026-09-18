@@ -39,6 +39,22 @@ test("uploads a CSV in the browser and labels its bounded preview", async ({
   await expect(page.getByRole("button", { name: "Убрать" })).toBeVisible();
 });
 
+test("opens the file chooser from the visible upload button", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const fileChooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Выбрать файл" }).click();
+  await (await fileChooser).setFiles({
+    name: "button-upload.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("Месяц,Выручка\nЯнварь,128000"),
+  });
+  await expect(
+    page.getByRole("heading", { name: "button-upload.csv" }),
+  ).toBeVisible();
+});
+
 test("selects another sheet from an uploaded XLSX without replacing the file", async ({
   page,
 }) => {

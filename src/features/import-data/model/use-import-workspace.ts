@@ -175,7 +175,7 @@ export function useImportWorkspace() {
         "Выберите один CSV или XLSX-файл размером до 2 МБ. XLS нужно сохранить как XLSX.",
     });
   }, [cancelActive]);
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     accept: {
       "text/csv": [".csv"],
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
@@ -199,6 +199,6 @@ export function useImportWorkspace() {
     retry,
     selectSheet,
     showDemo,
-    dropzone: { getRootProps, getInputProps, isDragActive },
+    dropzone: { getRootProps, getInputProps, isDragActive, open },
   };
 }
