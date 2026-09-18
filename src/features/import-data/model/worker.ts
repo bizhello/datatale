@@ -1,4 +1,4 @@
-import { Unzip, UnzipInflate } from "fflate";
+import { Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 import Papa from "papaparse";
 import readXlsxFile from "read-excel-file/web-worker";
 import { Parser } from "saxen";
@@ -9,7 +9,7 @@ import { ImportError } from "./types";
 type WorkerRequest = { id: number; file: File; selectedSheet?: string };
 let retainedSheets: Awaited<ReturnType<typeof readXlsxFile>> | undefined;
 
-function preflightXlsx(bytes: Uint8Array) {
+export function preflightXlsx(bytes: Uint8Array) {
   let entries = 0;
   let inflated = 0;
   let failure: ImportError | undefined;
@@ -48,6 +48,7 @@ function preflightXlsx(bytes: Uint8Array) {
     file.start();
   });
   unzip.register(UnzipInflate);
+  unzip.register(UnzipPassThrough);
   try {
     for (let offset = 0; offset < bytes.length && !failure; offset += 8 * 1024)
       unzip.push(
@@ -69,7 +70,7 @@ function createWorksheetChecker(
   let cells = 0;
   const parser = new Parser({ proxy: true });
   parser.on("openTag", (element) => {
-    const name = element.originalName.split(":").at(-1);
+    const name = element.name.split(":").at(-1);
     if (name === "dimension") {
       dimension = true;
       validateRange(element.attrs.ref, fail);
@@ -188,7 +189,7 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
     if (!name.endsWith(".xlsx"))
       throw new ImportError("Выберите CSV или XLSX-файл.", "unsupported-file");
     const bytes = new Uint8Array(await file.arrayBuffer());
-    preflightXlsx(bytes);
+    const hasCachedFormula = preflightXlsx(bytes);
     const sheets = retainedSheets ?? (await readXlsxFile(file));
     retainedSheets = sheets;
     const sheetNames = sheets.map((sheet) => sheet.sheet);
@@ -211,7 +212,20 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
     self.postMessage({
       id,
       kind: "success",
-      result: { ...result, sheetNames },
+      result: {
+        ...result,
+        sheetNames,
+        warnings: hasCachedFormula
+          ? [
+              ...result.warnings,
+              {
+                code: "cached-formula",
+                message:
+                  "Значения формул взяты из сохранённого Excel-кэша и не пересчитывались.",
+              },
+            ]
+          : result.warnings,
+      },
     });
   } catch (error) {
     const known =

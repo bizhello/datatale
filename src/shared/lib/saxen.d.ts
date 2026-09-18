@@ -4,7 +4,7 @@ declare module "saxen" {
     on(
       event: "openTag",
       listener: (element: {
-        originalName: string;
+        name: string;
         attrs: Record<string, string | undefined>;
       }) => void,
     ): void;
