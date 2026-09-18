@@ -17,7 +17,7 @@ These are bounded outcomes to decompose into 30–90 minute assignments where ne
 | DT-04 | Verified metrics: profile, approved aggregations and semantic plan checks over all accepted rows; known totals, zero denominator, units and invalid-chart tests | DT-01 | queued |
 | DT-05 | Guest storage boundary: Neon/Drizzle and iron-session, source/report/message persistence, ownership, expiry and atomic/idempotent run claims; isolation and failure tests | DT-01, EXT-02 | queued |
 | DT-06 | AI analysis: catalog-generated prompt context, bounded plan repair, checked facts and 2–3 sentence narrative with evidence; invalid output, injection, timeout and real-provider fixtures | DT-04, EXT-01 | queued |
-| DT-07 | Report rendering: exhaustive Recharts registry, hero, evidence and chart rationale; 2–3 useful interactive charts from canonical fixtures, touch/keyboard and both themes | DT-01, DT-02 | queued |
+| DT-07 | Report rendering: exhaustive Recharts registry, hero, evidence and chart rationale; 2–3 useful interactive charts from canonical fixtures, touch/keyboard, both themes and expanded chart dialog per UI.md | DT-01, DT-02 | queued |
 | DT-08 | Grounded chat: owner-checked source context, bounded calculations, stream/error handling and exact insufficient-data refusal; supported/absent/injection cases | DT-05, DT-06 | queued |
 | DT-09 | Connected journey: thin API routes, input → analysis → charts → chat, stage state/cancel/retry; history reopen/delete without repeat inference; production E2E | DT-03, DT-05, DT-06, DT-07, DT-08 | queued |
 | DT-10 | XLSX/text input: sheet selection, explicit text quantities with quotations, bounded parsing and honest no-chart state; integrate and test through the same journey | DT-09 | queued |
@@ -60,7 +60,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| DT-01b.1 | dt01b_executor | active | `b6754a173dd48cb7ee729c9ba13b602a24f611e9` / `feat/dt-01b-chart-contracts` / `/Users/andreybizhov/prog/datatale-worktrees/dt-01b` | `src/entities/report/**`, `tests/fixtures/report.ts` | Implement chart catalog and AnalysisPlan contracts; return candidate for independent review, no merge |
+| DT-01b.1 | dt01b_executor | review | `b6754a173dd48cb7ee729c9ba13b602a24f611e9` / `feat/dt-01b-chart-contracts` / `/Users/andreybizhov/prog/datatale-worktrees/dt-01b` | `src/entities/report/**`, `tests/fixtures/report.ts` | Candidate `3105767`, draft PR #5. 20 tests, lint, types and build passed; Steiger flags unconsumed report slice. Conductor config decision and independent review pending; no merge |
 
 ### DT-01b.1 assignment
 
