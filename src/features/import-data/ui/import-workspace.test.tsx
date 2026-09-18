@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ImportResult } from "../model/types";
+import { ImportError, type ImportResult } from "../model/types";
 
 type Deferred = {
   promise: Promise<ImportResult>;
@@ -84,6 +84,42 @@ describe("ImportWorkspace", () => {
     nextSheet.resolve(sales("Расходы"));
     expect(await screen.findByRole("cell", { name: "Расходы" })).toBeVisible();
     expect(parser).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers another workbook sheet after the first one is invalid", async () => {
+    const initial = deferred();
+    const nextSheet = deferred();
+    const selectSheet = vi.fn(() => nextSheet.promise);
+    parser.mockReturnValue({
+      promise: initial.promise,
+      selectSheet,
+      cancel: vi.fn(),
+    });
+    render(<ImportWorkspace />);
+    fireEvent.change(screen.getByLabelText("Выбрать CSV или XLSX файл"), {
+      target: {
+        files: [
+          new File(["a"], "sales.xlsx", {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }),
+        ],
+      },
+    });
+    initial.reject(
+      new ImportError("В выбранном листе нет заголовка.", "empty-header", [
+        "Продажи",
+        "Расходы",
+      ]),
+    );
+    expect(
+      await screen.findByLabelText("Попробовать другой лист"),
+    ).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Попробовать другой лист"), {
+      target: { value: "Расходы" },
+    });
+    expect(selectSheet).toHaveBeenCalledWith("Расходы");
+    nextSheet.resolve(sales("Расходы"));
+    expect(await screen.findByRole("cell", { name: "Расходы" })).toBeVisible();
   });
 
   it("ignores a late parse completion after cancellation", async () => {

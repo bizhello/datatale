@@ -16,7 +16,7 @@ import { useDropzone } from "react-dropzone";
 import type { Dataset } from "@/entities/dataset";
 import { normalizeTable, normalizeText } from "../model/normalize";
 import { parseFileInWorker } from "../model/parse-file";
-import type { ImportResult } from "../model/types";
+import { ImportError, type ImportResult } from "../model/types";
 
 const demoTable = {
   headers: ["Месяц", "Выручка", "Заказы"],
@@ -48,7 +48,13 @@ type ImportState =
       selectingSheet?: string | undefined;
     }
   | ReadyState
-  | { status: "error"; text: string; file?: File; message: string };
+  | {
+      status: "error";
+      text: string;
+      file?: File;
+      message: string;
+      sheetNames?: string[] | undefined;
+    };
 type Action =
   | { type: "text"; text: string }
   | {
@@ -58,7 +64,12 @@ type Action =
       selectingSheet?: string | undefined;
     }
   | { type: "ready"; requestId?: number; state: ReadyState }
-  | { type: "error"; requestId: number; message: string }
+  | {
+      type: "error";
+      requestId: number;
+      message: string;
+      sheetNames?: string[] | undefined;
+    }
   | { type: "file-error"; file: File; message: string }
   | { type: "local-error"; message: string }
   | { type: "empty" };
@@ -88,6 +99,7 @@ function reducer(state: ImportState, action: Action): ImportState {
             text: state.text,
             file: state.file,
             message: action.message,
+            sheetNames: action.sheetNames,
           }
         : state;
     case "local-error":
@@ -161,6 +173,8 @@ export function ImportWorkspace() {
             type: "error",
             requestId,
             message: errorMessage(reason, "Не удалось обработать файл."),
+            sheetNames:
+              reason instanceof ImportError ? reason.sheetNames : undefined,
           });
         },
       );
@@ -193,7 +207,11 @@ export function ImportWorkspace() {
   );
   const selectSheet = useCallback(
     (name: string) => {
-      if (state.status !== "ready" || !state.file || !controllerRef.current)
+      if (
+        (state.status !== "ready" && state.status !== "error") ||
+        !state.file ||
+        !controllerRef.current
+      )
         return;
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
@@ -343,6 +361,8 @@ export function ImportWorkspace() {
           onRetry={retry}
           onClear={clear}
           retryable={Boolean(state.file)}
+          sheetNames={state.sheetNames}
+          onSheet={selectSheet}
         />
       )}
       {state.status === "ready" && (
@@ -390,11 +410,15 @@ function ErrorState({
   onRetry,
   onClear,
   retryable,
+  sheetNames,
+  onSheet,
 }: {
   message: string;
   onRetry: () => void;
   onClear: () => void;
   retryable: boolean;
+  sheetNames?: string[] | undefined;
+  onSheet: (value: string) => void;
 }) {
   return (
     <div className="error-state" role="alert">
@@ -402,6 +426,24 @@ function ErrorState({
       <div>
         <strong>Не получилось загрузить источник</strong>
         <p>{message}</p>
+        {sheetNames && sheetNames.length > 1 ? (
+          <label className="sheet-select">
+            Попробовать другой лист
+            <select
+              defaultValue=""
+              onChange={(event) => onSheet(event.target.value)}
+            >
+              <option value="" disabled>
+                Выберите лист
+              </option>
+              {sheetNames.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <div className="error-actions">
           {retryable && (
             <Button variant="secondary" onPress={onRetry}>
