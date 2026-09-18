@@ -90,3 +90,7 @@ For each substantive change, append the actual short prompt or a labeled transla
 **Assignment excerpt:** "Perform behavior-preserving DT-INPUT-STRUCTURE refactor ... Preserve exact UI markup/accessibility/text/callback timing/stale guards/cancel-vs-clear/demo/worker imports/browser bundling, PUBLIC API exports unchanged."
 
 The conductor defined component ownership in AGENTS and ARCHITECTURE. The executor extracts cohesive UI, state, protocol, configuration and helper modules within the existing feature; no dependency or new product behavior is in scope. Existing regression tests remain the acceptance evidence. Final verification and independent review are recorded with this change's PR.
+
+**Lifecycle correction:** extraction initially moved `useDropzone` into conditional input controls, which removed its document drop-prevention listeners during loading and preview. The conductor checked the installed library lifecycle; the hook now stays mounted with workspace orchestration. A regression case covers both states. [PR #8](https://github.com/bizhello/datatale/pull/8) records final verification and independent review.
+
+**Verification:** `bun run check:all` passed lint, architecture, strict types, 49 Vitest tests, production build and 21 Playwright cases. The new document-drop regression fails with the pre-fix hook lifetime and passes after restoration; the restored source exactly matches the checked candidate.
