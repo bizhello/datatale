@@ -33,6 +33,7 @@ Use short-lived task branches from `main`; `main` is the production branch when 
 | --- | --- | --- |
 | Feature | `feat/dt-03-csv-import` | `feat: add CSV preview (DT-03)` |
 | Bug fix | `fix/dt-03-empty-csv` | `fix: reject empty CSV input (DT-03)` |
+| Refactor | `refactor/dt-input-components` | `refactor: separate input components (DT-INPUT-STRUCTURE)` |
 | Documentation | `docs/dt-01-contracts` | `docs: clarify dataset contracts (DT-01)` |
 | Tooling | `chore/dt-00-foundation` | `chore: configure quality gates (DT-00)` |
 
