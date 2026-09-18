@@ -8,7 +8,7 @@
 - Use a consistent Lucide Sun/Moon/Monitor control with an accessible label describing the action or selected mode. The UI must work by keyboard and touch, not only tooltip hover.
 - Animate icon changes with a short opacity/rotation transition (approximately 150–220 ms). Transition relevant surface/text colors, not every CSS property. Respect reduced motion and avoid full-screen flashes.
 - Preserve pre-hydration theme application; avoid wrong-theme paint, layout shifts and broad suppression of hydration errors. Chart colors, tooltips, focus rings, empty states and Skeleton must all use theme tokens.
-- Replace the scaffold Vercel triangle favicon with an original compact DataTale mark, preferably an SVG designed for small sizes plus compatible icon outputs when needed. Test it at 16/32 px in light and dark browser chrome. Avoid both a default favicon and a second conflicting icon route.
+- The DataTale mark combines an open book and rising chart columns in white on the brand blue (#365EDB). Edit the vector source at `public/brand/datatale.svg`; regenerate `src/app/favicon.ico` with 16/32/48/64/128/256 px frames after changes. Keep the single Next.js favicon route. Verify small-size legibility on light and dark backgrounds.
 - Use a consistent wordmark, header and metadata title, e.g. `DataTale — Turn data into a story`, with localized product copy if appropriate. Add description and share metadata when production URL is known. Do not expose private report content in publicly fetched social previews.
 
 HeroUI v3 has no mandatory HeroUIProvider. A next-themes ThemeProvider has a separate purpose and is legitimate. Fetch version-matched APIs before implementation.
