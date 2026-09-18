@@ -170,18 +170,32 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
       );
     if (name.endsWith(".csv")) {
       const text = await file.text();
-      const parsed = Papa.parse<string[]>(text, { skipEmptyLines: false });
-      if (parsed.errors.length)
+      let previousCursor = 0;
+      const parsedRows: Array<{ row: string[]; sourceRowNumber: number }> = [];
+      const parseErrors: Papa.ParseError[] = [];
+      Papa.parse<string[]>(text, {
+        skipEmptyLines: false,
+        step: ({ data, errors, meta }) => {
+          parseErrors.push(...errors);
+          const sourceRowNumber = text
+            .slice(0, previousCursor)
+            .split(/\r\n|\r|\n/).length;
+          previousCursor = meta.cursor;
+          parsedRows.push({ row: data, sourceRowNumber });
+        },
+      });
+      if (parseErrors.length)
         throw new ImportError(
-          `CSV не удалось прочитать: ${parsed.errors[0]?.message ?? "неизвестная ошибка"}.`,
+          `CSV не удалось прочитать: ${parseErrors[0]?.message ?? "неизвестная ошибка"}.`,
           "invalid-csv",
         );
-      const [headers, ...unfilteredRows] = parsed.data;
+      const [headerRecord, ...unfilteredRows] = parsedRows;
+      const headers = headerRecord?.row;
       if (!headers)
         throw new ImportError("В CSV нет заголовка.", "empty-header");
-      const records = unfilteredRows
-        .map((row, index) => ({ row, sourceRowNumber: index + 2 }))
-        .filter(({ row }) => row.some((cell) => String(cell ?? "").trim()));
+      const records = unfilteredRows.filter(({ row }) =>
+        row.some((cell) => String(cell ?? "").trim()),
+      );
       const result = normalizeTable(
         {
           headers,
