@@ -54,8 +54,9 @@ function inferType(values: unknown[]) {
         (typeof value === "string" &&
           plainNumberPattern.test(value) &&
           !identifierPattern.test(value) &&
-          (Number.isSafeInteger(Number(value)) ||
-            (value.includes(".") && isLosslessDecimal(value)))),
+          (value.includes(".")
+            ? isLosslessDecimal(value)
+            : Number.isSafeInteger(Number(value)))),
     )
   )
     return "number" as const;

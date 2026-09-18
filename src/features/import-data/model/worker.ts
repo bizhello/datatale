@@ -7,7 +7,9 @@ import { parseCsv } from "./parse-csv";
 import { ImportError } from "./types";
 
 type WorkerRequest = { id: number; file: File; selectedSheet?: string };
-let retainedSheets: Awaited<ReturnType<typeof readXlsxFile>> | undefined;
+let retainedSheets:
+  | Awaited<ReturnType<typeof readXlsxFile<string>>>
+  | undefined;
 
 export function preflightXlsx(bytes: Uint8Array) {
   let entries = 0;
@@ -185,7 +187,9 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
       throw new ImportError("Выберите CSV или XLSX-файл.", "unsupported-file");
     const bytes = new Uint8Array(await file.arrayBuffer());
     const hasCachedFormula = preflightXlsx(bytes);
-    const sheets = retainedSheets ?? (await readXlsxFile(file));
+    const sheets =
+      retainedSheets ??
+      (await readXlsxFile(file, { parseNumber: (value) => value }));
     retainedSheets = sheets;
     const sheetNames = sheets.map((sheet) => sheet.sheet);
     const selected = sheets.find(

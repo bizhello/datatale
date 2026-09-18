@@ -77,3 +77,19 @@ describe("normalizeText", () => {
     ).toThrow(/30\s*000/);
   });
 });
+
+describe("decimal precision per column", () => {
+  it.each([
+    "2.000000000000000001",
+    "0.0000000000000000000000000000000000000000000001",
+    "1.234567890123456789",
+  ])("retains %s even without another lossy value in the column", (value) => {
+    const result = normalizeTable(
+      { headers: ["Value"], rows: [[value]] },
+      { kind: "csv" },
+    );
+    if ("rawText" in result.source) throw new Error("Expected table");
+    expect(result.source.columns[0]?.scalarType).toBe("string");
+    expect(result.source.rows[0]?.values.value).toBe(value);
+  });
+});
