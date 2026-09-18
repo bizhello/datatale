@@ -10,4 +10,10 @@ export default defineConfig([
     files: ["./src/entities/dataset", "./src/entities/dataset/**"],
     rules: { "fsd/insignificant-slice": "off" },
   },
+  {
+    // DT-01b introduces the contract before DT-04/DT-07 provide its consumers.
+    // Remove this usage-only exception once both planned consumers import the report public API.
+    files: ["./src/entities/report", "./src/entities/report/**"],
+    rules: { "fsd/insignificant-slice": "off" },
+  },
 ]);
