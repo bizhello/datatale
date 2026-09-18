@@ -53,7 +53,8 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| DT-INPUT | Executor: Terra medium; conductor: dependencies/docs; reviewer: Sol medium | active (implementation) | `f397e159b7ddf7392ce0363b80da36a2c3b7400e` / `feat/dt-input-workspace` / `../datatale-worktrees/input-workspace` | Executor: `src/features/import-data/**`, `src/entities/dataset/**`, `src/widgets/dashboard-shell/**`, `src/shared/**`, `src/app/{layout.tsx,globals.css,providers.tsx}`, `tests/e2e/**`, `tests/fixtures/import/**`; conductor: root config, dependencies, docs | Implement reviewed whole input journey; no AI/storage dependency |
+| DT-INPUT parser | Executor: Terra medium; conductor: dependencies/docs; reviewer: Sol medium | active (implementation) | `f397e159b7ddf7392ce0363b80da36a2c3b7400e` / `feat/dt-input-workspace` / `../datatale-worktrees/input-workspace` | Parser executor: `src/features/import-data/model/**`, `src/entities/dataset/**`, `src/shared/config/**`, `tests/fixtures/import/**`; conductor: root config, dependencies, docs | Implement reviewed whole input journey; no AI/storage dependency |
+| DT-INPUT UI | Second Terra medium executor | active | `4ac042342d24dda91c99f4af03bc695a57a40af4` / `feat/dt-input-ui` / `../datatale-worktrees/input-ui` | `src/features/import-data/ui/**`, `src/features/import-data/index.ts`, `src/widgets/dashboard-shell/**`, `src/app/{layout.tsx,globals.css,theme-provider.tsx}`, `tests/e2e/**` | Finish reducer, theme, polished responsive UI and browser tests; merge into the same feature PR |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 
