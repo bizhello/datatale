@@ -369,8 +369,8 @@ footer {
   flex: 0 0 auto;
   color: var(--warning);
 }
-.warning [data-slot="alert-description"] p {
-  margin: 0;
+.warning-message {
+  display: block;
   line-height: 1.5;
 }
 .table-wrap {
@@ -424,7 +424,7 @@ footer {
   white-space: pre-wrap;
   line-height: 1.65;
 }
-.warning [data-slot="alert-description"] p + p {
+.warning-message + .warning-message {
   margin-top: 6px;
 }
 .analysis-note {

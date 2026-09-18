@@ -87,7 +87,9 @@ export function SourcePreview({ state, onSheet, onClear }: SourcePreviewProps) {
             <Alert.Title>Предупреждение при обработке источника</Alert.Title>
             <Alert.Description>
               {state.result.warnings.map((warning) => (
-                <p key={warning.code}>{warning.message}</p>
+                <span className="warning-message" key={warning.code}>
+                  {warning.message}
+                </span>
               ))}
             </Alert.Description>
           </Alert.Content>
