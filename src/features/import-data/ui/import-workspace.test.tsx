@@ -44,6 +44,11 @@ const sales = (sheet: string): ImportResult => ({
 
 afterEach(() => parser.mockReset());
 
+function chooseSheet(name: string, label: string) {
+  fireEvent.click(screen.getByLabelText(label));
+  fireEvent.click(screen.getByRole("option", { name }));
+}
+
 describe("ImportWorkspace", () => {
   it("clears accepted text and demo sources when removing them", async () => {
     render(<ImportWorkspace />);
@@ -103,12 +108,12 @@ describe("ImportWorkspace", () => {
     });
     initial.resolve(sales("Продажи"));
     expect(await screen.findByText("sales.xlsx")).toBeVisible();
-    fireEvent.change(screen.getByLabelText("Лист"), {
-      target: { value: "Расходы" },
-    });
+    chooseSheet("Расходы", "Лист");
     expect(selectSheet).toHaveBeenCalledWith("Расходы");
     nextSheet.resolve(sales("Расходы"));
-    expect(await screen.findByRole("cell", { name: "Расходы" })).toBeVisible();
+    expect(
+      await screen.findByRole("rowheader", { name: "Расходы" }),
+    ).toBeVisible();
     expect(parser).toHaveBeenCalledTimes(1);
   });
 
@@ -140,12 +145,12 @@ describe("ImportWorkspace", () => {
     expect(
       await screen.findByLabelText("Попробовать другой лист"),
     ).toBeVisible();
-    fireEvent.change(screen.getByLabelText("Попробовать другой лист"), {
-      target: { value: "Расходы" },
-    });
+    chooseSheet("Расходы", "Попробовать другой лист");
     expect(selectSheet).toHaveBeenCalledWith("Расходы");
     nextSheet.resolve(sales("Расходы"));
-    expect(await screen.findByRole("cell", { name: "Расходы" })).toBeVisible();
+    expect(
+      await screen.findByRole("rowheader", { name: "Расходы" }),
+    ).toBeVisible();
   });
 
   it("ignores a late parse completion after cancellation", async () => {

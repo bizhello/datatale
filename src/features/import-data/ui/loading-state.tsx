@@ -1,4 +1,4 @@
-import { Button, Skeleton } from "@heroui/react";
+import { Button, ProgressBar, Skeleton } from "@heroui/react";
 import { LoaderCircle } from "lucide-react";
 
 type LoadingStateProps = {
@@ -25,6 +25,15 @@ export function LoadingState({ onCancel, sheet }: LoadingStateProps) {
       <Button variant="tertiary" onPress={onCancel}>
         Отменить
       </Button>
+      <ProgressBar
+        aria-label="Проверка источника"
+        className="loading-progress"
+        isIndeterminate
+      >
+        <ProgressBar.Track>
+          <ProgressBar.Fill />
+        </ProgressBar.Track>
+      </ProgressBar>
       <div className="skeleton-row" aria-hidden="true">
         <Skeleton className="skeleton-cell" />
         <Skeleton className="skeleton-cell" />

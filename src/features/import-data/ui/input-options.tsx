@@ -1,4 +1,11 @@
-import { Button } from "@heroui/react";
+import {
+  Button,
+  Description,
+  Label,
+  Surface,
+  TextArea,
+  TextField,
+} from "@heroui/react";
 import { FileSpreadsheet, FileText, Upload } from "lucide-react";
 import type { DropzoneState } from "react-dropzone";
 
@@ -39,25 +46,33 @@ export function InputOptions({
         </Button>
         <small>XLS нужно сохранить как XLSX</small>
       </div>
-      <div className="text-input">
+      <Surface className="text-input">
         <span className="input-icon">
           <FileText aria-hidden="true" />
         </span>
         <h2>Или вставьте текст</h2>
-        <label htmlFor="source-text">Текст отчёта</label>
-        <textarea
-          id="source-text"
+        <TextField
+          fullWidth
+          name="source-text"
           value={text}
-          onChange={(event) => onChangeText(event.target.value)}
-          placeholder="Вставьте короткий отчёт или заметки…"
-        />
-        <div>
-          <span>{text.length.toLocaleString("ru-RU")} / 30 000</span>
+          onChange={onChangeText}
+          variant="secondary"
+        >
+          <Label>Текст отчёта</Label>
+          <TextArea
+            id="source-text"
+            placeholder="Вставьте короткий отчёт или заметки…"
+          />
+          <Description>
+            {text.length.toLocaleString("ru-RU")} / 30 000
+          </Description>
+        </TextField>
+        <div className="text-actions">
           <Button variant="secondary" onPress={onAcceptText}>
             Проверить текст
           </Button>
         </div>
-      </div>
+      </Surface>
     </div>
   );
 }
