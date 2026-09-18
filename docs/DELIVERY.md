@@ -53,7 +53,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| DT-INPUT-HEROUI | Executor: Terra medium; conductor: docs/integration; reviewer: Sol medium | review | `169a04cfb84990bcebc57d8647ddf1aba09d790a` / `feat/dt-input-heroui` / `../datatale-worktrees/input-heroui` | Executor: `src/features/import-data/ui/**`, `src/widgets/dashboard-shell/ui/**`, `src/app/globals.css`, related UI/E2E tests; conductor: canonical docs | Implementation complete; `bun run check:all` passed 49 unit and 24 browser tests. Capture responsive/theme evidence, independently review the exact candidate, then integrate through PR |
+| DT-INPUT-HEROUI | Executor: Terra medium; conductor: docs/integration; reviewer: Sol medium | review | `169a04cfb84990bcebc57d8647ddf1aba09d790a` / `feat/dt-input-heroui` / `../datatale-worktrees/input-heroui` | Executor: `src/features/import-data/ui/**`, `src/widgets/dashboard-shell/ui/**`, `src/app/globals.css`, `src/features/import-data/model/use-import-workspace.ts` dropzone controls only, related UI/E2E tests; conductor: canonical docs | Review findings and visible file-picker regression fixed; rerun exact-candidate independent review and hosted checks, then integrate through PR |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 
