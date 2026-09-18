@@ -5,6 +5,12 @@ export default defineConfig([
   ...fsd.configs.recommended,
   { ignores: ["**/.gitkeep"] },
   {
+    // Import owns parsing/lifecycle invariants even with one dashboard consumer.
+    // Keep this feature boundary; only the usage-count heuristic is disabled.
+    files: ["./src/features/import-data", "./src/features/import-data/**"],
+    rules: { "fsd/insignificant-slice": "off" },
+  },
+  {
     // DT-01a introduces the contract before DT-03/DT-04 provide its consumers.
     // Remove this usage-only exception once both feature slices import Dataset.
     files: ["./src/entities/dataset", "./src/entities/dataset/**"],

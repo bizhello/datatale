@@ -2,9 +2,11 @@
 
 Turn a CSV, an Excel workbook, or a short report into a grounded story, interactive charts, and answers supported by the source.
 
-**Current implementation: development foundation and static preview.** Next.js, React and HeroUI are installed. Bun, Biome, strict TypeScript, Steiger, Vitest and Playwright/axe are configured. GitHub repository: https://github.com/bizhello/datatale. The foundation passed GitHub CI. The normalized table Dataset contract and its tests are implemented and merged in [PR #1](https://github.com/bizhello/datatale/pull/1). Chart planning schemas and the capability catalog are implemented and merged in [PR #5](https://github.com/bizhello/datatale/pull/5). Upload, AI analysis, chart rendering, chat, persistence, themes and onboarding remain planned.
+**Current implementation: local input workspace.** Import CSV/XLSX or paste a report, choose an Excel sheet, inspect a labeled preview and full accepted counts, or try the synthetic demo. File parsing runs in a cancellable browser worker with resource limits; light/dark/system themes and mobile layouts are supported. This step does not send source data to a server or save it. AI analysis, chart rendering, chat, persistence and onboarding remain planned.
 
-Live starter: https://datatale.bizhov.ru (also https://datatale.vercel.app). See [deployment status](docs/DEPLOYMENT.md) for infrastructure and pending external setup.
+The normalized Dataset contract and chart-planning catalog are integrated. The repository uses Bun, Biome, strict TypeScript, Steiger, Vitest and Playwright/axe. GitHub: https://github.com/bizhello/datatale.
+
+Live app: https://datatale.bizhov.ru (also https://datatale.vercel.app). See [deployment status](docs/DEPLOYMENT.md) for infrastructure and pending external setup.
 
 ## Development
 
@@ -15,7 +17,7 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
-Open http://localhost:3000. The bootstrap needs no secrets.
+Open http://localhost:3000. Local input and preview need no secrets. Refreshing the page clears source data; only the theme preference persists.
 
 ```bash
 bun run check                       # lint, architecture, types, unit tests, production build

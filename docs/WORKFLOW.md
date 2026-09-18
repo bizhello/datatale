@@ -52,18 +52,18 @@ Verify the account and repository permissions before writes. The default `gh` pr
 Use slashes in branch names; colons belong in Conventional Commit subjects, not branch names. Do not switch branches in another agent's working directory. Create the assigned branch in its own worktree. Fixes requested during review stay on that feature branch; a bug in already integrated code gets a new fix branch from current main. A production hotfix follows the same checks with narrow scope.
 
 1. Start from verified current main. Once GitHub exists, fetch first and record the actual base SHA. Dependent tasks wait for their prerequisite to land; avoid stacked branches for this MVP.
-2. Open a draft PR to main early. Vercel branch/PR deployments are previews with preview-scoped credentials; main deployments use production configuration. The conductor owns provisioning and deployment settings.
+2. Open one draft PR per user-visible feature when its behavior and validation can be described concretely. Vercel branch/PR deployments are previews with preview-scoped credentials; main deployments use production configuration. The conductor owns provisioning and deployment settings.
 3. Review the final candidate. Test its combination with current main in an isolated integration checkout. If main changes, refresh the candidate/merge result and rerun affected checks; obtain renewed review of conflicts or semantic changes.
 4. The conductor squash-merges one approved PR at a time, after CI and applicable preview checks. Prefer a merge queue when available; otherwise require an up-to-date branch and serialize merges. Run a production smoke check after deployment.
-5. Reconcile DELIVERY and affected canonical docs with the merged behavior before dispatching another task. Keep PR descriptions about behavior and verification; store model/session evidence in AI-WORKLOG. Record the resulting main SHA and verification in DELIVERY, then remove the completed task branch/worktree after confirming its changes are integrated. Record the merge SHA in a follow-up documentation update or linked PR; a commit cannot contain its own SHA.
+5. Reconcile DELIVERY and affected canonical docs with the merged behavior before dispatching another task. Keep PR descriptions about behavior and verification; store model/session evidence in AI-WORKLOG. Keep implementation status and verification in the feature PR itself. Link its stable PR number from DELIVERY; GitHub records the final merge SHA, so do not create a separate documentation PR solely to copy that SHA or change a status word. Before merge use integrating; after successful merge the linked record is authoritative until the next ordinary board update. Remove completed branches/worktrees only after confirming their changes are integrated.
 
 Before a GitHub remote exists, apply the same review/check sequence locally, with conductor-owned squash merges to main. Local integration does not imply a deployment. After initial repository setup, protect main against direct pushes and force pushes, and require the CI verify job. Record independent agent review evidence; an agent's text approval is not automatically a GitHub review approval. Enable GitHub approval requirements only with an available independent reviewer identity.
 
-When working on shared dependencies, the conductor uses a short chore branch and integrates it through the same gates before consumers update their bases. Only the conductor writes the live board: during active work it may have pending doc-only changes in the conductor checkout, which must be committed promptly through this flow. Workers always start from the recorded committed base.
+For feature-owned dependencies, the conductor commits manifest/lockfile changes on the feature branch before handing code paths to the executor; review them with that feature. Use a separate chore branch only for independently useful maintenance. Only the conductor writes the live board: during active work it may have pending doc-only changes in the conductor checkout, which must be committed promptly through this flow. Workers always start from the recorded committed base.
 
 ## Ready work and task size
 
-A task is ready only when its dependencies are integrated, its interfaces are known and its scope/acceptance are explicit. Target one reviewable outcome per assignment, normally 30–90 minutes. Split larger DELIVERY work packages into child IDs in that same board before dispatch; keep parent acceptance as the completion condition.
+A task is ready only when its dependencies are integrated, its interfaces are known and its scope/acceptance are explicit. Target one reviewable outcome per assignment, sized around a complete user-visible feature, with no line-count or arbitrary time limit. Combine prerequisite contracts, implementation, UI, tests and documentation in one branch and PR when they serve that feature. Use cohesive commits within the branch; do not require a PR per commit or schema. Split only for independent outcomes, ownership conflicts or material review risk.
 
 Send each executor this assignment, filled with real values:
 
@@ -83,7 +83,7 @@ Specify exports, input/output shapes and one example for less capable executors.
 
 Reserve write paths before dispatch. Overlapping paths, public barrels, global CSS, root configuration, dependency manifests and shared fixtures have one writer at a time, even across worktrees. A worker requests an expanded assignment before touching another owner's paths.
 
-Dependency changes are serialized: executor requests package, version constraints and consumer; conductor checks compatibility, commits the manifest/lockfile update, and supplies the new base. Workers may experiment in disposable local state but must not submit competing lockfile edits. Public interface changes pause affected consumers until the updated contract is integrated.
+Dependency changes are serialized: executor requests package, version constraints and consumer; conductor checks compatibility and commits the manifest/lockfile update on the assigned feature branch before consumers proceed. Workers may experiment in disposable local state but must not submit competing lockfile edits. Public interface changes pause affected consumers until the updated contract is integrated.
 
 ## State transitions and live records
 
@@ -91,7 +91,7 @@ Use `queued → ready → active → review → integrating → done`. Use `bloc
 
 Only the conductor updates DELIVERY. Before spawning a worker, record task, owner, base SHA, worktree and allowed paths. Update the board after dispatch, blocker, handoff, review and integration. Workers report evidence through their session; do not edit independent copies of the shared board.
 
-Keep at most one active assignment per executor. Do not fill idle slots with work that depends on unfinished contracts. Reviewer availability is a scheduling constraint: finish and review small patches instead of accumulating unreviewed branches.
+Keep at most one active assignment per executor. Do not fill idle slots with work that depends on unfinished contracts. Reviewer availability is a scheduling constraint: finish and review complete features instead of accumulating unreviewed branches. Run targeted checks during implementation and the applicable full suite on the finished candidate; repeat broad checks only after relevant changes or unresolved failures.
 
 The board is current state. Git commits provide its history. Use task IDs in commit subjects, for example `feat: add CSV preview (DT-03)`. Keep completed rows with integration SHA and verification references. Store concise review findings and gate results in the task row/record or linked PR. Temporary implementation reasoning stays in ignored `.dev-tasks/`; durable handoff facts must be in tracked DELIVERY or the PR.
 

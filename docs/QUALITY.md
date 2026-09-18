@@ -2,7 +2,7 @@
 
 **Make failures visible at the boundary that owns the rule.** Type checking, runtime validation, semantic tests and browser review protect different risks. None makes the project impossible to break.
 
-Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Initial tests cover demo labeling, disclosure, viewport overflow and automated accessibility in Chromium and WebKit. Domain/integration tests and live-model evaluations are added with their features.
+Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Input coverage includes parser contracts, source provenance, workbook preflight, UI recovery, viewport overflow and automated accessibility in Chromium and WebKit. Model/provider/storage evaluations remain separate release work.
 
 ## Gate design
 
@@ -38,7 +38,7 @@ Integration tests are required when behavior crosses a meaningful boundary, not 
 
 Colocate unit/component/integration files under their owning `src` slice using `*.test.ts` or `*.test.tsx`; `*.integration.test.ts` matches the current Vitest include. Shared fixture files live in `tests/fixtures`; browser workflows live in `tests/e2e`. Storage tests must use disposable, isolated data. When adding them, configure the test database and CI execution in that same task; missing prerequisites must fail the required gate rather than silently skip it.
 
-The existing suite covers the starter only. Domain integration coverage grows with feature implementation. Passing mocks cannot close the live-provider or production acceptance requirements.
+Parser integration exercises synthetic CSV/XLSX and canonical Dataset validation. Browser coverage exercises the real worker; controlled component/controller tests cover deterministic asynchronous races. Passing mocks cannot close the live-provider or production acceptance requirements.
 
 ## Risk-to-test map
 
@@ -79,3 +79,5 @@ For parallel work, use the assignment, independent review and integration gates 
 Do not test low-impact formatting or a function's private mechanics just to increase counts. Do not claim 100% coverage means correctness. Prioritize boundary/branch cases in calculations, permissions and model validation. A regression fix includes a durable behavioral test rather than only another instruction to the agent.
 
 Steiger excludes `.gitkeep` placeholders. A temporary `fsd/insignificant-slice` exception applies only to `entities/dataset` while its contract precedes the DT-03/DT-04 consumers; remove it once both slices consume Dataset. A matching usage-only exception applies to `entities/report` until DT-04 and DT-07 consume its public contracts; remove it when both consumers exist. All import-boundary rules remain enabled. Import checks cover resolved code imports; the installed plugin does not catch the tested CSS side-effect import into a higher layer. Review stylesheet ownership explicitly. Biome uses the recommended preset and fails on warnings; the two reduced-motion declarations retain documented local `!important` exceptions.
+
+The import-data feature has one dashboard consumer but owns parsing and lifecycle invariants independently of rendering. Its scoped `fsd/insignificant-slice` exception disables only the usage-count heuristic; import direction and public API checks remain enabled. Revisit it when another consumer is added rather than merging parsing into the widget to satisfy a count.

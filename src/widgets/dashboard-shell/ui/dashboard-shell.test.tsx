@@ -2,26 +2,26 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { DashboardShell } from "./dashboard-shell";
 
-describe("Dashboard starter", () => {
-  it("identifies the preview as an example rather than a generated result", () => {
+describe("Dashboard input shell", () => {
+  it("offers local source choices and has no fake analysis action", () => {
     render(<DashboardShell />);
-    expect(screen.getByText("Пример · не AI-анализ")).toBeVisible();
-    expect(screen.getByText("8 из 20 в примере")).toBeVisible();
+    expect(
+      screen.getByText(/Файлы обрабатываются в этом браузере/),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "Загрузить синтетический демо-набор",
+      }),
+    ).toBeVisible();
+    expect(screen.queryByText(/запустить анализ/i)).not.toBeInTheDocument();
   });
-
-  it("opens and closes the plan while keeping the disclosure state accessible", () => {
+  it("accepts text and shows its exact source preview", () => {
     render(<DashboardShell />);
-    const button = screen.getByRole("button", { name: "Посмотреть план MVP" });
-    const heading = screen.getByText(
-      "Следующий шаг — один законченный сценарий",
-    );
-    expect(button).toHaveAttribute("aria-expanded", "false");
-    expect(heading).not.toBeVisible();
-    fireEvent.click(button);
-    expect(button).toHaveAttribute("aria-expanded", "true");
-    expect(heading).toBeVisible();
-    fireEvent.click(button);
-    expect(button).toHaveAttribute("aria-expanded", "false");
-    expect(heading).not.toBeVisible();
+    fireEvent.change(screen.getByLabelText("Текст отчёта"), {
+      target: { value: "Первый абзац.\n\nВторой абзац." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Проверить текст" }));
+    expect(screen.getByText("Текст готов к анализу")).toBeVisible();
+    expect(screen.getByText("Первый абзац.")).toBeVisible();
   });
 });
