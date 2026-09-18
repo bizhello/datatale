@@ -28,7 +28,9 @@ If storage is unavailable, retain the preference for the current page session an
 
 Support CSV, XLSX and text; explain that legacy XLS must be converted. A workbook needs sheet selection. Cached formula values are not a guarantee of recalculation; macros never run. Dates, decimal separators, currencies, missing values and duplicate headers require explicit normalization rules.
 
-Proposed limits: 2 MiB file, 1 MiB normalized JSON, 5,000 rows, 30 columns, 30,000 text characters. The strictest limit wins. Validate under realistic load before committing these as production limits. Limit XLSX decompressed size/cells and parse time; reject instead of silently truncating. The API validates again even when browser validation passed.
+Input acceptance limits: 2 MiB per file, 1 MiB canonical source JSON, 5,000 data rows, 30 columns and 30,000 text characters. The strictest limit wins; reject instead of silently truncating. XLSX parsing is bounded by 16 MiB actual total archive expansion, 256 entries, 150,030 physical cells and a 15-second worker deadline. Check worksheet dimensions and cell coordinates before dense-array construction. The future API must validate again even when browser validation passed.
+
+Preview a labeled sample while showing full accepted row/column counts. Empty cells become null. Generate safe internal IDs independently of source headers. Preserve identifiers with leading zeros, ambiguous dates, locale decimals and currency strings; report conservative inference warnings instead of guessing units or locale. Retain raw text and paragraph references without inventing numeric facts. Input preparation alone sends no source data to a server and does not create a guest session or save a report. Model transmission disclosure applies when analysis is introduced.
 
 ## Guest retention
 
