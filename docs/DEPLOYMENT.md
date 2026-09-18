@@ -2,6 +2,12 @@
 
 **Order:** validate locally → Vercel preview → production → `datatale.bizhov.ru` DNS.
 
+## Provisioning status
+
+As of 2026-09-18, this session has not verified or changed Vercel import, Neon, AI Gateway or DNS. Browser management is unavailable; provisioning remains pending. Keep existing apex, mail and nameservers unchanged. Use Spaceweb DNS directly for the Vercel subdomain; no additional DNS proxy is required for the MVP.
+
+ChatGPT subscription usage does not fund application API inference. Configure AI Gateway credits or separately billed provider API access, subject to provider eligibility. Keep credentials in server-only Vercel environment settings. Do not treat resource provisioning as implemented persistence or AI functionality.
+
 ## Environment and provisioning
 
 Use Next.js on Vercel's stable Node.js 24 runtime; Bun is the package manager/task runner. Use the pinned packageManager version, `bun install --frozen-lockfile` and `bun run build`.

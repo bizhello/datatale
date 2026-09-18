@@ -27,6 +27,7 @@ Create additional slices with their first consumer. Guest workspace contracts be
 
 ## Import and ownership rules
 
+- Reuse domain-neutral helpers through `shared/lib`, configuration through `shared/config`, and repeated visual patterns through `shared/ui`. Search existing owners before adding a helper. Extract only when consumers share behavior and invariants; keep domain-specific logic with its entity or feature.
 - Dependencies flow down: app → widgets → features → entities → shared. No cross-feature or cross-entity slice imports.
 - Cross-entity validation happens in the consuming feature, which can import both public entity APIs. Report specs carry primitive field/fact references resolved there; do not move business schemas into shared to evade boundaries.
 - External consumers use narrow public entry points; internal imports are relative. Separate `index.ts` for safe contracts/UI from `server.ts` for server-only exports. Never re-export private server dependencies through a mixed barrel.
