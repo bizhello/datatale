@@ -261,7 +261,11 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
     self.postMessage({
       id: data.id,
       kind: "error",
-      error: { message: known.message, code: known.code },
+      error: {
+        message: known.message,
+        code: known.code,
+        sheetNames: retainedSheets?.map((sheet) => sheet.sheet),
+      },
     });
   }
 };
