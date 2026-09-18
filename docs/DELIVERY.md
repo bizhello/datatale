@@ -2,18 +2,18 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** DT-00 foundation and DT-01a Dataset contract are integrated in main. PR #1 was squash-merged as `c0dcbd5` after independent repeat review and conductor/CI checks. The original favicon and SVG source from [PR #4](https://github.com/bizhello/datatale/pull/4) are integrated as `b6754a1` after independent review and passing PR CI. DT-02 remains incomplete: themes, shell and other UI states are still planned. DT-01b and the remaining DT-02 scope are ready for the next dispatch; DT-01b.1 chart planning contracts are merged as `54a0308` via PR #5 after repeat independent approval and passing CI. The next contract slice is Facts and Report (DT-01b.2). Infrastructure and workflow maintenance are integrated as `6842cad` via [PR #3](https://github.com/bizhello/datatale/pull/3), after independent approval and passing CI. No executor assignment is currently active.
+**Current state:** foundation, Dataset and chart planning contracts are integrated (PRs #1, #3–#6). DT-INPUT is active: one complete CSV/XLSX/text import workspace with responsive themes, previews, bounded parsing and error recovery. Facts/Report contracts will ship with the AI-dashboard feature rather than as a standalone schema PR. AI analysis, charts, chat and storage remain unimplemented.
 
 ## Work packages
 
-These are bounded outcomes to decompose into 30–90 minute assignments where necessary. Dependencies refer to integrated outcomes, not started work. Exact path reservations and commits belong in the active assignment table.
+These are acceptance packages, not mandatory separate PRs. Dispatch complete user-visible features that combine their needed packages, with cohesive commits on one feature branch. Dependencies refer to integrated outcomes, not started work. Exact path reservations and commits belong in the active assignment table.
 
 | ID | Outcome and acceptance | Depends on | State |
 | --- | --- | --- | --- |
 | DT-00 | Establish baseline: inspect intended files, frozen install and foundation checks, baseline commit; record SHA | — | done |
-| DT-01 | Core contracts: canonical Dataset, AnalysisPlan, Facts and Report schemas; serializable bar/line/donut catalog; shared synthetic fixture and invalid-plan cases. Feature boundaries validate cross-entity references | DT-00 | active |
-| DT-02 | Visual shell: responsive layout, light/dark/system, custom identity/favicon, HeroUI Skeleton and accessible states; both-theme mobile/desktop evidence | DT-00 | ready |
-| DT-03 | CSV input: picker/dropzone, preview, limits and canonical normalization; quoted newlines/BOM/duplicate headers/empty input tests | DT-01 | queued |
+| DT-01 | Core contracts: canonical Dataset, AnalysisPlan, Facts and Report schemas; serializable bar/line/donut catalog; shared synthetic fixture and invalid-plan cases. Feature boundaries validate cross-entity references | DT-00 | queued |
+| DT-02 | Visual shell: responsive layout, light/dark/system, custom identity/favicon, HeroUI Skeleton and accessible states; both-theme mobile/desktop evidence | DT-00 | active (DT-INPUT) |
+| DT-03 | CSV input: picker/dropzone, preview, limits and canonical normalization; quoted newlines/BOM/duplicate headers/empty input tests | DT-01a | active (DT-INPUT) |
 | DT-04 | Verified metrics: profile, approved aggregations and semantic plan checks over all accepted rows; known totals, zero denominator, units and invalid-chart tests | DT-01 | queued |
 | DT-05 | Guest storage boundary: Neon/Drizzle and iron-session, source/report/message persistence, ownership, expiry and atomic/idempotent run claims; isolation and failure tests | DT-01, EXT-02 | queued |
 | DT-06 | AI analysis: catalog-generated prompt context, bounded plan repair, checked facts and 2–3 sentence narrative with evidence; invalid output, injection, timeout and real-provider fixtures | DT-04, EXT-01 | queued |
@@ -27,14 +27,6 @@ These are bounded outcomes to decompose into 30–90 minute assignments where ne
 
 Integrate incremental adapters and smoke tests as each package lands; DT-09 is the completed journey gate, not permission to postpone all integration until the end. DT-05 defines the storage boundary early to avoid competing temporary backends. Detailed history UI is completed in DT-09 after the four-feature path works.
 
-## First implementation assignment
-
-DT-01 is split before dispatch. DT-01a implements the normalized tabular Dataset contract and its tests. DT-01b (ready) will add chart/analysis/fact/report contracts and the capability catalog; it depends on DT-01a. Text extraction and parsers remain later work. Completing DT-01a does not complete DT-01.
-
-DT-01a acceptance: Zod schema and inferred types for a versioned normalized table, unique column/row IDs, exact row keys, typed finite values and explicit nulls, product row/column limits, stable source-row references, synthetic valid/invalid fixtures and behavioral tests. No UI, parsers, provider or database calls. Only normalized table data is accepted; no coercion or guessing of missing values. Date values use validated YYYY-MM-DD strings. Public entry point exposes safe contracts only.
-
-Executor: GPT-5.6 Terra, medium. Reviewer: GPT-5.6 Sol, medium; repeat review approved `1230714` after all three findings were fixed. Allowed paths: `src/entities/dataset/**` and `tests/fixtures/dataset.ts`. Root dependencies and board updates belong to the conductor. Base: `7608aff` on `feat/dt-01a-dataset-contract`. Candidate: `1230714`; integration: `c0dcbd5` via PR #1. Worktree: `/Users/andreybizhov/prog/datatale-worktrees/dt-01a`.
-
 ## External prerequisites
 
 | ID | Required evidence | Owner / current state |
@@ -47,12 +39,13 @@ Never put credentials in this board. Local implementation and provider/storage d
 
 ## Dispatch sequence
 
-1. Complete DT-00 serially. Start DT-01 and DT-02 in parallel; reserve entity contracts for one executor and UI shell paths for the other. The conductor handles requested dependencies.
-2. After contract review/integration, schedule DT-03 and DT-04. DT-07 can follow the visual shell; DT-05 can proceed when storage access is available. Use two lanes, not one agent per listed package.
-3. Prioritize DT-06/DT-08 and incremental connection work to make the four-feature journey observable. Release-risk tasks take priority over keeping workers busy.
-4. Complete DT-09 and DT-10, then release checks. DT-12 is optional polish; DT-13 is the first item to cut. Neither may displace MVP acceptance or release verification.
+1. **DT-INPUT:** DT-02 input shell + DT-03 + DT-10 source acceptance, based on the integrated Dataset contract. XLSX/text analysis remains part of the later dashboard.
+2. **AI dashboard:** remaining DT-01 contracts + DT-04/DT-06/DT-07 and necessary connection work; finish input-to-grounded-dashboard before extras.
+3. **Grounded chat:** DT-08 plus required API/source context. Keep credentials and private access server-side.
+4. **Saved history:** DT-05 and reopening/deletion in DT-09, after isolated storage prerequisites exist.
+5. **Release:** DT-11 and final polish; onboarding DT-12 only after the core journey passes. DT-13 remains first to cut.
 
-Review each small candidate as it arrives. Within a four-agent limit, use conductor + two executors + reviewer. A third executor requires an additional slot or a temporarily reassigned idle slot; retain independent review before integration.
+One feature branch/PR may span several packages. Keep independent exact-candidate review, targeted tests during development and one applicable full release gate. Use multiple executors only when paths and contracts are genuinely independent.
 
 ## Active assignments
 
@@ -60,7 +53,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| — | — | — | — | — | DT-01b.1 integrated; next planned slice is DT-01b.2 |
+| DT-INPUT | Executor: Terra medium; conductor: dependencies/docs; reviewer: Sol medium | active (plan review) | `f397e159b7ddf7392ce0363b80da36a2c3b7400e` / `feat/dt-input-workspace` / `../datatale-worktrees/input-workspace` | Executor: `src/features/import-data/**`, `src/entities/dataset/**`, `src/widgets/dashboard-shell/**`, `src/shared/**`, `src/app/{layout.tsx,globals.css,providers.tsx}`, `tests/e2e/**`, `tests/fixtures/import/**`; conductor: root config, dependencies, docs | Review plan, then implement the whole input journey; no AI/storage dependency |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 
