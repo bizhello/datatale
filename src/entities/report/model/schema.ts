@@ -1,11 +1,17 @@
 import { z } from "zod";
 
 import {
+  BAR_CHART_KIND,
   BAR_MAX_CATEGORIES,
+  COUNT_AGGREGATION_KIND,
+  DONUT_ALLOWED_AGGREGATIONS,
+  DONUT_CHART_KIND,
   DONUT_MAX_SEGMENTS,
   DONUT_MIN_SEGMENTS,
+  LINE_CHART_KIND,
   LINE_MAX_POINTS,
   LINE_MIN_POINTS,
+  NUMERIC_AGGREGATION_KINDS,
 } from "./chart-catalog";
 
 const nonblankString = z
@@ -23,13 +29,13 @@ export const fieldReferenceSchema = z
 
 export const countAggregationSchema = z
   .object({
-    kind: z.literal("count"),
+    kind: z.literal(COUNT_AGGREGATION_KIND),
   })
   .strict();
 
 export const numericAggregationSchema = z
   .object({
-    kind: z.enum(["sum", "average", "min", "max"]),
+    kind: z.enum(NUMERIC_AGGREGATION_KINDS),
     field: fieldReferenceSchema,
   })
   .strict();
@@ -48,25 +54,25 @@ const chartBaseSchema = z
   .strict();
 
 export const barChartSpecificationSchema = chartBaseSchema.extend({
-  kind: z.literal("bar"),
+  kind: z.literal(BAR_CHART_KIND),
   dimension: fieldReferenceSchema,
   aggregation: aggregationSchema,
   categoryLimit: z.number().int().min(1).max(BAR_MAX_CATEGORIES),
 });
 
 export const lineChartSpecificationSchema = chartBaseSchema.extend({
-  kind: z.literal("line"),
+  kind: z.literal(LINE_CHART_KIND),
   dimension: fieldReferenceSchema,
   aggregation: aggregationSchema,
   pointLimit: z.number().int().min(LINE_MIN_POINTS).max(LINE_MAX_POINTS),
 });
 
 export const donutChartSpecificationSchema = chartBaseSchema.extend({
-  kind: z.literal("donut"),
+  kind: z.literal(DONUT_CHART_KIND),
   dimension: fieldReferenceSchema,
   aggregation: z
     .object({
-      kind: z.literal("sum"),
+      kind: z.literal(DONUT_ALLOWED_AGGREGATIONS[0]),
       field: fieldReferenceSchema,
     })
     .strict(),

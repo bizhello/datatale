@@ -5,6 +5,7 @@ import {
   BAR_MAX_CATEGORIES,
   chartCapabilityCatalog,
   chartCatalogPromptDescription,
+  chartSpecificationSchema,
   DONUT_MAX_SEGMENTS,
   DONUT_MIN_SEGMENTS,
   LINE_MAX_POINTS,
@@ -31,6 +32,20 @@ function itemAt<T>(items: T[], index: number): T {
     throw new Error(`Expected an item at index ${index}.`);
   }
   return item;
+}
+
+function chartForKind(kind: string): Record<string, unknown> {
+  const chart = chartsOf(clonePlan()).find(
+    (candidate) => candidate.kind === kind,
+  );
+  if (chart === undefined) {
+    throw new Error(`Expected a fixture chart for ${kind}.`);
+  }
+  return chart;
+}
+
+function aggregationFor(kind: string): Record<string, unknown> {
+  return kind === "count" ? { kind } : { kind, field: { fieldId: "metric" } };
 }
 
 describe("analysisPlanSchema", () => {
@@ -193,6 +208,39 @@ describe("chartCapabilityCatalog", () => {
       expect(chartCatalogPromptDescription).toContain(
         `${capability.limits.minItems}-${capability.limits.maxItems}`,
       );
+    }
+  });
+
+  it("accepts exactly the catalog's aggregations for every chart kind", () => {
+    const aggregationKinds = ["count", "sum", "average", "min", "max"];
+
+    for (const capability of chartCapabilityCatalog) {
+      for (const aggregationKind of capability.allowedAggregations) {
+        const chart = chartForKind(capability.kind);
+        chart.aggregation = aggregationFor(aggregationKind);
+
+        expect(chartSpecificationSchema.safeParse(chart).success).toBe(true);
+      }
+
+      for (const aggregationKind of aggregationKinds) {
+        if (
+          capability.allowedAggregations.some(
+            (allowedAggregation) => allowedAggregation === aggregationKind,
+          )
+        ) {
+          continue;
+        }
+
+        const chart = chartForKind(capability.kind);
+        chart.aggregation = aggregationFor(aggregationKind);
+
+        expect(chartSpecificationSchema.safeParse(chart).success).toBe(false);
+      }
+
+      const chart = chartForKind(capability.kind);
+      chart.aggregation = aggregationFor("median");
+
+      expect(chartSpecificationSchema.safeParse(chart).success).toBe(false);
     }
   });
 });

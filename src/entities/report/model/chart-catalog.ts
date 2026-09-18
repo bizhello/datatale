@@ -1,4 +1,20 @@
 export const CHART_CATALOG_VERSION = 1;
+export const BAR_CHART_KIND = "bar";
+export const LINE_CHART_KIND = "line";
+export const DONUT_CHART_KIND = "donut";
+export const COUNT_AGGREGATION_KIND = "count";
+export const NUMERIC_AGGREGATION_KINDS = [
+  "sum",
+  "average",
+  "min",
+  "max",
+] as const;
+export const BAR_ALLOWED_AGGREGATIONS = [
+  COUNT_AGGREGATION_KIND,
+  ...NUMERIC_AGGREGATION_KINDS,
+] as const;
+export const LINE_ALLOWED_AGGREGATIONS = BAR_ALLOWED_AGGREGATIONS;
+export const DONUT_ALLOWED_AGGREGATIONS = ["sum"] as const;
 export const BAR_MAX_CATEGORIES = 12;
 export const DONUT_MIN_SEGMENTS = 2;
 export const DONUT_MAX_SEGMENTS = 6;
@@ -7,13 +23,13 @@ export const LINE_MAX_POINTS = 24;
 
 export const chartCapabilityCatalog = [
   {
-    kind: "bar",
+    kind: BAR_CHART_KIND,
     purpose: "Compare a metric across categories.",
     requiredDimension: {
       role: "category",
       semantic: "categorical",
     },
-    allowedAggregations: ["count", "sum", "average", "min", "max"],
+    allowedAggregations: BAR_ALLOWED_AGGREGATIONS,
     disqualifiers: [
       "Mixed units.",
       "More categories than the selected limit without a documented top-N and Other policy.",
@@ -25,13 +41,13 @@ export const chartCapabilityCatalog = [
     presentationRequirements: ["Use an honest baseline."],
   },
   {
-    kind: "line",
+    kind: LINE_CHART_KIND,
     purpose: "Show a metric over ordered time periods.",
     requiredDimension: {
       role: "time",
       semantic: "temporal",
     },
-    allowedAggregations: ["count", "sum", "average", "min", "max"],
+    allowedAggregations: LINE_ALLOWED_AGGREGATIONS,
     disqualifiers: [
       "Unordered or non-temporal dimension.",
       "Missing periods that would be falsely connected.",
@@ -43,13 +59,13 @@ export const chartCapabilityCatalog = [
     presentationRequirements: ["Preserve chronological order."],
   },
   {
-    kind: "donut",
+    kind: DONUT_CHART_KIND,
     purpose: "Show non-negative additive parts of one meaningful whole.",
     requiredDimension: {
       role: "segment",
       semantic: "categorical",
     },
-    allowedAggregations: ["sum"],
+    allowedAggregations: DONUT_ALLOWED_AGGREGATIONS,
     disqualifiers: [
       "Negative values.",
       "A zero or incomplete total.",
