@@ -1,7 +1,7 @@
 import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
-import { preflightXlsx } from "./worker";
 import { createMultiSheetXlsx } from "../../../../tests/fixtures/import/xlsx";
+import { preflightXlsx } from "./worker";
 
 function workbookWithSheet(sheetXml: string) {
   return zipSync({ "xl/worksheets/sheet1.xml": strToU8(sheetXml) });
