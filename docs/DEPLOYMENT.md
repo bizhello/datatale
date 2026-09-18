@@ -9,7 +9,7 @@ Verified on 2026-09-18:
 - Vercel project `datatale` deploys GitHub `bizhello/datatale` main. Initial deployment of `e134ab2` succeeded; https://datatale.vercel.app returns HTTPS 200. Install: `bun install --frozen-lockfile`; build: `bun run build`.
 - Neon `datatale-db` uses Free, region `iad1`, with Auth disabled. Connected only to Vercel Production. Preview/development storage, session configuration and migrations remain pending; application persistence is not implemented.
 - `datatale.bizhov.ru` is assigned to Vercel Production. Existing authoritative DNS is Cloudflare (`nancy`/`roan`), not Spaceweb. Added CNAME `datatale` → `0c0e950f6ced7c09.vercel-dns-017.com`, DNS only, TTL Auto. No previous subdomain record existed; apex/mail/nameservers were preserved. Authoritative DNS resolves; https://datatale.bizhov.ru returns HTTPS 200 with certificate verification enabled.
-- AI Gateway requests a payment card to unlock $5 initial credits. No API key was created and no live inference was performed. The user must complete billing setup; ChatGPT subscription usage does not fund application inference.
+- AI provider: project-provided gateway `https://ai-gateway.spiro.vc/v1`, requested model `gpt-5.6-terra`. Credential configuration and live verification remain pending. No inference has been performed.
 
 Keep credentials server-only and configure eligible provider/model access and inference limits before release. Infrastructure readiness does not imply implemented AI or persistence.
 
@@ -21,7 +21,7 @@ Use the provisioned Neon database through the Vercel Marketplace connection. Co-
 
 Maintain `.env.example` alongside environment consumers, with placeholders for AI, database and session configuration. Preview/Production secrets must be scoped separately. No `NEXT_PUBLIC_*` for provider, DB or cookie secrets. Rotate compromised keys and session encryption secrets through a reviewed process.
 
-Choose Gateway or a direct provider only after confirming account eligibility, regional conditions, payment, model features and a small live fixture. A working website or SDK does not establish model access. Apply shared rate limits and a global inference budget before opening paid endpoints publicly.
+Set `OPENAI_BASE_URL=https://ai-gateway.spiro.vc/v1`, sensitive `OPENAI_API_KEY` containing the project gateway key, and `AI_MODEL=gpt-5.6-terra` in the intended Vercel environment. Redeploy after changes; existing deployments do not receive new values. Use `.env.local` for local development. Do not copy shell profiles or credentials into Git or chat. Confirm gateway eligibility, subscription limits, model features and a small live fixture. A working website or SDK does not establish model access. Apply shared rate limits and a global inference budget before opening paid endpoints publicly.
 
 ## Guest retention operations
 
@@ -41,4 +41,4 @@ Validate function body/time limits against the plan's product limits. No promise
 
 Promote the previous working deployment. Restore only the saved subdomain records if DNS rollback is required. Keep schema changes backward-compatible with that deployment; destructive migrations need a separate rollback/data recovery plan. A leaked key must be revoked, not merely removed from the latest commit.
 
-Sources: [Vercel domains](https://vercel.com/docs/domains/working-with-domains/add-a-domain), [function limits](https://vercel.com/docs/functions/limitations), [Postgres](https://vercel.com/docs/postgres), [AI Gateway](https://vercel.com/docs/ai-gateway).
+Sources: [Vercel domains](https://vercel.com/docs/domains/working-with-domains/add-a-domain), [function limits](https://vercel.com/docs/functions/limitations), [Postgres](https://vercel.com/docs/postgres).
