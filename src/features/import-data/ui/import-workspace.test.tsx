@@ -1,0 +1,102 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ImportResult } from "../model/types";
+
+type Deferred = {
+  promise: Promise<ImportResult>;
+  resolve: (result: ImportResult) => void;
+  reject: (reason: unknown) => void;
+};
+
+function deferred(): Deferred {
+  let resolve: Deferred["resolve"] = () => undefined;
+  let reject: Deferred["reject"] = () => undefined;
+  const promise = new Promise<ImportResult>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
+}
+
+const parser = vi.hoisted(() => vi.fn());
+vi.mock("../model/parse-file", () => ({ parseFileInWorker: parser }));
+
+import { ImportWorkspace } from "./import-workspace";
+
+const sales = (sheet: string): ImportResult => ({
+  source: {
+    version: 1,
+    id: sheet,
+    source: { kind: "xlsx", filename: "sales.xlsx", sheet },
+    columns: [{ id: "month", label: "Месяц", scalarType: "string" }],
+    rows: [
+      {
+        id: "row-1",
+        values: { month: sheet },
+        provenance: { sourceRowNumber: 2 },
+      },
+    ],
+  },
+  warnings: [],
+  sheetNames: ["Продажи", "Расходы"],
+});
+
+afterEach(() => parser.mockReset());
+
+describe("ImportWorkspace", () => {
+  it("keeps the workbook controller when selecting another sheet", async () => {
+    const initial = deferred();
+    const nextSheet = deferred();
+    const selectSheet = vi.fn(() => nextSheet.promise);
+    parser.mockReturnValue({
+      promise: initial.promise,
+      selectSheet,
+      cancel: vi.fn(),
+    });
+    render(<ImportWorkspace />);
+    const input = screen.getByLabelText("Выбрать CSV или XLSX файл");
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(["a"], "sales.xlsx", {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }),
+        ],
+      },
+    });
+    initial.resolve(sales("Продажи"));
+    expect(await screen.findByText("sales.xlsx")).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Лист"), {
+      target: { value: "Расходы" },
+    });
+    expect(selectSheet).toHaveBeenCalledWith("Расходы");
+    nextSheet.resolve(sales("Расходы"));
+    expect(await screen.findByRole("cell", { name: "Расходы" })).toBeVisible();
+    expect(parser).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a late parse completion after cancellation", async () => {
+    const initial = deferred();
+    const cancel = vi.fn();
+    parser.mockReturnValue({
+      promise: initial.promise,
+      selectSheet: vi.fn(),
+      cancel,
+    });
+    render(<ImportWorkspace />);
+    fireEvent.change(screen.getByLabelText("Выбрать CSV или XLSX файл"), {
+      target: {
+        files: [
+          new File(["a"], "sales.xlsx", {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }),
+        ],
+      },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Отменить" }));
+    initial.resolve(sales("Продажи"));
+    await Promise.resolve();
+    expect(cancel).toHaveBeenCalled();
+    expect(screen.queryByText("sales.xlsx")).not.toBeInTheDocument();
+  });
+});

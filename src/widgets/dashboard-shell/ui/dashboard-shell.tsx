@@ -5,10 +5,11 @@ import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { ImportWorkspace } from "@/features/import-data";
 export function DashboardShell() {
-  const { resolvedTheme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const dark = mounted && resolvedTheme === "dark";
+  const selectedMode = mounted ? theme : undefined;
   return (
     <div className="page-shell">
       <a href="#main" className="skip-link">
@@ -25,16 +26,30 @@ export function DashboardShell() {
           <span className="local-badge">Локальная проверка</span>
           <Button
             isIconOnly
+            className="theme-control"
             variant="ghost"
-            aria-label={dark ? "Включить светлую тему" : "Включить тёмную тему"}
+            aria-label={
+              dark
+                ? "Тёмная тема включена. Включить светлую тему"
+                : "Светлая тема включена. Включить тёмную тему"
+            }
             onPress={() => setTheme(dark ? "light" : "dark")}
           >
-            {dark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+            {dark ? (
+              <Sun className="theme-icon" aria-hidden="true" />
+            ) : (
+              <Moon className="theme-icon" aria-hidden="true" />
+            )}
           </Button>
           <Button
             isIconOnly
+            className="theme-control"
             variant="ghost"
-            aria-label="Использовать системную тему"
+            aria-label={
+              selectedMode === "system"
+                ? "Используется системная тема"
+                : "Использовать системную тему"
+            }
             onPress={() => setTheme("system")}
           >
             <Monitor aria-hidden="true" />

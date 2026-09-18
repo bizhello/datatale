@@ -3,8 +3,8 @@ import "./globals.css";
 import { ThemeProvider } from "./theme-provider";
 
 export const metadata: Metadata = {
-  title: "DataTale — у данных есть история",
-  description: "От сырых данных к понятной истории.",
+  title: "DataTale — превратите данные в историю",
+  description: "Загрузите данные и проверьте источник перед анализом.",
 };
 
 export default function RootLayout({
