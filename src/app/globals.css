@@ -333,13 +333,13 @@ footer {
 .import-workspace::before {
   top: 0;
   right: -8rem;
-  animation: liquid-drift 14s ease-in-out infinite alternate;
+  animation: liquid-drift 4.8s ease-in-out 1 alternate forwards;
 }
 .import-workspace::after {
   top: 14rem;
   left: -12rem;
   opacity: 0.3;
-  animation: liquid-drift 18s ease-in-out -5s infinite alternate-reverse;
+  animation: liquid-drift 4.8s ease-in-out 1 alternate-reverse forwards;
 }
 .import-hero-grid {
   display: grid;
