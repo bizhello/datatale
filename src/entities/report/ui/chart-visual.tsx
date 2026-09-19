@@ -32,7 +32,9 @@ export function ChartVisual({ chart }: ChartVisualProps) {
             data={chart.points}
             dataKey="value"
             nameKey="label"
-            outerRadius={100}
+            innerRadius="52%"
+            outerRadius="82%"
+            paddingAngle={2}
           >
             {chart.points.map((point, index) => (
               <Cell
