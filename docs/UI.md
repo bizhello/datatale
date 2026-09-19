@@ -7,6 +7,8 @@
 - Support light, dark and system via next-themes and HeroUI semantic CSS tokens. Default to system unless a saved preference exists. Keep theme preference in localStorage; never put dataset/session secrets there.
 - Use a consistent Lucide Sun/Moon/Monitor control with an accessible label describing the action or selected mode. The UI must work by keyboard and touch, not only tooltip hover.
 - Animate icon changes with a short opacity/rotation transition (approximately 150–220 ms). Transition relevant surface/text colors, not every CSS property. Respect reduced motion and avoid full-screen flashes.
+- The theme control uses HeroUI toggle buttons with a native View Transition API circular reveal anchored to the pressed control when supported. It falls back to an immediate next-themes update when the API is unavailable or reduced motion is requested. The reveal is limited to the root view transition and does not block theme switching.
+- Typography uses `Noto Sans` for interface copy and `Noto Serif Display` for the primary narrative heading through `next/font/google`, with Latin and Cyrillic subsets bundled by Next at build time and `display: swap`. This keeps Russian text readable without a runtime font request.
 - Preserve pre-hydration theme application; avoid wrong-theme paint, layout shifts and broad suppression of hydration errors. Chart colors, tooltips, focus rings, empty states and Skeleton must all use theme tokens.
 - The DataTale mark combines an open book and rising chart columns in white on the brand blue (#365EDB). Edit the vector source at `public/brand/datatale.svg`; regenerate `src/app/favicon.ico` with 16/32/48/64/128/256 px frames after changes. Keep the single Next.js favicon route. Verify small-size legibility on light and dark backgrounds.
 - Use a consistent wordmark, header and metadata title, e.g. `DataTale — Turn data into a story`, with localized product copy if appropriate. Add description and share metadata when production URL is known. Do not expose private report content in publicly fetched social previews.
@@ -58,3 +60,7 @@ Readable typography, visible focus, sufficient light/dark contrast, touch target
 Acceptance requires screenshots of ready/loading/error/empty states in both themes and representative mobile/desktop layouts, plus keyboard/touch checks. A passing axe scan alone does not prove good UX or chart accessibility.
 
 Sources: [HeroUI themes](https://heroui.com/docs/react/getting-started/theming), [Skeleton](https://heroui.com/docs/react/components/skeleton), [next-themes](https://github.com/pacocoursey/next-themes).
+
+## Deferred liquid hero
+
+The DeepSeek Harness page was not available for direct inspection in this environment because the browser connector could not obtain its authentication token. The liquid/lens hero remains deferred: do not add a WebGL dependency or a fixed 100vh imitation without confirming behavior and measuring mobile performance. If revisited, prototype a CSS or Canvas 2D lens using the existing stack, keep it optional, and prefer a static `/welcome` route only after validating accessibility, reduced motion, and viewport resizing.

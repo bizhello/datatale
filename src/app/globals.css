@@ -19,7 +19,9 @@
   --chart-pink: #bc4f7d;
   --chart-gold: #bf941b;
   color-scheme: light;
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  --theme-x: 50vw;
+  --theme-y: 0;
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
 }
 .dark {
   --background: #10151f;
@@ -49,6 +51,7 @@ html {
 body {
   min-width: 0;
   margin: 0;
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   background:
     radial-gradient(circle at 85% -10%, var(--accent-soft), transparent 31rem),
     var(--background);
@@ -56,6 +59,26 @@ body {
   transition:
     background-color 180ms ease,
     color 180ms ease;
+}
+::view-transition-group(root) {
+  animation-duration: 420ms;
+  animation-timing-function: cubic-bezier(0.22, 0.8, 0.2, 1);
+}
+::view-transition-old(root) {
+  animation: none;
+  z-index: 0;
+}
+::view-transition-new(root) {
+  z-index: 1;
+  animation: theme-reveal 420ms cubic-bezier(0.22, 0.8, 0.2, 1);
+}
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(0 at var(--theme-x) var(--theme-y));
+  }
+  to {
+    clip-path: circle(150vmax at var(--theme-x) var(--theme-y));
+  }
 }
 button,
 textarea,
@@ -154,6 +177,8 @@ footer {
   font-size: clamp(2.35rem, 5.4vw, 4rem);
   line-height: 0.99;
   letter-spacing: -0.07em;
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 650;
 }
 .section-heading > p:last-child {
   max-width: 610px;
@@ -715,6 +740,11 @@ footer span:last-child {
   .theme-icon,
   body {
     transition: none;
+  }
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
   }
 }
 @media (max-width: 700px) {

@@ -5,6 +5,23 @@ import { DashboardShell } from "./dashboard-shell";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Dashboard input shell", () => {
+  it("publishes the hydration readiness marker after mount", async () => {
+    render(<DashboardShell />);
+    await waitFor(() =>
+      expect(document.querySelector(".page-shell")).toHaveAttribute(
+        "data-hydrated",
+        "true",
+      ),
+    );
+  });
+
+  it("exposes all theme modes as keyboard reachable controls", () => {
+    render(<DashboardShell />);
+    expect(screen.getByRole("radio", { name: "Светлая тема" })).toBeVisible();
+    expect(screen.getByRole("radio", { name: "Тёмная тема" })).toBeVisible();
+    expect(screen.getByRole("radio", { name: "Системная тема" })).toBeVisible();
+  });
+
   it("offers local source choices", () => {
     render(<DashboardShell />);
     expect(
