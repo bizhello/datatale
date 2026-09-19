@@ -43,6 +43,8 @@ Use HeroUI Skeleton shaped like the final hero/metric/chart cards to minimize la
 
 Show named stages for unknown inference duration. Progress percentages require a measurable denominator. Make cancel/retry available where meaningful. Avoid artificial waiting to display an animation. Stable empty/error layouts explain the issue and next action without clearing a valid selected file unnecessarily.
 
+Analysis loading uses an indeterminate HeroUI `ProgressBar` because the server does not expose stage completion. The client marks protected session/request setup complete only after guest bootstrap returns; it never claims source or text preparation is complete. The analysis request then keeps plan selection/validation, deterministic calculation, and narrative generation as named pending stages until the complete report arrives. Table and text sources use their actual server lifecycle labels. Announce only the current observable stage, preserve the existing Skeleton shapes, and honor reduced motion. Under reduced motion, the progress indicator becomes a full neutral track with no partial fill or animation so it cannot be mistaken for a percentage.
+
 Use restrained entrance transitions and button/dropzone feedback. Do not stagger large dashboards so long that content becomes slow to access. Reduced-motion mode must preserve all information without movement.
 
 ## Guided tour

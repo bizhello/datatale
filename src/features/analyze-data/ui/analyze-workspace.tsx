@@ -1,10 +1,11 @@
 "use client";
-import { Button, Skeleton } from "@heroui/react";
+import { Button } from "@heroui/react";
 import { useState } from "react";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import { ReportDashboard } from "@/entities/report/ui";
 import { analysisErrorMessages } from "../model/analysis-state";
 import { useAnalysis } from "../model/use-analysis";
+import { AnalysisProgress } from "./analysis-progress";
 
 type AnalyzeWorkspaceProps = {
   source: Dataset | TextSource;
@@ -37,19 +38,15 @@ export function AnalyzeWorkspace({ source, onDelete }: AnalyzeWorkspaceProps) {
         </Button>
       )}
       {state.status === "analyzing" && (
-        <div aria-live="polite" className="report-loading">
-          <p>{state.stage}</p>
-          <div className="loading-metrics" aria-hidden="true">
-            <Skeleton className="metric-skeleton" />
-            <Skeleton className="metric-skeleton" />
-            <Skeleton className="metric-skeleton" />
-          </div>
-          <Skeleton className="hero-skeleton" />
-          <Skeleton className="chart-skeleton" />
+        <>
+          <AnalysisProgress
+            phase={state.phase}
+            sourceKind={source.source.kind === "text" ? "text" : "table"}
+          />
           <Button variant="secondary" onPress={cancel}>
             Отменить анализ
           </Button>
-        </div>
+        </>
       )}
       {state.status === "error" && (
         <div className="error-state" role="alert">

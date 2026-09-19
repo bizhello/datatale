@@ -15,13 +15,15 @@ export type AnalysisErrorCode =
   | "network"
   | "unknown";
 
+export type AnalysisPhase = "session-setup" | "processing";
+
 export type AnalysisState =
   | { status: "idle" }
   | {
       status: "analyzing";
       requestId: number;
       idempotencyKey: string;
-      stage: string;
+      phase: AnalysisPhase;
     }
   | { status: "ready"; report: FinalReport }
   | { status: "cancelled" }
@@ -34,6 +36,7 @@ export type AnalysisState =
 
 export type AnalysisAction =
   | { type: "start"; requestId: number; idempotencyKey: string }
+  | { type: "session-setup-complete"; requestId: number }
   | { type: "ready"; requestId: number; report: FinalReport }
   | {
       type: "error";
@@ -57,10 +60,12 @@ export function analysisReducer(
       status: "analyzing",
       requestId: action.requestId,
       idempotencyKey: action.idempotencyKey,
-      stage: "Проверяем источник и готовим расчёты…",
+      phase: "session-setup",
     };
   if (state.status !== "analyzing" || state.requestId !== action.requestId)
     return state;
+  if (action.type === "session-setup-complete")
+    return { ...state, phase: "processing" };
   if (action.type === "ready")
     return { status: "ready", report: action.report };
   if (action.type === "cancel") return { status: "cancelled" };

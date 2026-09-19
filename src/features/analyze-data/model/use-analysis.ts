@@ -90,6 +90,7 @@ export function useAnalysis(source: Dataset | TextSource) {
           });
           return;
         }
+        dispatch({ type: "session-setup-complete", requestId });
         const response = await fetch("/api/analyze", {
           method: "POST",
           headers: {

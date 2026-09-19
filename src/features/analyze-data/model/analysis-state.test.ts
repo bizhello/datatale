@@ -36,6 +36,30 @@ describe("analysis request lifecycle", () => {
     ).toMatchObject({ status: "error", retryKey: "one" });
   });
 
+  it("advances only after the observable guest bootstrap completes", () => {
+    const active = analysisReducer(initialAnalysisState, {
+      type: "start",
+      requestId: 1,
+      idempotencyKey: "one",
+    });
+    expect(active).toMatchObject({
+      status: "analyzing",
+      phase: "session-setup",
+    });
+    expect(
+      analysisReducer(active, {
+        type: "session-setup-complete",
+        requestId: 1,
+      }),
+    ).toMatchObject({ status: "analyzing", phase: "processing" });
+    expect(
+      analysisReducer(active, {
+        type: "session-setup-complete",
+        requestId: 2,
+      }),
+    ).toBe(active);
+  });
+
   it("reuses a key only for safe recovery and blocks indeterminate retry", () => {
     expect(responseError(undefined)).toEqual({
       code: "network",

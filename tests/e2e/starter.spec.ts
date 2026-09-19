@@ -150,6 +150,65 @@ test("renders a fixture dashboard and expands charts without another analysis re
   expect(requests).toEqual(["guest", "analyze"]);
 });
 
+test("shows honest indeterminate analysis progress while the server request is pending", async ({
+  page,
+}) => {
+  let releaseAnalysis: (() => void) | undefined;
+  const analysisPending = new Promise<void>((resolve) => {
+    releaseAnalysis = resolve;
+  });
+  await page.route("**/api/guest", async (route) => {
+    await route.fulfill({
+      json: { expiresAt: "2026-10-19T00:00:00.000Z" },
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  });
+  await page.route("**/api/analyze", async (route) => {
+    await analysisPending;
+    await route.fulfill({ json: { report: dashboardReport } });
+  });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Загрузить синтетический демо-набор" })
+    .click();
+  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
+  await page.getByRole("button", { name: "Запустить анализ" }).click();
+
+  await expect(page.getByRole("status")).toHaveText("Выбор и проверка плана…");
+  await expect(
+    page.getByRole("progressbar", { name: "Ход анализа" }),
+  ).toBeVisible();
+  const progressGeometry = await page
+    .getByRole("progressbar", { name: "Ход анализа" })
+    .evaluate((bar) => {
+      const track = bar.querySelector<HTMLElement>(
+        '[data-slot="progress-bar-track"]',
+      );
+      const fill = bar.querySelector<HTMLElement>(
+        '[data-slot="progress-bar-fill"]',
+      );
+      if (!track || !fill) throw new Error("Progress geometry is unavailable.");
+      return {
+        trackWidth: track.getBoundingClientRect().width,
+        fillWidth: fill.getBoundingClientRect().width,
+        animationName: getComputedStyle(fill).animationName,
+      };
+    });
+  expect(progressGeometry.fillWidth).toBeCloseTo(
+    progressGeometry.trackWidth,
+    0,
+  );
+  expect(progressGeometry.animationName).toBe("none");
+  await expect(page.getByText("Детерминированный расчёт")).toBeVisible();
+  await expect(page.getByText(/\d+%/)).toHaveCount(0);
+  await page.getByRole("button", { name: "Отменить анализ" }).click();
+  releaseAnalysis?.();
+  await expect(
+    page.getByRole("button", { name: "Запустить снова" }),
+  ).toBeVisible();
+});
+
 test("uploads a CSV in the browser and labels its bounded preview", async ({
   page,
 }) => {

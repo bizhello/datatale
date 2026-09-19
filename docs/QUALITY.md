@@ -28,6 +28,7 @@ A behavioral feature is incomplete without tests for its acceptance and meaningf
 | --- | --- |
 | Calculation, parsing or schema rule | Focused Vitest cases with independently known expected values, boundaries and invalid input |
 | Interactive UI | Component behavior tests; Playwright for changed critical user journeys, mobile and keyboard behavior |
+| Analysis loading progress | Reducer/component tests for observable session-setup transitions, indeterminate semantics, source-aware stages, cancellation and stale responses; browser loading check when the request remains pending, including reduced-motion full-track geometry |
 | Boundary between real components | Integration test exercising the connected components, including error propagation and validation |
 | Route plus persistence/session | Integration against isolated test storage for ownership, transaction behavior, expiry and failure; mock external inference rather than the entire data path |
 | AI orchestration | Integration of actual validators/calculations with controlled provider responses; separate live-model evaluations for output quality |

@@ -280,6 +280,76 @@ footer {
   padding: 24px;
   background: var(--surface);
 }
+.analysis-progress-heading {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.analysis-progress-heading h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+.analysis-progress-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+.analysis-progress-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.analysis-progress-icon svg {
+  width: 21px;
+  height: 21px;
+}
+.analysis-progress-bar {
+  margin-top: 22px;
+}
+.analysis-progress-stages {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0 24px;
+  padding: 0;
+  list-style: none;
+}
+.analysis-progress-stages li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.analysis-progress-stages li.is-active {
+  color: var(--foreground);
+  font-weight: 650;
+}
+.analysis-stage-marker {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+.analysis-progress-stages li.is-active .analysis-stage-marker {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.analysis-stage-marker svg {
+  width: 14px;
+  height: 14px;
+}
 .report-hero h2 {
   max-width: 850px;
   margin: 8px 0 0;
@@ -494,6 +564,17 @@ footer {
 }
 .spin {
   animation: spin 900ms linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin,
+  [data-slot="progress-bar-fill"] {
+    animation: none;
+  }
+  .analysis-progress-bar:not([aria-valuenow]) [data-slot="progress-bar-fill"] {
+    width: 100%;
+    transform: none;
+    background-color: var(--line);
+  }
 }
 .skeleton-row {
   display: flex;
@@ -764,6 +845,9 @@ footer span:last-child {
   }
   .loading-state {
     grid-template-columns: auto 1fr;
+  }
+  .analysis-progress-stages {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .loading-state > .button {
     grid-column: 1 / -1;
