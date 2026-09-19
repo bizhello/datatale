@@ -4,6 +4,7 @@ import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { createMultiSheetXlsx } from "../fixtures/import/xlsx";
 
 const analysisId = "00000000-0000-4000-8000-000000000009";
+const reportExpiresAt = "2026-09-26T12:00:00.000Z";
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
@@ -17,10 +18,14 @@ const dashboardReport = {
     {
       text: "Выручка выросла в феврале, а каналы заметно различаются.",
       factIds: ["revenue"],
+      evidenceIds: ["rows"],
+      kind: "observation",
     },
     {
       text: "Показатели подтверждены всеми строками источника.",
       factIds: ["revenue"],
+      evidenceIds: ["rows"],
+      kind: "observation",
     },
   ],
   metrics: [
@@ -29,6 +34,7 @@ const dashboardReport = {
       label: "Выручка",
       value: 274000,
       unit: "₽",
+      calculation: { kind: "sum", fieldId: "revenue", fieldLabel: "Выручка" },
       evidenceIds: ["rows"],
     },
   ],
@@ -38,6 +44,13 @@ const dashboardReport = {
       kind: "bar",
       title: "По регионам",
       rationale: "Сравнение регионов",
+      aggregation: {
+        kind: "sum",
+        fieldId: "revenue",
+        fieldLabel: "Выручка",
+        dimensionFieldId: "region",
+        dimensionLabel: "Регион",
+      },
       points: [
         { label: "Север", value: 120000 },
         { label: "Юг", value: 154000 },
@@ -49,6 +62,13 @@ const dashboardReport = {
       kind: "line",
       title: "По месяцам",
       rationale: "Динамика",
+      aggregation: {
+        kind: "sum",
+        fieldId: "revenue",
+        fieldLabel: "Выручка",
+        dimensionFieldId: "month",
+        dimensionLabel: "Месяц",
+      },
       points: [
         { label: "Январь", value: 128000 },
         { label: "Февраль", value: 146000 },
@@ -60,6 +80,13 @@ const dashboardReport = {
       kind: "donut",
       title: "По каналам",
       rationale: "Доля каналов",
+      aggregation: {
+        kind: "sum",
+        fieldId: "revenue",
+        fieldLabel: "Выручка",
+        dimensionFieldId: "channel",
+        dimensionLabel: "Канал",
+      },
       points: [
         { label: "Онлайн", value: 174000 },
         { label: "Офлайн", value: 100000 },
@@ -67,9 +94,21 @@ const dashboardReport = {
       evidenceIds: ["rows"],
     },
   ],
-  evidence: [{ id: "rows", kind: "row-range", label: "Все строки источника" }],
+  evidence: [
+    {
+      id: "rows",
+      kind: "row-range",
+      label: "Все строки источника",
+      coverage: { included: 12, total: 12 },
+    },
+  ],
   recommendations: [
-    { text: "Проверьте рост онлайн-канала.", factIds: ["revenue"] },
+    {
+      text: "Проверьте рост онлайн-канала.",
+      factIds: ["revenue"],
+      evidenceIds: ["rows"],
+      kind: "action",
+    },
   ],
 };
 
@@ -114,7 +153,9 @@ test("renders a fixture dashboard and expands charts without another analysis re
   });
   await page.route("**/api/analyze", async (route) => {
     requests.push("analyze");
-    await route.fulfill({ json: { analysisId, report: dashboardReport } });
+    await route.fulfill({
+      json: { analysisId, report: dashboardReport, expiresAt: reportExpiresAt },
+    });
   });
   await page.goto("/");
   await page
@@ -125,6 +166,7 @@ test("renders a fixture dashboard and expands charts without another analysis re
   await expect(
     page.getByRole("heading", { name: /Выручка выросла/ }),
   ).toBeVisible();
+  await expect(page.getByText(/Отчёт и вопросы хранятся до/)).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Развернуть По регионам" }),
   ).toBeVisible();
@@ -180,7 +222,9 @@ test("asks a grounded question about the analyzed report", async ({ page }) => {
     });
   });
   await page.route("**/api/analyze", async (route) => {
-    await route.fulfill({ json: { analysisId, report: dashboardReport } });
+    await route.fulfill({
+      json: { analysisId, report: dashboardReport, expiresAt: reportExpiresAt },
+    });
   });
   await page.route("**/api/chat", async (route) => {
     chatRequest = route.request().postDataJSON() as Record<string, unknown>;
@@ -228,7 +272,9 @@ test("shows an approximate analysis estimate while the server request is pending
   });
   await page.route("**/api/analyze", async (route) => {
     await analysisPending;
-    await route.fulfill({ json: { analysisId, report: dashboardReport } });
+    await route.fulfill({
+      json: { analysisId, report: dashboardReport, expiresAt: reportExpiresAt },
+    });
   });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
@@ -303,7 +349,9 @@ test("unlocks workspace quota with invite retry and preserves the source", async
       });
       return;
     }
-    await route.fulfill({ json: { analysisId, report: dashboardReport } });
+    await route.fulfill({
+      json: { analysisId, report: dashboardReport, expiresAt: reportExpiresAt },
+    });
   });
   await page.route("**/api/access", async (route) => {
     const body = route.request().postDataJSON() as { code?: string };

@@ -27,7 +27,11 @@ import {
   textExtractionResponseSchema,
 } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
-import { calculateChart, calculateMetric } from "../model/calculate";
+import {
+  calculateChart,
+  calculateMetric,
+  reportChartCalculation,
+} from "../model/calculate";
 import { validateFinalReportReferences } from "../model/final-report";
 import { boundedSourceDescription } from "../model/profile";
 import {
@@ -428,6 +432,11 @@ function reportFromTable(
             kind: chart.kind,
             title: chart.title,
             rationale: chart.rationale,
+            aggregation: reportChartCalculation(
+              source,
+              chart.aggregation,
+              chart.dimension.fieldId,
+            ),
             points: calculateChart(source, chart),
             evidenceIds: ["rows-all"],
             ...(numeric?.unit ? { unit: numeric.unit } : {}),
@@ -580,6 +589,7 @@ async function analyzeText(
         id: fact.id,
         label: fact.label,
         value: fact.value,
+        calculation: { kind: "direct-source" as const },
         ...(fact.unit ? { unit: fact.unit } : {}),
         evidenceIds: [evidenceId],
       };

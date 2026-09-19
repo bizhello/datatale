@@ -21,7 +21,7 @@ function formatExpiry(expiresAt: string) {
 function formatDerivation(
   calculation: FinalReport["metrics"][number]["calculation"],
 ) {
-  if (!calculation) return "Указано в исходном тексте";
+  if (calculation.kind === "direct-source") return "Указано в исходном тексте";
   if (calculation.kind === "count") return "Количество принятых строк";
   const labels: Record<Exclude<typeof calculation.kind, "count">, string> = {
     sum: "Сумма",
@@ -29,7 +29,21 @@ function formatDerivation(
     min: "Минимум",
     max: "Максимум",
   };
-  return `${labels[calculation.kind]} поля «${calculation.fieldLabel ?? "источника"}» по всем принятым строкам`;
+  return `${labels[calculation.kind]} поля «${calculation.fieldLabel}» по всем принятым строкам`;
+}
+
+function formatChartDerivation(
+  aggregation: FinalReport["charts"][number]["aggregation"],
+) {
+  if (aggregation.kind === "count")
+    return `Количество строк по полю «${aggregation.dimensionLabel}»`;
+  const labels = {
+    sum: "Сумма",
+    average: "Среднее",
+    min: "Минимум",
+    max: "Максимум",
+  } as const;
+  return `${labels[aggregation.kind]} поля «${aggregation.fieldLabel}» по полю «${aggregation.dimensionLabel}»`;
 }
 
 function formatEvidenceKind(kind: FinalReport["evidence"][number]["kind"]) {
@@ -172,6 +186,7 @@ export function ReportDashboard({
                     <ChartVisual chart={expanded} />
                   </div>
                   <p>{expanded.rationale}</p>
+                  <p>Расчёт: {formatChartDerivation(expanded.aggregation)}</p>
                   <p>
                     {expanded.unit
                       ? `Единицы: ${expanded.unit}`

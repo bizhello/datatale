@@ -41,6 +41,7 @@ const report: FinalReport = {
       id: "maximum",
       label: "Maximum",
       value: 999,
+      calculation: { kind: "max", fieldId: "value", fieldLabel: "Value" },
       evidenceIds: ["all-rows"],
     },
   ],

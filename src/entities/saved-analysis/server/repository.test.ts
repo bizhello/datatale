@@ -31,7 +31,13 @@ const report = {
     },
   ],
   metrics: [
-    { id: "fact", label: "Count", value: 1, evidenceIds: ["evidence"] },
+    {
+      id: "fact",
+      label: "Count",
+      value: 1,
+      calculation: { kind: "count" },
+      evidenceIds: ["evidence"],
+    },
   ],
   charts: [],
   evidence: [

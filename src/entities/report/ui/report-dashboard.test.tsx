@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { FinalReport } from "../model/schema";
 import { ReportDashboard } from "./report-dashboard";
@@ -25,11 +25,31 @@ const report = {
       label: "Выручка",
       value: 120,
       unit: "RUB",
-      calculation: { kind: "sum" as const, fieldLabel: "Выручка" },
+      calculation: {
+        kind: "sum" as const,
+        fieldId: "revenue",
+        fieldLabel: "Выручка",
+      },
       evidenceIds: ["rows"],
     },
   ],
-  charts: [],
+  charts: [
+    {
+      id: "chart",
+      kind: "bar" as const,
+      title: "По регионам",
+      rationale: "Сравнение регионов",
+      aggregation: {
+        kind: "sum" as const,
+        fieldId: "revenue",
+        fieldLabel: "Выручка",
+        dimensionFieldId: "region",
+        dimensionLabel: "Регион",
+      },
+      points: [{ label: "Север", value: 120 }],
+      evidenceIds: ["rows"],
+    },
+  ],
   evidence: [
     {
       id: "rows",
@@ -52,5 +72,12 @@ describe("ReportDashboard", () => {
     expect(screen.getByText(/Расчёт: Сумма поля «Выручка»/)).toBeVisible();
     expect(screen.getByText(/Строки таблицы · Принятые строки/)).toBeVisible();
     expect(screen.getByText(/Покрытие: 8 из 10/)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: /Развернуть/ }));
+    expect(
+      screen.getByText(/Расчёт: Сумма поля «Выручка» по полю «Регион»/),
+    ).toBeVisible();
+    expect(
+      screen.getAllByText(/Строки таблицы · Принятые строки/),
+    ).toHaveLength(2);
   });
 });

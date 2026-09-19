@@ -41,6 +41,7 @@ const report: FinalReport = {
       id: "count",
       label: "Count",
       value: 1,
+      calculation: { kind: "count" },
       evidenceIds: ["rows"],
     },
   ],

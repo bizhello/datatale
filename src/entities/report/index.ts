@@ -22,6 +22,8 @@ export type {
   LineChartSpecification,
   MetricSpecification,
   NumericAggregation,
+  ReportCalculation,
+  ReportChartCalculation,
   TextExtractionResponse,
 } from "./model/schema";
 export {
@@ -48,6 +50,8 @@ export {
   REPORT_RATIONALE_MAX_LENGTH,
   REPORT_TITLE_MAX_LENGTH,
   REPORT_UNIT_MAX_LENGTH,
+  reportCalculationSchema,
+  reportChartCalculationSchema,
   reportChartSchema,
   reportEvidenceSchema,
   reportFactSchema,

@@ -13,7 +13,15 @@ describe("final report contract", () => {
       { text: "Grounded.", factIds: ["f"] },
       { text: "Confirmed.", factIds: ["f"] },
     ],
-    metrics: [{ id: "f", label: "Metric", value: 1, evidenceIds: ["e"] }],
+    metrics: [
+      {
+        id: "f",
+        label: "Metric",
+        value: 1,
+        calculation: { kind: "count" },
+        evidenceIds: ["e"],
+      },
+    ],
     charts: [],
     evidence: [{ id: "e", kind: "row-range" as const, label: "All rows" }],
     recommendations: [],

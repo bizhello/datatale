@@ -44,7 +44,11 @@ describe("analysis calculations", () => {
       label: "Total",
       value: 60,
       unit: "RUB",
-      calculation: { kind: "sum", fieldLabel: "Revenue" },
+      calculation: {
+        kind: "sum",
+        fieldId: "revenue",
+        fieldLabel: "Revenue",
+      },
     });
     expect(
       profileSource(source).fields.find((field) => field.id === "region"),
