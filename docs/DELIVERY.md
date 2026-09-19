@@ -28,36 +28,8 @@ The release gate passes Biome, Steiger, strict TypeScript, the Turbopack product
 | [#13](https://github.com/bizhello/datatale/pull/13) | Advisory-locked checksum migration runner; main-only Vercel deployments | Ledger drift and reconciliation fail closed; migrations `0001`–`0004` applied to production |
 | [#14](https://github.com/bizhello/datatale/pull/14) | Grounded text evidence survives model unit/period paraphrases | Exact source quotations remain evidence while unsupported numeric facts are excluded |
 | [#15](https://github.com/bizhello/datatale/pull/15) | Production build migrates before Next.js | Review required both `VERCEL_ENV=production` and `VERCEL_GIT_COMMIT_REF=main`; migration failure blocks deployment |
-| [#16](https://github.com/bizhello/datatale/pull/16) | New AI reports require two or three separately grounded hero sentences | A live one-sentence result exposed the gap; prompt, generation, persistence, replay, and UI fixtures now enforce the same canonical contract |
+| [#16](https://github.com/bizhello/datatale/pull/16) | New AI reports require two or three separately grounded hero sentences | A live one-sentence result exposed the gap; prompt, generation, persistence, replay, UI fixtures, and database constraints now enforce the same canonical contract |
 | [#17](https://github.com/bizhello/datatale/pull/17) | Accessible first-visit onboarding | Review corrected duplicate IDs during replay, light-theme contrast, and non-modal welcome interaction; final desktop/mobile checks passed |
-
-For a one-time production cleanup after deploying the strict contract, review the affected IDs first, then run this transaction. It deletes only saved analyses whose `report.hero` is absent, non-array, or has fewer than two or more than three items; the foreign key cascades their saved messages and inference leases.
-
-```sql
-BEGIN;
-
-CREATE TEMP TABLE incompatible_saved_analyses ON COMMIT DROP AS
-SELECT id
-FROM saved_analyses
-WHERE jsonb_typeof(report -> 'hero') IS DISTINCT FROM 'array'
-   OR CASE
-        WHEN jsonb_typeof(report -> 'hero') = 'array'
-        THEN jsonb_array_length(report -> 'hero') NOT BETWEEN 2 AND 3
-        ELSE false
-      END;
-
-SELECT a.id, a.workspace_id, a.created_at
-FROM saved_analyses AS a
-JOIN incompatible_saved_analyses AS i ON i.id = a.id
-ORDER BY a.created_at, a.id;
-
-DELETE FROM saved_analyses AS a
-USING incompatible_saved_analyses AS i
-WHERE a.id = i.id
-RETURNING a.id, a.workspace_id;
-
-COMMIT;
-```
 
 GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI, component-ownership, HeroUI, and hydration history. [AI-WORKLOG.md](AI-WORKLOG.md) records the material AI-assisted mistakes and corrections used for the pitch.
 

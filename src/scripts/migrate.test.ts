@@ -29,6 +29,7 @@ describe("database migration runner", () => {
       "0002_access_gate.sql",
       "0003_saved_analysis.sql",
       "0004_chat_inference_leases.sql",
+      "0005_strict_report_hero.sql",
     ]);
   });
 
