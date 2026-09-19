@@ -6,6 +6,7 @@ import {
   analysisProposalSchema,
   chartCatalogPromptDescription,
   finalReportSchema,
+  narrativeResponseSchema,
 } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
 import { calculateChart, calculateMetric } from "../model/calculate";
@@ -128,18 +129,30 @@ export async function analyzeSource(source: Dataset | TextSource) {
           evidenceIds: ["rows-all"],
         }))
       : [];
+  const facts = new Set(metrics.map((metric) => metric.id));
+  const narrativeResult = await generateText({
+    model,
+    output: Output.object({ schema: narrativeResponseSchema }),
+    prompt: `Write Russian narrative using only these fact IDs and no unlisted numbers: ${JSON.stringify(metrics.map(({ id, label, value }) => ({ id, label, value })))}`,
+    maxRetries: 0,
+  });
+  const narrative = narrativeResponseSchema.parse(narrativeResult.output);
+  if (
+    [...narrative.hero, ...narrative.recommendations].some((item) =>
+      item.factIds.some((id) => !facts.has(id)),
+    )
+  )
+    throw new AnalysisError(
+      "invalid-model-output",
+      "Narrative referenced an unknown fact.",
+    );
   return finalReportSchema.parse({
     version: 1,
-    hero: [
-      {
-        text: `Проверены все ${source.rows.length} строк источника; показатели и диаграммы рассчитаны кодом.`,
-        factIds: metrics.slice(0, 2).map((metric) => metric.id),
-      },
-    ],
+    hero: narrative.hero,
     metrics,
     charts,
     evidence,
-    recommendations: [],
+    recommendations: narrative.recommendations,
     ...(charts.length
       ? {}
       : {

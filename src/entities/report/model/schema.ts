@@ -259,3 +259,22 @@ export type AnalysisPlan = z.infer<typeof analysisPlanSchema>;
 export type MetricSpecification = z.infer<typeof metricSpecificationSchema>;
 export type AnalysisProposal = z.infer<typeof analysisProposalSchema>;
 export type FinalReport = z.infer<typeof finalReportSchema>;
+export const narrativeResponseSchema = z
+  .object({
+    hero: z
+      .array(
+        z
+          .object({ text: nonblankString, factIds: z.array(nonblankString) })
+          .strict(),
+      )
+      .min(1)
+      .max(3),
+    recommendations: z
+      .array(
+        z
+          .object({ text: nonblankString, factIds: z.array(nonblankString) })
+          .strict(),
+      )
+      .max(3),
+  })
+  .strict();

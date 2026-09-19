@@ -34,6 +34,7 @@ export {
   fieldReferenceSchema,
   finalReportSchema,
   lineChartSpecificationSchema,
+  narrativeResponseSchema,
   numericAggregationSchema,
 } from "./model/schema";
 export { ReportDashboard } from "./ui/report-dashboard";
