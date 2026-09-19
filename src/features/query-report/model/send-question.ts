@@ -10,7 +10,10 @@ type ErrorPayload = { code?: unknown };
 function requestError(response: Response, payload: ErrorPayload) {
   const code = typeof payload.code === "string" ? payload.code : "unknown";
   const retryable =
-    response.status >= 500 && code !== "timeout" && code !== "invalid-answer";
+    (response.status >= 500 &&
+      code !== "timeout" &&
+      code !== "invalid-answer") ||
+    code === "in-flight";
   return new AskDataClientError(code, { code, retryable });
 }
 

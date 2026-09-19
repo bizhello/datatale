@@ -112,20 +112,25 @@ describe("AskDataPanel", () => {
   });
 
   it.each([
-    ["expired", "Срок действия гостевого сеанса истёк"],
-    ["not-found", "Этот отчёт больше недоступен"],
-    ["quota", "Лимит вопросов к отчёту на сегодня исчерпан"],
-    ["in-flight", "Этот вопрос уже обрабатывается"],
-  ] as const)("explains %s without offering retry", async (code, message) => {
-    const send = vi.fn(async () => {
-      throw new AskDataClientError(code, { code, retryable: false });
-    });
-    const view = render(<AskDataPanel send={send} />);
-    enterQuestion("Какой итог?");
-    expect(await screen.findByRole("alert")).toHaveTextContent(message);
-    expect(screen.queryByRole("button", { name: /Повторить/ })).toBeNull();
-    view.unmount();
-  });
+    ["expired", "Срок действия гостевого сеанса истёк", false],
+    ["not-found", "Этот отчёт больше недоступен", false],
+    ["quota", "Лимит вопросов к отчёту на сегодня исчерпан", false],
+    ["in-flight", "Этот вопрос уже обрабатывается", true],
+  ] as const)(
+    "explains %s and exposes retry=%s",
+    async (code, message, retryable) => {
+      const send = vi.fn(async () => {
+        throw new AskDataClientError(code, { code, retryable });
+      });
+      const view = render(<AskDataPanel send={send} />);
+      enterQuestion("Какой итог?");
+      expect(await screen.findByRole("alert")).toHaveTextContent(message);
+      const retry = screen.queryByRole("button", { name: /Повторить/ });
+      if (retryable) expect(retry).toBeVisible();
+      else expect(retry).toBeNull();
+      view.unmount();
+    },
+  );
 
   it("cancels a pending request and ignores its late result", async () => {
     const request = deferred<AskDataResult>();

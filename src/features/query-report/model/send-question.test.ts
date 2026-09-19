@@ -81,7 +81,6 @@ describe("query report API adapter", () => {
       ["expired", 401],
       ["not-found", 404],
       ["quota", 429],
-      ["in-flight", 409],
     ] as const) {
       vi.stubGlobal(
         "fetch",
@@ -90,6 +89,29 @@ describe("query report API adapter", () => {
       await expect(
         createAskDataSend(analysisId)(turn, new AbortController().signal),
       ).rejects.toMatchObject({ code, retryable: false });
+    }
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ code: "in-flight" }, { status: 409 })),
+    );
+    await expect(
+      createAskDataSend(analysisId)(turn, new AbortController().signal),
+    ).rejects.toMatchObject({ code: "in-flight", retryable: true });
+  });
+
+  it("keeps provider and availability failures retryable", async () => {
+    for (const [code, status] of [
+      ["provider", 502],
+      ["unavailable", 503],
+    ] as const) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json({ code }, { status })),
+      );
+      await expect(
+        createAskDataSend(analysisId)(turn, new AbortController().signal),
+      ).rejects.toMatchObject({ code, retryable: true });
     }
   });
 });
