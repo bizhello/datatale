@@ -1,39 +1,79 @@
 # DataTale
 
-Turn a CSV, an Excel workbook, or a short report into a grounded story, interactive charts, and answers supported by the source.
+Turn a CSV, Excel workbook, or short report into a grounded narrative, interactive charts, and source-backed answers.
 
-**Current implementation: production MVP.** Import CSV/XLSX or paste a report, inspect the bounded preview, and run a grounded analysis. AI proposes metrics and two or three supported bar/line/donut charts for suitable tables; application code validates the proposal, calculates every displayed value over the complete accepted table, and requires a two- or three-sentence narrative tied to checked facts. Text reports use exact quotation-backed evidence and return an honest no-chart result. The responsive HeroUI/Recharts dashboard includes loading, error, retry, cancellation, expiry, calculation provenance, evidence, expanded charts, and Ask the Data chat.
+[Live product](https://datatale.bizhov.ru) · [Reproducible demo](docs/DEMO.md) · [3–5 minute pitch script](docs/PITCH.md) · [Delivery evidence](docs/DELIVERY.md)
 
-Analysis creates a sealed 30-day guest workspace and a 15-minute idempotency receipt in Neon. The accepted canonical source, validated report, and chat messages are stored under that workspace for a fixed seven days from analysis creation; original binary uploads are not stored. The history picker lists only reports owned by the active guest workspace and reopens their validated source, report, and transcript without another AI or quota claim. Ask the Data loads only owner-scoped server data, constructs answers from server-owned claims, persists validated results for replay, and allows ten user turns per workspace per UTC day. A skippable first-visit tour uses a deterministic local demo and never spends an AI request. Paid analysis and chat fail closed until database, provider, session, salt, and quota settings are valid; history reads, deletion, and cleanup use smaller independent runtime gates.
+![DataTale dashboard with a grounded narrative, metric, regional and monthly charts, evidence coverage, recommendation, and Ask the Data composer](docs/assets/datatale-dashboard.png)
 
-Guests receive one analysis per UTC day. Production uses one workspace and one salted-IP trial claim per UTC day, so clearing the cookie or creating a new workspace does not reset the anonymous allowance. After that, an invite code is required; configure only comma-separated SHA-256 invite-code hashes in `ANALYSIS_INVITE_CODE_HASHES` (never plaintext codes). Generate a high-entropy code and its hash with the Node command in `.env.example`; copy only the hash into deployment configuration and keep the printed code in the intended private channel. Each code has a separate atomic ten-analysis UTC-day budget across users and IPs, plus the global cap. Invalid attempts are limited by salted IP and return generic errors.
+_The screenshot uses DataTale's deterministic synthetic onboarding report. The linked CSV reproduces the same totals through the real import and AI-analysis flow without exposing private data._
 
-The normalized Dataset contract and chart-planning catalog are integrated. The repository uses Bun, Biome, strict TypeScript, Steiger, Vitest and Playwright/axe. GitHub: https://github.com/bizhello/datatale.
+## Reviewer quick path
 
-Live app: https://datatale.bizhov.ru (also https://datatale.vercel.app). Production AI analysis, grounded chat, owner-scoped history access, quota unlock, migrations, the empty-workspace explanation, desktop/mobile layout, themes, favicon, and onboarding have been smoke-tested. See [deployment operations](docs/DEPLOYMENT.md).
+1. Open the [live product](https://datatale.bizhov.ru) with no account or login.
+2. Upload [docs/demo-data.csv](docs/demo-data.csv), inspect the 12-row preview, and optionally provide the focus from [DEMO.md](docs/DEMO.md).
+3. Review the 2–3 sentence hero, deterministic metrics, AI-selected charts, formulas, and evidence coverage.
+4. Ask one answerable question and one question about missing data. The latter must return `В этом отчете нет такой информации`.
+5. Reopen the saved report without another AI request, or delete the guest workspace through the confirmed destructive flow.
+
+## Why the result is grounded
+
+- **The model proposes; code decides.** The LLM may select metrics and bar, line, or donut charts from a bounded catalog. Zod and semantic validators reject unsupported fields, incomplete totals, invalid time axes, and ungrounded output.
+- **Application code calculates every displayed value.** Metrics and chart points are derived from the complete accepted table. The narrative may reference only checked fact and evidence IDs.
+- **Chat reads immutable server-owned context.** Ask the Data answers from canonical source/report claims, persists validated results for replay, and returns an exact refusal when the source lacks the requested information.
+- **Failures stay explicit.** Input limits, corrupt workbooks, model timeouts, invalid model output, quota exhaustion, expired sessions, and persistence failures have separate actionable states.
+
+```mermaid
+flowchart LR
+  Browser["Browser: parse, normalize, preview"] --> Analyze["Next Route Handler: validate, quota, idempotency"]
+  Analyze --> Model["LLM: propose plan and narrative"]
+  Model --> Guard["Schemas + semantic validation"]
+  Guard --> Calculate["Deterministic full-source calculations"]
+  Calculate --> Dashboard["Narrative, metrics, charts, evidence"]
+  Dashboard --> Neon["Owner-scoped report and chat in Neon"]
+  Dashboard --> Chat["Ask the Data: canonical claims only"]
+  Chat --> Model
+```
+
+## Product behavior
+
+DataTale supports local CSV/XLSX parsing, workbook sheet selection, pasted text, bounded previews, cancellation, responsive loading, light/dark/system themes, expanded charts, evidence drill-down, recommendations, and grounded chat. Text without measurable quantities gets an honest no-chart result. A skippable first-visit tour uses a deterministic local demo and spends no model request.
+
+Analysis creates a sealed guest workspace. The accepted canonical source, validated report, and chat are stored for seven days; original binary uploads are not stored. History is owner-scoped and reopens a report without consuming analysis or chat quota. Losing the sealed cookie ends access, while confirmed delete-all removes the workspace data and clears the client state.
+
+Guests receive one analysis per UTC day, protected by atomic workspace and salted-IP claims. Clearing cookies does not reset the anonymous allowance. A high-entropy invite code can unlock a separate ten-analysis daily budget; only SHA-256 code fingerprints are configured or persisted. Raw invite codes and IP addresses are never stored.
+
+## Stack and quality gates
+
+- Next.js 16 App Router, React 19, TypeScript, Bun, Biome, and Steiger
+- HeroUI v3, Motion, Recharts, `react-dropzone`, Papa Parse, and `read-excel-file`
+- Vercel Functions, Neon/PostgreSQL, Drizzle ORM, and `iron-session`
+- Vercel AI SDK with an OpenAI-compatible gateway and strict provider schemas
+- Vitest plus Playwright/axe across desktop Chromium, mobile Chromium, and mobile WebKit
+
+The current release status, exact test counts, review corrections, and production evidence live in [docs/DELIVERY.md](docs/DELIVERY.md).
 
 ## Development
 
-Node.js version: `.nvmrc`. Bun version: `packageManager` in `package.json`.
+Node.js is pinned in `.nvmrc`; Bun is pinned by `packageManager` in `package.json`.
 
 ```bash
 bun install --frozen-lockfile
 bun run dev
 ```
 
-Open http://localhost:3000. Local input, preview, and onboarding need no secrets. Analysis, history, and chat require the database and session variables in `.env.example`; paid analysis and chat additionally require provider, salt, and quota configuration. Run `bun run db:migrate` to apply the ordered migration set through `0005_strict_report_hero.sql` to an isolated database. Vercel production builds run this guarded command automatically before `next build`; local builds never migrate. `CRON_SECRET` is required only for scheduled cleanup. A returning browser can reopen its owner-scoped saved analyses until their fixed seven-day expiry; losing the sealed guest cookie ends that access.
+Open `http://localhost:3000`. Local input, preview, and onboarding need no secrets. Analysis, history, and chat require the server-only values documented in `.env.example`. Apply the ordered Neon migration ledger locally with `bun run db:migrate`; guarded Vercel production builds migrate `main` before `next build`, while local builds never migrate.
 
 ```bash
-bun run check                       # lint, architecture, types, unit tests, production build
+bun run check                        # Biome, architecture, types, Vitest, build
 bunx --no-install playwright install chromium webkit
-bun run test:e2e                     # requires the production build from check
+bun run test:e2e                     # production browser matrix
+bun run check:all                    # complete local release gate
 ```
 
-`bun run check:all` runs both suites. Browser tests start an isolated production server on port 3200. `bun run format` formats owned files; `bun run test:watch` runs Vitest interactively. Use `bun run test`, not Bun's separate `bun test` runner.
+Use `bun run test`, not Bun's separate `bun test` runner. Browser tests start an isolated production server on port 3200.
 
-Use one `bun.lock`; add exact versions with Bun. Install selected feature libraries with their first consumer. See [selected stack](DECISIONS.md).
-
-## Read only what your task needs
+## Documentation map
 
 | Question | Canonical document |
 | --- | --- |
@@ -43,13 +83,10 @@ Use one `bun.lock`; add exact versions with Bun. Install selected feature librar
 | How does AI choose charts and justify claims? | [AI contracts](docs/AI.md) |
 | What should it look and feel like? | [UI contract](docs/UI.md) |
 | What must pass before a change ships? | [Quality gates](docs/QUALITY.md) |
-| What is ready, active or complete? | [Live delivery board](docs/DELIVERY.md) |
-| How do multiple agents collaborate? | [Roles, ownership and launch prompts](docs/WORKFLOW.md) |
-| How do we deploy, configure, and roll back? | [Deployment](docs/DEPLOYMENT.md) |
-| Which agent skills are available? | [Skills and provenance](docs/SKILLS.md) |
+| What is deployed? | [Delivery board](docs/DELIVERY.md) |
+| How do multiple agents collaborate? | [Workflow](docs/WORKFLOW.md) |
+| How is production operated? | [Deployment](docs/DEPLOYMENT.md) |
 | What actually happened while using AI? | [AI worklog](docs/AI-WORKLOG.md) |
-| How should the submission pitch be recorded? | [Pitch script](docs/PITCH.md) |
+| How should the pitch be recorded? | [Pitch script](docs/PITCH.md) |
 
-Engineering documentation, prompts, comments, tests, commit messages, PR titles/descriptions, and review comments use English. User-facing language is a separate product decision; the existing UI remains Russian. See [agent instructions](AGENTS.md).
-
-Installed versions: `package.json` and `bun.lock`. Documents specify the target; the status above records implemented behavior.
+Engineering documentation, prompts, comments, tests, commits, PRs, and review comments use English. The product UI remains Russian by design.

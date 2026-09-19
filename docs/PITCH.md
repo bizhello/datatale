@@ -1,6 +1,6 @@
 # Submission pitch script
 
-Use this as a 3–5 minute Loom/Vimeo recording guide. Record against the live app at [datatale.bizhov.ru](https://datatale.bizhov.ru) with a small synthetic dataset that has a time series, a category comparison, and a meaningful part-to-whole measure. Do not show invite codes, provider keys, database URLs, private reports, or browser secrets.
+Use this as a 3–5 minute Loom/Vimeo recording guide. Record against the live app at [datatale.bizhov.ru](https://datatale.bizhov.ru) with the checked synthetic [demo-data.csv](demo-data.csv); [DEMO.md](DEMO.md) contains its exact totals and prompts. Do not show invite codes, provider keys, database URLs, private reports, or browser secrets.
 
 ## 0:00–0:30 — Product and starting point
 
