@@ -222,6 +222,54 @@ describe("analysis orchestration", () => {
     ).rejects.toMatchObject({ code: "invalid-model-output" });
     expect(calls).toEqual(["text-extraction"]);
   });
+  it("keeps an exact quote as evidence when the provider paraphrases its numeric metadata", async () => {
+    const text: TextSource = {
+      version: 1,
+      id: "text",
+      source: { kind: "text" },
+      rawText: "За неделю обработано 128 заявок.",
+      paragraphs: [{ index: 1, text: "За неделю обработано 128 заявок." }],
+    };
+    const report = await analyzeSource(text, {
+      callModel: async ({ stage }) =>
+        stage === "text-extraction"
+          ? {
+              facts: [
+                {
+                  id: "tickets",
+                  label: "Заявки",
+                  value: 128,
+                  unit: "заявок",
+                  period: "нед.",
+                  paragraphIndex: 1,
+                  quote: "За неделю обработано 128 заявок.",
+                },
+              ],
+              observations: [],
+            }
+          : {
+              hero: [
+                {
+                  text: "В отчете есть точная цитата о количестве заявок.",
+                  factIds: [],
+                  evidenceIds: ["quote-tickets"],
+                  kind: "observation",
+                },
+              ],
+              recommendations: [],
+            },
+    });
+
+    expect(report.metrics).toEqual([]);
+    expect(report.evidence).toEqual([
+      {
+        id: "quote-tickets",
+        kind: "quote",
+        label: "Paragraph 1",
+        excerpt: "За неделю обработано 128 заявок.",
+      },
+    ]);
+  });
   it("preserves numeric signs and accepts unambiguous locale-formatted values", async () => {
     const text: TextSource = {
       version: 1,
