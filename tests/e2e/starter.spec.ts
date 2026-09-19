@@ -23,9 +23,7 @@ test("accepts text locally and exposes an honest preview", async ({ page }) => {
   await page.getByRole("button", { name: "Проверить текст" }).click();
   await expect(page.getByText("Текст готов к анализу")).toBeVisible();
   await expect(
-    page.getByText(
-      "Полный проверенный источник будет передан AI-провайдеру.",
-    ),
+    page.getByText("Полный проверенный источник будет передан AI-провайдеру."),
   ).toBeVisible();
 });
 
