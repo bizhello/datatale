@@ -333,13 +333,11 @@ footer {
 .import-workspace::before {
   top: 0;
   right: -8rem;
-  animation: liquid-drift 4.8s ease-in-out 1 alternate forwards;
 }
 .import-workspace::after {
   top: 14rem;
   left: -12rem;
   opacity: 0.3;
-  animation: liquid-drift 4.8s ease-in-out 1 alternate-reverse forwards;
 }
 .import-hero-grid {
   display: grid;
@@ -349,98 +347,6 @@ footer {
 }
 .import-hero-grid-single {
   grid-template-columns: 1fr;
-}
-.liquid-result-preview {
-  position: relative;
-  isolation: isolate;
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
-  border-radius: 22px;
-  padding: clamp(20px, 3vw, 28px);
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
-  box-shadow: 0 18px 50px color-mix(in srgb, var(--accent) 12%, transparent);
-}
-.liquid-preview-glow {
-  position: absolute;
-  z-index: -1;
-  top: -4rem;
-  right: -3rem;
-  width: 11rem;
-  height: 11rem;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  filter: blur(22px);
-  opacity: 0.75;
-  pointer-events: none;
-}
-.liquid-preview-heading,
-.liquid-preview-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.liquid-preview-heading {
-  color: var(--accent);
-}
-.liquid-preview-insight {
-  max-width: 23rem;
-  margin: 22px 0 28px;
-  font-family: var(--font-display), Georgia, serif;
-  font-size: clamp(1.15rem, 2vw, 1.45rem);
-  line-height: 1.15;
-  letter-spacing: -0.04em;
-}
-.liquid-preview-footer > div:first-child {
-  display: grid;
-  gap: 4px;
-}
-.liquid-preview-footer span,
-.liquid-preview-note {
-  color: var(--muted);
-  font-size: 0.76rem;
-}
-.liquid-preview-footer strong {
-  font-size: 1.32rem;
-  letter-spacing: -0.035em;
-}
-.liquid-mini-chart {
-  display: flex;
-  align-items: end;
-  gap: 4px;
-  height: 42px;
-  color: var(--accent);
-}
-.liquid-mini-chart i {
-  display: block;
-  width: 7px;
-  border-radius: 4px 4px 2px 2px;
-  background: color-mix(in srgb, var(--accent) 45%, transparent);
-}
-.liquid-mini-chart i:nth-child(1) {
-  height: 14px;
-}
-.liquid-mini-chart i:nth-child(2) {
-  height: 22px;
-}
-.liquid-mini-chart i:nth-child(3) {
-  height: 19px;
-}
-.liquid-mini-chart i:nth-child(4) {
-  height: 32px;
-  background: var(--accent);
-}
-.liquid-preview-note {
-  margin: 20px 0 0;
-}
-@keyframes liquid-drift {
-  from {
-    transform: translate3d(-1.5rem, -0.5rem, 0) scale(0.96);
-  }
-  to {
-    transform: translate3d(1.5rem, 1rem, 0) scale(1.04);
-  }
 }
 .section-heading {
   max-width: 720px;
@@ -506,13 +412,13 @@ footer {
 .text-input {
   min-height: 320px;
   padding: clamp(22px, 3vw, 30px);
-}
-.dropzone {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
-  gap: 11px;
+  justify-content: space-between;
+  gap: 18px;
+}
+.dropzone {
   border-style: dashed;
   transition:
     border-color 180ms ease,
@@ -537,6 +443,27 @@ footer {
   background: var(--accent-soft);
   color: var(--accent);
 }
+.input-card-content {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+}
+.input-card-copy {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+}
+.input-card-copy p,
+.input-card-copy small {
+  margin: 0;
+}
+.input-card-copy small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.input-card-action {
+  align-self: flex-end;
+}
 .dropzone h2,
 .text-input h2 {
   margin: 0;
@@ -560,6 +487,7 @@ footer {
 }
 .analysis-workspace {
   align-items: stretch;
+  margin-bottom: 28px;
 }
 .compact-source-summary,
 .analysis-launch-panel {
@@ -647,6 +575,30 @@ footer {
   margin: 20px 0 24px;
   padding: 0;
   list-style: none;
+}
+.report-loading {
+  width: 100%;
+  display: grid;
+  gap: 16px;
+}
+.loading-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.metric-skeleton,
+.hero-skeleton,
+.chart-skeleton {
+  border-radius: 14px;
+}
+.metric-skeleton {
+  min-height: 98px;
+}
+.hero-skeleton {
+  min-height: 130px;
+}
+.chart-skeleton {
+  min-height: 260px;
 }
 .analysis-progress-stages li {
   display: flex;
@@ -773,23 +725,6 @@ footer {
   margin: 5px 0 0;
   line-height: 1.55;
 }
-.loading-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-.metric-skeleton {
-  height: 98px;
-  border-radius: 16px;
-}
-.hero-skeleton {
-  height: 110px;
-  border-radius: 18px;
-}
-.chart-skeleton {
-  height: 260px;
-  border-radius: 18px;
-}
 .chart-modal [data-slot="modal-dialog"] {
   max-height: min(88dvh, 850px);
 }
@@ -874,8 +809,72 @@ footer {
   color: var(--muted);
   font-size: 0.76rem;
 }
+.empty-result-explanation {
+  align-self: stretch;
+  padding: 30px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface-raised);
+}
+.empty-result-explanation h2 {
+  margin: 10px 0;
+}
+.empty-result-explanation p:last-child {
+  max-width: 34rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.analysis-launch-panel {
+  align-items: stretch;
+  flex-direction: column;
+}
+.analysis-danger-zone {
+  width: 100%;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--line));
+  border-radius: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.analysis-danger-zone p {
+  margin: 0;
+  color: var(--muted);
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+.destructive-action {
+  background: var(--danger);
+  color: white;
+}
+.destructive-action:hover {
+  background: color-mix(in srgb, var(--danger) 84%, black);
+}
+.invite-modal-copy {
+  margin: 0 0 18px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.invite-modal-form {
+  display: grid;
+  gap: 18px;
+}
+.invite-modal-form .textfield {
+  display: grid;
+  gap: 8px;
+}
+.invite-modal-form .button {
+  justify-self: end;
+}
 .demo-button {
   margin-top: 16px;
+  gap: 8px;
 }
 .loading-state {
   display: grid;
@@ -917,6 +916,7 @@ footer {
   border-radius: 8px;
 }
 .error-state {
+  width: 100%;
   display: flex;
   gap: 14px;
   margin-top: 28px;
@@ -1162,7 +1162,8 @@ footer span:last-child {
 }
 @media (max-width: 700px) {
   .compact-source-summary,
-  .analysis-launch-panel {
+  .analysis-launch-panel,
+  .analysis-danger-zone {
     align-items: stretch;
     flex-direction: column;
   }

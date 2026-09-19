@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Dataset } from "@/entities/dataset";
+import type { FinalReport } from "@/entities/report";
 import { AnalyzeWorkspace } from "./analyze-workspace";
 
 const source: Dataset = {
@@ -16,10 +18,198 @@ const source: Dataset = {
     },
   ],
 };
+const report: FinalReport = {
+  version: 1,
+  hero: [
+    {
+      text: "Checked result.",
+      factIds: ["count"],
+      evidenceIds: [],
+      kind: "observation",
+    },
+    {
+      text: "Confirmed count.",
+      factIds: ["count"],
+      evidenceIds: [],
+      kind: "observation",
+    },
+  ],
+  metrics: [
+    {
+      id: "count",
+      label: "Count",
+      value: 1,
+      calculation: { kind: "count" },
+      evidenceIds: ["rows"],
+    },
+  ],
+  charts: [],
+  evidence: [
+    {
+      id: "rows",
+      kind: "row-range",
+      label: "Rows",
+      coverage: { included: 1, total: 1 },
+    },
+  ],
+  recommendations: [],
+  noChartReason: "No chart needed.",
+};
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe("analysis workspace deletion", () => {
+describe("analysis workspace", () => {
+  it("focuses progress after launch and the report heading after completion", async () => {
+    let resolveAnalysis: ((response: Response) => void) | undefined;
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveAnalysis = resolve;
+          }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    render(
+      <AnalyzeWorkspace
+        source={source}
+        onDelete={vi.fn()}
+        onReplace={vi.fn()}
+        analysisFocus="compare regions"
+        renderReport={() => (
+          <h2 data-analysis-report-heading="true" tabIndex={-1}>
+            Report
+          </h2>
+        )}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Запустить AI-анализ" }),
+    );
+    const status = await screen.findByRole("status");
+    await waitFor(() =>
+      expect(document.activeElement).toContainElement(status),
+    );
+
+    resolveAnalysis?.(
+      Response.json({
+        analysisId: "00000000-0000-4000-8000-000000000009",
+        report,
+        expiresAt: "2026-09-26T12:00:00.000Z",
+      }),
+    );
+    const heading = await screen.findByRole("heading", { name: "Report" });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+  });
+
+  it("aborts and suppresses a stale result when the source is replaced", async () => {
+    let requestSignal: AbortSignal | undefined;
+    let resolveAnalysis: ((response: Response) => void) | undefined;
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+      .mockImplementationOnce(
+        (_url: string, options: { signal?: AbortSignal }) =>
+          new Promise<Response>((resolve, reject) => {
+            requestSignal = options.signal;
+            resolveAnalysis = resolve;
+            options.signal?.addEventListener("abort", () =>
+              reject(new DOMException("Aborted", "AbortError")),
+            );
+          }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    function Harness() {
+      const [visible, setVisible] = useState(true);
+      return visible ? (
+        <AnalyzeWorkspace
+          source={source}
+          onDelete={vi.fn()}
+          autoStart
+          onReplace={() => setVisible(false)}
+        />
+      ) : (
+        <p>Source replaced</p>
+      );
+    }
+    render(<Harness />);
+    await screen.findByRole("button", { name: "Отменить анализ" });
+    fireEvent.click(screen.getByRole("button", { name: "Заменить источник" }));
+    expect(requestSignal?.aborted).toBe(true);
+    expect(await screen.findByText("Source replaced")).toBeVisible();
+    resolveAnalysis?.(
+      Response.json({
+        analysisId: "00000000-0000-4000-8000-000000000009",
+        report,
+      }),
+    );
+    expect(screen.queryByText("Анализ завершён")).toBeNull();
+  });
+
+  it("keeps focus in the invite flow and preserves focus on the new-key retry", async () => {
+    const firstKey = "00000000-0000-4000-8000-000000000002";
+    const secondKey = "00000000-0000-4000-8000-000000000003";
+    vi.stubGlobal("crypto", {
+      randomUUID: vi
+        .fn()
+        .mockReturnValueOnce(firstKey)
+        .mockReturnValueOnce(secondKey),
+    });
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+      .mockResolvedValueOnce(
+        Response.json({ code: "quota", scope: "workspace" }, { status: 429 }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+      .mockResolvedValueOnce(
+        Response.json({ code: "unavailable" }, { status: 503 }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    render(
+      <AnalyzeWorkspace
+        source={source}
+        onDelete={vi.fn()}
+        onReplace={vi.fn()}
+        analysisFocus="find gaps"
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Запустить AI-анализ" }),
+    );
+    await screen.findByRole("heading", { name: "Продолжить анализ" });
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("dialog")),
+    );
+    fireEvent.change(screen.getByLabelText("Код приглашения"), {
+      target: { value: "invite" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Разблокировать анализ" }),
+    );
+    await screen.findByRole("alert");
+    const analyzeCalls = fetch.mock.calls.filter(
+      ([input]) => String(input) === "/api/analyze",
+    );
+    expect(analyzeCalls).toHaveLength(2);
+    expect(JSON.parse(String(analyzeCalls[0]?.[1]?.body))).toMatchObject({
+      source,
+      focus: "find gaps",
+    });
+    expect(JSON.parse(String(analyzeCalls[1]?.[1]?.body))).toMatchObject({
+      source,
+      focus: "find gaps",
+    });
+    expect(analyzeCalls[0]?.[1]?.headers).toMatchObject({
+      "Idempotency-Key": firstKey,
+    });
+    expect(analyzeCalls[1]?.[1]?.headers).toMatchObject({
+      "Idempotency-Key": secondKey,
+    });
+  });
+
   it("opens invite access only for workspace quota and preserves the selected source", async () => {
     const fetch = vi
       .fn()
@@ -28,7 +218,13 @@ describe("analysis workspace deletion", () => {
         Response.json({ code: "quota", scope: "workspace" }, { status: 429 }),
       );
     vi.stubGlobal("fetch", fetch);
-    render(<AnalyzeWorkspace source={source} onDelete={vi.fn()} />);
+    render(
+      <AnalyzeWorkspace
+        source={source}
+        onDelete={vi.fn()}
+        onReplace={vi.fn()}
+      />,
+    );
     fireEvent.click(
       screen.getByRole("button", { name: "Запустить AI-анализ" }),
     );
@@ -36,6 +232,38 @@ describe("analysis workspace deletion", () => {
       await screen.findByRole("heading", { name: "Продолжить анализ" }),
     ).toBeVisible();
     expect(screen.getByLabelText("Код приглашения")).toBeVisible();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("dialog")),
+    );
+    expect(document.activeElement).not.toBe(
+      document.querySelector('[role="alert"]'),
+    );
+  });
+
+  it("moves focus to an actionable error while keeping replacement available", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+      .mockResolvedValueOnce(
+        Response.json({ code: "unavailable" }, { status: 503 }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    render(
+      <AnalyzeWorkspace
+        source={source}
+        onDelete={vi.fn()}
+        onReplace={vi.fn()}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Запустить AI-анализ" }),
+    );
+    const alert = await screen.findByRole("alert");
+    await waitFor(() => expect(document.activeElement).toBe(alert));
+    expect(screen.getByRole("button", { name: "Повторить" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Заменить источник" }),
+    ).toBeVisible();
   });
 
   it("keeps code quota terminal and does not reopen the invite modal", async () => {
@@ -46,7 +274,13 @@ describe("analysis workspace deletion", () => {
         Response.json({ code: "quota", scope: "code" }, { status: 429 }),
       );
     vi.stubGlobal("fetch", fetch);
-    render(<AnalyzeWorkspace source={source} onDelete={vi.fn()} />);
+    render(
+      <AnalyzeWorkspace
+        source={source}
+        onDelete={vi.fn()}
+        onReplace={vi.fn()}
+      />,
+    );
     fireEvent.click(
       screen.getByRole("button", { name: "Запустить AI-анализ" }),
     );
@@ -66,13 +300,20 @@ describe("analysis workspace deletion", () => {
       "fetch",
       vi.fn(async () => Response.json({ code: "expired" }, { status: 401 })),
     );
-    render(<AnalyzeWorkspace source={source} onDelete={onDelete} />);
+    render(
+      <AnalyzeWorkspace
+        source={source}
+        onDelete={onDelete}
+        onReplace={vi.fn()}
+      />,
+    );
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Удалить все данные этого сеанса",
+        name: "Удалить сохранённые данные",
       }),
     );
+    fireEvent.click(screen.getByRole("button", { name: "Удалить всё" }));
 
     await waitFor(() => expect(onDelete).toHaveBeenCalledOnce());
     expect(screen.queryByText("Не удалось удалить данные")).toBeNull();
@@ -87,15 +328,24 @@ describe("analysis workspace deletion", () => {
       )
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetch);
-    render(<AnalyzeWorkspace source={source} onDelete={onDelete} />);
+    render(
+      <AnalyzeWorkspace
+        source={source}
+        onDelete={onDelete}
+        onReplace={vi.fn()}
+      />,
+    );
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Удалить все данные этого сеанса",
+        name: "Удалить сохранённые данные",
       }),
     );
+    fireEvent.click(screen.getByRole("button", { name: "Удалить всё" }));
     expect(
-      screen.getByRole("button", { name: "Удаляем данные…" }),
+      screen.getByRole("button", {
+        name: "Удаляем данные…",
+      }),
     ).toBeDisabled();
     expect(await screen.findByText("Не удалось удалить данные")).toBeVisible();
     expect(onDelete).not.toHaveBeenCalled();

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ONBOARDING_STORAGE_KEY } from "@/features/onboarding";
 import { DashboardShell } from "./dashboard-shell";
@@ -33,6 +34,42 @@ describe("Dashboard input shell", () => {
     expect(fetch.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
       false,
     );
+  });
+
+  it("runs exactly one guest bootstrap and analyze request under StrictMode", async () => {
+    const fetch = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) === "/api/saved-analysis")
+          return Response.json({ analyses: [] });
+        if (String(input) === "/api/guest")
+          return Response.json({ expiresAt: "later" });
+        expect(String(input)).toBe("/api/analyze");
+        expect(init?.method).toBe("POST");
+        return Response.json({ code: "unavailable" }, { status: 503 });
+      },
+    );
+    vi.stubGlobal("fetch", fetch);
+    render(
+      <StrictMode>
+        <DashboardShell />
+      </StrictMode>,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Загрузить синтетический демо-набор",
+      }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Запустить AI-анализ" }),
+    );
+    await screen.findByRole("alert");
+
+    expect(
+      fetch.mock.calls.filter(([input]) => String(input) === "/api/guest"),
+    ).toHaveLength(1);
+    expect(
+      fetch.mock.calls.filter(([input]) => String(input) === "/api/analyze"),
+    ).toHaveLength(1);
   });
 
   it("exposes all theme modes as keyboard reachable controls", () => {
@@ -85,9 +122,10 @@ describe("Dashboard input shell", () => {
     );
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Удалить все данные этого сеанса",
+        name: "Удалить сохранённые данные",
       }),
     );
+    fireEvent.click(screen.getByRole("button", { name: "Удалить всё" }));
     await waitFor(() =>
       expect(
         screen.getByRole("button", {

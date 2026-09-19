@@ -1,0 +1,28 @@
+import type { FinalReport } from "../model/schema";
+
+export function formatExpiry(expiresAt: string) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    dateStyle: "long",
+    timeStyle: "short",
+  }).format(new Date(expiresAt));
+}
+export function formatDerivation(
+  calculation: FinalReport["metrics"][number]["calculation"],
+) {
+  if (calculation.kind === "direct-source") return "Указано в исходном тексте";
+  if (calculation.kind === "count") return "Количество принятых строк";
+  const labels = {
+    sum: "Сумма",
+    average: "Среднее",
+    min: "Минимум",
+    max: "Максимум",
+  } as const;
+  return `${labels[calculation.kind]} поля «${calculation.fieldLabel}» по всем принятым строкам`;
+}
+export function formatEvidenceSummary(item: FinalReport["evidence"][number]) {
+  const kind = item.kind === "row-range" ? "Строки таблицы" : "Абзац источника";
+  const coverage = item.coverage
+    ? ` · Покрытие: ${item.coverage.included.toLocaleString("ru-RU")} из ${item.coverage.total.toLocaleString("ru-RU")}`
+    : "";
+  return `${kind} · ${item.label}${item.excerpt ? `: ${item.excerpt}` : ""}${coverage}`;
+}

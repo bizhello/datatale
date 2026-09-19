@@ -72,8 +72,9 @@ test("delete-all calls the private guest endpoint once and clears local state af
   });
   await openAnalysis(page);
   await page
-    .getByRole("button", { name: "Удалить все данные этого сеанса" })
+    .getByRole("button", { name: "Удалить сохранённые данные" })
     .click();
+  await page.getByRole("button", { name: "Удалить всё" }).click();
   await expect(
     page.getByRole("button", { name: "Загрузить синтетический демо-набор" }),
   ).toBeVisible();
@@ -117,8 +118,9 @@ test("failed delete-all keeps the report visible and exposes an actionable retry
   });
   await expect(reportHeading).toBeVisible();
   await page
-    .getByRole("button", { name: "Удалить все данные этого сеанса" })
+    .getByRole("button", { name: "Удалить сохранённые данные" })
     .click();
+  await page.getByRole("button", { name: "Удалить всё" }).click();
   await expect(page.getByText("Не удалось удалить данные")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Повторить удаление" }),

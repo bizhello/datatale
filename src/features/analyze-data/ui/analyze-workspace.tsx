@@ -1,5 +1,5 @@
 "use client";
-import { Button } from "@heroui/react";
+import { Button, Modal } from "@heroui/react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -9,11 +9,8 @@ import {
 } from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
 import { ReportDashboard } from "@/entities/report/ui";
+import { errorMessage } from "../model/analysis-error";
 import type { AnalysisFocus } from "../model/analysis-focus";
-import {
-  analysisErrorMessages,
-  type QuotaScope,
-} from "../model/analysis-state";
 import { type RestoredAnalysis, useAnalysis } from "../model/use-analysis";
 import { AnalysisProgress } from "./analysis-progress";
 import { InviteAccessModal } from "./invite-access-modal";
@@ -21,7 +18,7 @@ import { InviteAccessModal } from "./invite-access-modal";
 type AnalyzeWorkspaceProps = {
   source: Dataset | TextSource;
   onDelete: () => void;
-  onReplace?: () => void;
+  onReplace: () => void;
   analysisFocus?: AnalysisFocus;
   autoStart?: boolean;
   restoredAnalysis?: RestoredAnalysis;
@@ -53,6 +50,7 @@ export function AnalyzeWorkspace({
     "idle",
   );
   const [accessOpen, setAccessOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   useEffect(() => {
     if (state.status === "ready") onAnalysisReady?.();
   }, [onAnalysisReady, state.status]);
@@ -118,7 +116,7 @@ export function AnalyzeWorkspace({
           </strong>
           <span>{sourceDisplaySummary(source).detail}</span>
         </div>
-        <Button variant="secondary" onPress={onReplace ?? onDelete}>
+        <Button variant="secondary" onPress={onReplace}>
           Заменить источник
         </Button>
       </div>
@@ -169,27 +167,60 @@ export function AnalyzeWorkspace({
           </div>
         </div>
       )}
-      <Button
-        className="delete-session"
-        variant="tertiary"
-        isDisabled={deleteState === "deleting"}
-        onPress={() => void deleteAll()}
+      <div className="analysis-danger-zone">
+        <p>
+          Удаление очистит все отчёты, чат и источник этого гостевого
+          пространства.
+        </p>
+        <Button
+          className="delete-session"
+          variant="tertiary"
+          isDisabled={deleteState === "deleting"}
+          onPress={() => setDeleteConfirmOpen(true)}
+        >
+          {deleteState === "deleting"
+            ? "Удаляем данные…"
+            : "Удалить сохранённые данные"}
+        </Button>
+      </div>
+      <Modal.Root
+        isOpen={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
       >
-        {deleteState === "deleting"
-          ? "Удаляем данные…"
-          : "Удалить все данные этого сеанса"}
-      </Button>
+        <Modal.Backdrop>
+          <Modal.Container size="sm">
+            <Modal.Dialog>
+              <Modal.Header>
+                <Modal.Heading>Удалить данные пространства?</Modal.Heading>
+                <Modal.CloseTrigger aria-label="Закрыть" />
+              </Modal.Header>
+              <Modal.Body>
+                <p>
+                  Будут удалены все текущие отчёты, сообщения чата и источник.
+                  Это действие нельзя отменить.
+                </p>
+                <div className="modal-actions">
+                  <Button
+                    variant="tertiary"
+                    onPress={() => setDeleteConfirmOpen(false)}
+                  >
+                    Отмена
+                  </Button>
+                  <Button
+                    className="destructive-action"
+                    onPress={() => {
+                      setDeleteConfirmOpen(false);
+                      void deleteAll();
+                    }}
+                  >
+                    Удалить всё
+                  </Button>
+                </div>
+              </Modal.Body>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal.Root>
     </section>
   );
-}
-
-function errorMessage(
-  error: keyof typeof analysisErrorMessages,
-  scope?: QuotaScope,
-) {
-  if (error !== "quota") return analysisErrorMessages[error];
-  if (scope === "code")
-    return "Лимит этого кода приглашения на сегодня исчерпан.";
-  if (scope === "global") return "Общий лимит анализов на сегодня исчерпан.";
-  return analysisErrorMessages.quota;
 }

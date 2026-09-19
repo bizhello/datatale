@@ -194,6 +194,55 @@ describe("POST /api/analyze handler", () => {
     await expect(response.json()).resolves.toEqual({ code: "invalid-source" });
   });
 
+  it("rejects unknown and oversized focus while accepting blank focus", async () => {
+    const claim = vi.fn(async () => ({
+      kind: "unavailable" as const,
+    }));
+    const handler = createAnalyzeHandler(
+      dependencies({
+        gate: () => ({ claim }),
+        analyze: vi.fn(async () => report),
+      }),
+    );
+
+    expect((await handler(request({ source, extra: true }))).status).toBe(422);
+    expect(
+      (await handler(request({ source, focus: "x".repeat(401) }))).status,
+    ).toBe(422);
+    expect((await handler(request({ source, focus: 1 }))).status).toBe(422);
+    expect((await handler(request({ source, focus: "  " }))).status).toBe(503);
+    expect(claim).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a source over one MiB before claim even inside the expanded body cap", async () => {
+    const claim = vi.fn(async () => ({
+      kind: "unavailable" as const,
+    }));
+    const analyze = vi.fn(async () => report);
+    const handler = createAnalyzeHandler(
+      dependencies({ gate: () => ({ claim }), analyze }),
+    );
+    const oversized = {
+      ...source,
+      rows: [
+        {
+          ...source.rows[0],
+          values: { value: "x".repeat(inputLimits.canonicalSourceBytes) },
+        },
+      ],
+      columns: [{ id: "value", label: "Value", scalarType: "string" as const }],
+    };
+    const body = JSON.stringify({ source: oversized, focus: "x" });
+    expect(new TextEncoder().encode(body).byteLength).toBeLessThanOrEqual(
+      inputLimits.canonicalSourceBytes + 4 * 1024,
+    );
+    expect(
+      (await handler(request({ source: oversized, focus: "x" }))).status,
+    ).toBe(413);
+    expect(claim).not.toHaveBeenCalled();
+    expect(analyze).not.toHaveBeenCalled();
+  });
+
   it("accepts a bounded focus and forwards its normalized value to analysis", async () => {
     const analyze = vi.fn(async () => report);
     const handler = createAnalyzeHandler(dependencies({ analyze }));
@@ -341,6 +390,39 @@ describe("POST /api/analyze handler", () => {
     );
     expect(fingerprints).toHaveLength(2);
     expect(fingerprints[0]).toBe(fingerprints[1]);
+  });
+
+  it("uses the source and focus pair for idempotency conflicts and replay", async () => {
+    const fingerprints: string[] = [];
+    let claims = 0;
+    const gate = () => ({
+      claim: async (input: { fingerprint: string }) => {
+        fingerprints.push(input.fingerprint);
+        claims += 1;
+        if (claims === 1)
+          return { kind: "claimed", receiptId: "receipt" } as const;
+        if (claims === 2) return { kind: "conflict" } as const;
+        return { kind: "replay", report } as const;
+      },
+      markProviderStarted: async () => true,
+      succeed: async () => true,
+      fail: async () => true,
+    });
+    const analyze = vi.fn(async () => report);
+    const handler = createAnalyzeHandler(dependencies({ gate, analyze }));
+
+    expect((await handler(request({ source, focus: "overview" }))).status).toBe(
+      200,
+    );
+    expect(
+      (await handler(request({ source, focus: "different question" }))).status,
+    ).toBe(409);
+    expect((await handler(request({ source, focus: "overview" }))).status).toBe(
+      200,
+    );
+    expect(fingerprints[0]).not.toBe(fingerprints[1]);
+    expect(fingerprints[0]).toBe(fingerprints[2]);
+    expect(analyze).toHaveBeenCalledOnce();
   });
 
   it("records provider-spent failure and makes the matching retry indeterminate", async () => {

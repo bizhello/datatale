@@ -16,6 +16,8 @@
 
 The accepted source becomes a compact provenance summary while analysis is in progress, failed, or complete. Replacing it cancels the active request and returns to input. The optional goal is normalized, bounded to 400 characters, frozen at launch, and retained for same-key retries without being treated as evidence.
 
+Replacing a source resets the current local analysis flow and preserves saved history. Deleting saved workspace data is a separate confirmed action that removes the guest workspace's reports, chats and accepted sources.
+
 The product UI remains Russian unless explicitly changed. Engineering artifacts are English. User-facing source quotations, filenames and the required refusal may retain their original language.
 
 ## First-visit tour

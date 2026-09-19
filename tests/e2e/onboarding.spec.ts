@@ -59,7 +59,9 @@ test("shows the welcome, mounts stable demo targets, and restores focus after sk
   await expect(
     page.locator(".onboarding-demo-workspace [data-onboarding-ask]"),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Пропустить" }).last().click();
+  await page
+    .locator(".driver-popover-footer button.onboarding-skip")
+    .click({ force: true });
   await expect(page.locator(".onboarding-demo-workspace")).toHaveCount(0);
   await expect(replay).toBeFocused();
   expect(
@@ -225,7 +227,9 @@ test("replay restores a populated source and report after dismissal", async ({
   const labelledBy = await demoReport.getAttribute("aria-labelledby");
   expect(labelledBy).toBeTruthy();
   await expect(page.locator(`[id="${labelledBy}"]`)).toBeVisible();
-  await page.getByRole("button", { name: "Пропустить" }).last().click();
+  await page
+    .locator(".driver-popover-footer button.onboarding-skip")
+    .click({ force: true });
   await expect(page.locator(".onboarding-demo-workspace")).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Стабильный отчёт" }),

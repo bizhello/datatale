@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import { runVercelBuild } from "../../scripts/vercel-build";
+import { runVercelBuild } from "./vercel-build";
 
 type PackageManifest = {
   scripts?: Record<string, string>;

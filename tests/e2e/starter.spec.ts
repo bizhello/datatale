@@ -212,6 +212,54 @@ test("renders a fixture dashboard and expands charts without another analysis re
   expect(requests).toEqual(["guest", "analyze"]);
 });
 
+test("sends the optional analysis focus and keeps the compact workspace inside mobile bounds", async ({
+  page,
+}) => {
+  let analyzeRequest: Record<string, unknown> | undefined;
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/guest", async (route) => {
+    await route.fulfill({
+      json: { expiresAt: "2026-10-19T00:00:00.000Z" },
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  });
+  await page.route("**/api/analyze", async (route) => {
+    analyzeRequest = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      json: { analysisId, report: dashboardReport, expiresAt: reportExpiresAt },
+    });
+  });
+
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Загрузить синтетический демо-набор" })
+    .click();
+  await page
+    .getByRole("textbox", { name: "Что вы хотите понять? (необязательно)" })
+    .fill("  Сравните продажи по регионам  ");
+  await page.getByRole("button", { name: "Запустить AI-анализ" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: /Выручка выросла/ }),
+  ).toBeVisible();
+  expect(analyzeRequest).toMatchObject({
+    focus: "Сравните продажи по регионам",
+  });
+  const workspaceBounds = await page
+    .locator(".analysis-workspace")
+    .evaluate((workspace) => ({
+      left: workspace.getBoundingClientRect().left,
+      right: workspace.getBoundingClientRect().right,
+      viewport: window.innerWidth,
+      document: document.documentElement.scrollWidth,
+    }));
+  expect(workspaceBounds.left).toBeGreaterThanOrEqual(0);
+  expect(workspaceBounds.right).toBeLessThanOrEqual(workspaceBounds.viewport);
+  expect(workspaceBounds.document).toBeLessThanOrEqual(
+    workspaceBounds.viewport,
+  );
+});
+
 test("reopens a saved report and transcript without guest or AI requests", async ({
   page,
 }) => {
@@ -565,7 +613,7 @@ test("fits mobile and has no automated accessibility violations", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await expect(page.getByText("ДЕМОНСТРАЦИОННЫЙ ПРИМЕР")).toBeVisible();
+  await expect(page.getByText("ПОСЛЕ ПРОВЕРКИ ИСТОЧНИКА")).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

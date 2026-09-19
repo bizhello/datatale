@@ -51,7 +51,7 @@ Use restrained entrance transitions and button/dropzone feedback. A brief comple
 
 ## Guided tour
 
-Use Driver.js with a visible step count, Back/Next, Skip and close controls. Enable keyboard navigation and Escape dismissal. Use four stable demo targets: input, hero/evidence, charts and chat. Wait for the target to mount; if it is unavailable, end cleanly without blocking the page. Distinguish completion, explicit dismissal and lifecycle cleanup.
+Use Driver.js with a visible five-step sequence: the input choice cards, demo trigger, hero/evidence, charts and chat. Keep Back/Next, Skip, close, keyboard navigation and Escape dismissal. Wait for the target to mount; if it is unavailable, end cleanly without blocking the page. Distinguish completion, explicit dismissal and lifecycle cleanup.
 
 Style popovers with product tokens in both themes. Use brief spotlight/popover transitions; disable movement under reduced motion. Keep popovers inside the viewport at mobile widths and 200% zoom. Manage focus while open and restore it to the initiating control, or a stable workspace control, on exit. Verify keyboard behavior rather than assuming library defaults are sufficient.
 

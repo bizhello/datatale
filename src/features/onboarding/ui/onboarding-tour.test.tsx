@@ -43,12 +43,10 @@ vi.mock("driver.js", () => ({
 function targets() {
   return (
     <>
-      <div id="onboarding-source" />
+      <div className="input-grid" />
       <div className="dropzone" />
-      <div id="onboarding-text-input" />
       <div id="onboarding-demo" />
       <div className="onboarding-demo-analysis" />
-      <div id="onboarding-theme" />
       <div className="onboarding-demo-workspace">
         <div className="chart-heading">
           <button type="button">chart</button>
@@ -80,7 +78,7 @@ describe("OnboardingTour", () => {
     fireEvent.click(screen.getByRole("button", { name: "Начать знакомство" }));
     expect(onSessionChange).toHaveBeenCalledWith(true);
     await waitFor(() => expect(driverState.instance?.drive).toHaveBeenCalled());
-    expect(driverState.config?.steps).toHaveLength(8);
+    expect(driverState.config?.steps).toHaveLength(5);
   });
 
   it("persists skip and restores focus to the initiating control", async () => {

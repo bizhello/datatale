@@ -13,14 +13,14 @@ The release gate passes Biome, Steiger, strict TypeScript, the Turbopack product
 | Package | Production outcome | State |
 | --- | --- | --- |
 | Input | Local CSV/XLSX worker parsing, sheet selection, text input, bounded preview, warnings, cancellation, and actionable errors | done |
-| Analysis | Strict provider schemas, bounded optional focus, semantic plan validation, deterministic full-source calculations, grounded 2–3 sentence hero, recommendations, and honest no-chart text reports | done |
+| Analysis | Strict provider schemas, semantic plan validation, deterministic full-source calculations, grounded 2–3 sentence hero, recommendations, and honest no-chart text reports | done |
 | Charts | Two or three AI-selected bar/line/donut charts for suitable tables, tabular equivalents, rationale/evidence, and responsive expanded dialogs | done |
 | Ask the Data | Owner-scoped immutable context, canonical claims, exact insufficient-data refusal, persisted replay, quota, and inference lease | done |
 | Guest safety | Sealed workspace, anonymous and invite quotas, idempotency, seven-day saved-analysis retention, delete-all, and scheduled cleanup | done |
 | Operations | Neon migrations, automatic guarded production migration, main-only Vercel deploys, Cloudflare DNS, HTTPS, and production smoke checks | done |
 | Onboarding | Accessible first-visit modal, deterministic local demo, skip/complete persistence, replay, focus restoration, mobile, theme, and reduced-motion behavior | done |
 | History/reopen | Owner-scoped summaries and strict detail hydration without another AI/quota claim; stale-response, expiry, and isolation guards | done |
-| Empty workspace | Explicitly labeled synthetic result preview with finite motion, reduced-motion fallback, and mobile/error-safe layout | done |
+| Empty workspace | Explicitly labeled liquid synthetic preview with finite motion, reduced-motion fallback, and mobile/error-safe layout | done |
 
 ## Release evidence
 
@@ -49,7 +49,7 @@ GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI
 
 | Task | Owner | Base | Worktree | Scope | State |
 | --- | --- | --- | --- | --- | --- |
-| Guided analysis transition | guided-analysis executor | `71e1602` | `../datatale-worktrees/guided-analysis` | Optional analysis focus, one-action launch, compact source state, accessible result transition | implemented; awaiting integration |
+| Guided analysis transition | guided-analysis executor | `71e1602` | `../datatale-worktrees/guided-analysis` | Optional analysis focus, one-action launch, compact source state, accessible result transition | verified; final review |
 
 ## Remaining delivery artifact
 
