@@ -7,10 +7,6 @@ import { normalizeTable } from "./normalize";
 import { parseCsv } from "./parse-csv";
 import type { WorkerRequest } from "./worker-protocol";
 
-let retainedSheets:
-  | Awaited<ReturnType<typeof readXlsxFile<string>>>
-  | undefined;
-
 export function preflightXlsx(bytes: Uint8Array) {
   let entries = 0;
   let inflated = 0;
@@ -165,6 +161,7 @@ function inspectDimensions(rows: unknown[][]) {
 }
 
 self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
+  let sheetNames: string[] | undefined;
   try {
     const { id, file, selectedSheet } = data;
     if (file.size > inputLimits.fileBytes)
@@ -187,13 +184,13 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
       throw new ImportError("Выберите CSV или XLSX-файл.", "unsupported-file");
     const bytes = new Uint8Array(await file.arrayBuffer());
     const hasCachedFormula = preflightXlsx(bytes);
-    const sheets =
-      retainedSheets ??
-      (await readXlsxFile(file, { parseNumber: (value) => value }));
-    retainedSheets = sheets;
-    const sheetNames = sheets.map((sheet) => sheet.sheet);
+    const sheets = await readXlsxFile(file, {
+      parseNumber: (value) => value,
+    });
+    const names = sheets.map((sheet) => sheet.sheet);
+    sheetNames = names;
     const selected = sheets.find(
-      (sheet) => sheet.sheet === (selectedSheet ?? sheetNames[0]),
+      (sheet) => sheet.sheet === (selectedSheet ?? names[0]),
     );
     if (!selected)
       throw new ImportError(
@@ -245,7 +242,7 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
       error: {
         message: known.message,
         code: known.code,
-        sheetNames: retainedSheets?.map((sheet) => sheet.sheet),
+        sheetNames,
       },
     });
   }
