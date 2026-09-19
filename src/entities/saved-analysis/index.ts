@@ -3,6 +3,7 @@ export type {
   InferenceLease,
   SavedAnalysis,
   SavedAnalysisMessage,
+  SavedAnalysisSummary,
   SavedAnalysisValidators,
   SavedMessageInput,
   StorageSchema,
@@ -17,5 +18,6 @@ export {
   SAVED_ANALYSIS_TTL_MS,
   savedAnalysisMessageSchema,
   savedAnalysisSchema,
+  savedAnalysisSummarySchema,
   savedMessageInputSchema,
 } from "./model/schema";

@@ -10,10 +10,12 @@ import {
   SAVED_ANALYSIS_TTL_MS,
   type SavedAnalysis,
   type SavedAnalysisMessage,
+  type SavedAnalysisSummary,
   type SavedAnalysisValidators,
   type SavedMessageInput,
   savedAnalysisMessageSchema,
   savedAnalysisSchema,
+  savedAnalysisSummarySchema,
   savedMessageInputSchema,
   sourceKind,
 } from "../model/schema";
@@ -34,6 +36,10 @@ export type SavedAnalysisRepository = Readonly<{
     now?: Date,
   ): Promise<SavedAnalysis | undefined>;
   list(workspaceId: string, now?: Date): Promise<ReadonlyArray<SavedAnalysis>>;
+  listSummaries(
+    workspaceId: string,
+    now?: Date,
+  ): Promise<ReadonlyArray<SavedAnalysisSummary>>;
   cleanup(now?: Date): Promise<number>;
   appendMessage(input: {
     workspaceId: string;
@@ -160,6 +166,20 @@ export class SqlSavedAnalysisRepository implements SavedAnalysisRepository {
     return rows.flatMap((row) => {
       const parsed = parseAnalysis(row);
       return parsed ? [parsed] : [];
+    });
+  }
+
+  async listSummaries(workspaceId: string, now = new Date()) {
+    assertId(workspaceId, "Workspace ID");
+    const rows = await this.client()`
+      SELECT a.id, a.source_kind AS "sourceKind", a.created_at AS "createdAt", a.expires_at AS "expiresAt"
+      FROM saved_analyses a JOIN guest_workspaces w ON w.id = a.workspace_id
+      WHERE a.workspace_id = ${workspaceId} AND w.revoked_at IS NULL AND w.expires_at > ${now} AND a.expires_at > ${now}
+      ORDER BY a.created_at ASC, a.id ASC
+    `;
+    return rows.flatMap((row) => {
+      const parsed = savedAnalysisSummarySchema.safeParse(row);
+      return parsed.success ? [parsed.data] : [];
     });
   }
 

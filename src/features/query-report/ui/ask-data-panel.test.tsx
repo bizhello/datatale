@@ -25,6 +25,20 @@ function enterQuestion(question: string) {
 }
 
 describe("AskDataPanel", () => {
+  it("restores persisted transcript without making a request", () => {
+    render(
+      <AskDataPanel
+        send={vi.fn()}
+        initialMessages={[
+          { id: "u-1", messageId: "m-1", role: "user", text: "Сколько строк?" },
+          { id: "a-1", role: "assistant", text: "Три строки.", kind: "answer" },
+        ]}
+      />,
+    );
+    expect(screen.getByText("Сколько строк?")).toBeVisible();
+    expect(screen.getByText("Три строки.")).toBeVisible();
+  });
+
   it("submits a question and renders a grounded answer with evidence", async () => {
     const send = vi.fn(async () => ({
       status: "answered" as const,

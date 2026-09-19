@@ -457,6 +457,14 @@ footer {
   color: var(--muted);
   line-height: 1.65;
 }
+.history-picker {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 20px;
+}
+.history-picker > * {
+  width: min(100%, 320px);
+}
 .input-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1107,6 +1115,9 @@ footer span:last-child {
   }
 }
 @media (max-width: 700px) {
+  .history-picker {
+    justify-content: stretch;
+  }
   .site-header {
     min-height: 70px;
   }

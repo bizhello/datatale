@@ -84,6 +84,14 @@ describe("saved analysis memory repository", () => {
         now,
       }),
     ).resolves.toBeDefined();
+    await expect(result.listSummaries(workspaceId, now)).resolves.toEqual([
+      {
+        id: analysisId,
+        sourceKind: "text",
+        createdAt: now,
+        expiresAt: new Date("2026-09-26T12:00:00.000Z"),
+      },
+    ]);
     await expect(
       result.get("00000000-0000-4000-8000-000000000003", analysisId, now),
     ).resolves.toBeUndefined();

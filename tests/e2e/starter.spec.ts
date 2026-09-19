@@ -213,6 +213,80 @@ test("renders a fixture dashboard and expands charts without another analysis re
   expect(requests).toEqual(["guest", "analyze"]);
 });
 
+test("reopens a saved report and transcript without guest or AI requests", async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  const savedSource = {
+    version: 1,
+    id: "saved-text-1",
+    source: { kind: "text" },
+    rawText: "Одна сохранённая строка.",
+    paragraphs: [{ index: 1, text: "Одна сохранённая строка." }],
+  };
+  await page.route("**/api/saved-analysis", async (route) => {
+    await route.fulfill({
+      json: {
+        analyses: [
+          {
+            id: analysisId,
+            sourceKind: "text",
+            createdAt: "2026-09-19T12:00:00.000Z",
+            expiresAt: reportExpiresAt,
+          },
+        ],
+      },
+    });
+  });
+  await page.route(`**/api/saved-analysis/${analysisId}`, async (route) => {
+    await route.fulfill({
+      json: {
+        analysisId,
+        source: savedSource,
+        report: dashboardReport,
+        expiresAt: reportExpiresAt,
+        messages: [
+          {
+            id: "question-1",
+            analysisId,
+            role: "user",
+            content: "Какая выручка?",
+            createdAt: "2026-09-19T12:01:00.000Z",
+          },
+          {
+            id: "question-1:assistant",
+            analysisId,
+            role: "assistant",
+            content: "Выручка: 274 000 ₽.",
+            result: {
+              outcome: "answered",
+              answer: "Выручка: 274 000 ₽.",
+              references: [{ id: "rows" }],
+            },
+            createdAt: "2026-09-19T12:01:01.000Z",
+          },
+        ],
+      },
+    });
+  });
+  for (const endpoint of ["guest", "analyze", "chat"]) {
+    await page.route(`**/api/${endpoint}`, async (route) => {
+      requests.push(endpoint);
+      await route.abort();
+    });
+  }
+  await page.goto("/");
+  await expect(page.getByLabel("Сохранённые отчёты")).toBeVisible();
+  await page.getByLabel("Сохранённые отчёты").click();
+  await page.getByRole("option", { name: /Текстовый отчёт/ }).click();
+  await expect(
+    page.getByRole("heading", { name: /Выручка выросла/ }),
+  ).toBeVisible();
+  await expect(page.getByText("Какая выручка?")).toBeVisible();
+  await expect(page.getByText("Выручка: 274 000 ₽.")).toBeVisible();
+  expect(requests).toEqual([]);
+});
+
 test("asks a grounded question about the analyzed report", async ({ page }) => {
   let chatRequest: Record<string, unknown> | undefined;
   await page.route("**/api/guest", async (route) => {

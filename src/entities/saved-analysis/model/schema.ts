@@ -55,10 +55,20 @@ export const savedAnalysisMessageSchema = z
   })
   .strict();
 
+export const savedAnalysisSummarySchema = z
+  .object({
+    id: z.string().uuid(),
+    sourceKind: z.enum(["dataset", "text"]),
+    createdAt: z.date(),
+    expiresAt: z.date(),
+  })
+  .strict();
+
 export type AcceptedSource = unknown;
 export type SavedMessageInput = z.infer<typeof savedMessageInputSchema>;
 export type SavedAnalysis = z.infer<typeof savedAnalysisSchema>;
 export type SavedAnalysisMessage = z.infer<typeof savedAnalysisMessageSchema>;
+export type SavedAnalysisSummary = z.infer<typeof savedAnalysisSummarySchema>;
 export type ValidatedChatResult = Readonly<Record<string, unknown>>;
 export type InferenceLease = Readonly<{
   token: string;

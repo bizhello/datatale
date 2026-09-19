@@ -12,13 +12,21 @@ import {
 import { ArrowUp, RefreshCw, Square } from "lucide-react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { useEffect, useId, useRef } from "react";
-import { type AskDataSend, MAX_QUESTION_LENGTH } from "../model/types";
+import {
+  type AskDataMessage,
+  type AskDataSend,
+  MAX_QUESTION_LENGTH,
+} from "../model/types";
 import { useAskData } from "../model/use-ask-data";
 import styles from "./ask-data.module.css";
 import { MessageBubble } from "./message-bubble";
 import { SuggestedQuestions } from "./suggested-questions";
 
-export type AskDataPanelProps = { send: AskDataSend; onboardingDemo?: boolean };
+export type AskDataPanelProps = {
+  send: AskDataSend;
+  onboardingDemo?: boolean;
+  initialMessages?: AskDataMessage[];
+};
 
 const suggestions = [
   "Какие главные выводы?",
@@ -29,6 +37,7 @@ const suggestions = [
 export function AskDataPanel({
   send,
   onboardingDemo = false,
+  initialMessages,
 }: AskDataPanelProps) {
   const {
     messages,
@@ -40,7 +49,7 @@ export function AskDataPanel({
     setQuestion,
     submit,
     cancel,
-  } = useAskData(send);
+  } = useAskData(send, initialMessages);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const questionHelpId = `${useId()}-question-help`;
