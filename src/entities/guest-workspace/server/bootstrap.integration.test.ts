@@ -10,16 +10,32 @@ const existing = {
 };
 
 describe("guest workspace bootstrap", () => {
-  it("reuses an active database-backed session", async () => {
+  it("refreshes an active database-backed session before its cookie", async () => {
     const create = vi.fn(async () => true);
+    const events: string[] = [];
     await expect(
       bootstrapGuestWorkspace({
-        repository: { isActive: async () => true, create },
+        repository: {
+          isActive: async () => true,
+          create,
+          refresh: async () => {
+            events.push("database");
+            return true;
+          },
+        },
         readSession: async () => existing,
-        saveSession: vi.fn(async () => true),
+        saveSession: vi.fn(async () => {
+          events.push("cookie");
+          return true;
+        }),
+        now: () => new Date("2026-09-20T00:00:00.000Z"),
       }),
-    ).resolves.toEqual(existing);
+    ).resolves.toEqual({
+      id: existing.id,
+      expiresAt: "2026-10-20T00:00:00.000Z",
+    });
     expect(create).not.toHaveBeenCalled();
+    expect(events).toEqual(["database", "cookie"]);
   });
 
   it("inserts the workspace before saving its cookie", async () => {
@@ -31,6 +47,7 @@ describe("guest workspace bootstrap", () => {
           events.push("database");
           return true;
         },
+        refresh: async () => false,
       },
       readSession: async () => undefined,
       saveSession: async () => {
@@ -48,8 +65,28 @@ describe("guest workspace bootstrap", () => {
     const saveSession = vi.fn(async () => true);
     await expect(
       bootstrapGuestWorkspace({
-        repository: { isActive: async () => false, create: async () => false },
+        repository: {
+          isActive: async () => false,
+          create: async () => false,
+          refresh: async () => false,
+        },
         readSession: async () => undefined,
+        saveSession,
+      }),
+    ).resolves.toBeUndefined();
+    expect(saveSession).not.toHaveBeenCalled();
+  });
+
+  it("never extends the cookie when the database refresh fails", async () => {
+    const saveSession = vi.fn(async () => true);
+    await expect(
+      bootstrapGuestWorkspace({
+        repository: {
+          isActive: async () => true,
+          create: async () => true,
+          refresh: async () => false,
+        },
+        readSession: async () => existing,
         saveSession,
       }),
     ).resolves.toBeUndefined();

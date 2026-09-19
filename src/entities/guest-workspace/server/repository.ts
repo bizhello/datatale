@@ -24,4 +24,10 @@ export class SqlGuestWorkspaceRepository implements GuestWorkspaceRepository {
       await this.client()`INSERT INTO guest_workspaces (id, expires_at) VALUES (${workspace.id}, ${workspace.expiresAt}) ON CONFLICT (id) DO NOTHING RETURNING id`;
     return rows.length === 1;
   }
+
+  async refresh(workspace: GuestWorkspace) {
+    const rows =
+      await this.client()`UPDATE guest_workspaces SET expires_at = ${workspace.expiresAt} WHERE id = ${workspace.id} AND revoked_at IS NULL RETURNING id`;
+    return rows.length === 1;
+  }
 }

@@ -6,6 +6,7 @@ import type { GuestWorkspace } from "../model/schema";
 export interface GuestWorkspaceRepository {
   isActive(id: string, now: Date): Promise<boolean>;
   create(workspace: GuestWorkspace): Promise<boolean>;
+  refresh(workspace: GuestWorkspace): Promise<boolean>;
 }
 
 type BootstrapDependencies = Readonly<{
@@ -27,8 +28,14 @@ export async function bootstrapGuestWorkspace({
 }: BootstrapDependencies): Promise<GuestWorkspace | undefined> {
   const currentTime = now();
   const existing = await readSession();
-  if (existing && (await repository.isActive(existing.id, currentTime)))
-    return existing;
+  if (existing && (await repository.isActive(existing.id, currentTime))) {
+    const refreshed = {
+      id: existing.id,
+      expiresAt: new Date(currentTime.getTime() + workspaceTtlMs).toISOString(),
+    };
+    if (!(await repository.refresh(refreshed))) return undefined;
+    return (await saveSession(refreshed)) ? refreshed : undefined;
+  }
 
   const workspace = {
     id: createId(),

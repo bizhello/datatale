@@ -15,6 +15,7 @@ function dependencies() {
     repository: {
       isActive: vi.fn(async () => true),
       create: vi.fn(async () => true),
+      refresh: vi.fn(async () => true),
     },
     deleteWorkspace: vi.fn(async () => true),
   };

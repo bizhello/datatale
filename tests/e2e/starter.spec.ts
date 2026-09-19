@@ -88,9 +88,16 @@ test("accepts text locally and exposes an honest preview", async ({ page }) => {
 test("renders a fixture dashboard and expands charts without another analysis request", async ({
   page,
 }) => {
-  let requests = 0;
+  const requests: string[] = [];
+  await page.route("**/api/guest", async (route) => {
+    requests.push("guest");
+    await route.fulfill({
+      json: { expiresAt: "2026-10-19T00:00:00.000Z" },
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  });
   await page.route("**/api/analyze", async (route) => {
-    requests += 1;
+    requests.push("analyze");
     await route.fulfill({ json: { report: dashboardReport } });
   });
   await page.goto("/");
@@ -105,11 +112,15 @@ test("renders a fixture dashboard and expands charts without another analysis re
   await expect(
     page.getByRole("button", { name: "Развернуть По регионам" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Развернуть По регионам" }).click();
+  const expandButton = page.getByRole("button", {
+    name: "Развернуть По регионам",
+  });
+  await expandButton.click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();
-  expect(requests).toBe(1);
+  await expect(expandButton).toBeFocused();
+  expect(requests).toEqual(["guest", "analyze"]);
 });
 
 test("uploads a CSV in the browser and labels its bounded preview", async ({
