@@ -14,12 +14,38 @@ import {
   NUMERIC_AGGREGATION_KINDS,
 } from "./chart-catalog";
 
-const nonblankString = z
-  .string()
-  .min(1)
-  .refine((value) => value.trim().length > 0, {
-    message: "Value must contain a non-whitespace character.",
-  });
+export const REPORT_ID_MAX_LENGTH = 80;
+export const FIELD_REFERENCE_MAX_LENGTH = 160;
+export const REPORT_LABEL_MAX_LENGTH = 120;
+export const REPORT_TITLE_MAX_LENGTH = 120;
+export const REPORT_RATIONALE_MAX_LENGTH = 320;
+export const REPORT_NARRATIVE_MAX_LENGTH = 500;
+export const REPORT_UNIT_MAX_LENGTH = 64;
+export const REPORT_PERIOD_MAX_LENGTH = 96;
+export const REPORT_QUOTE_MAX_LENGTH = 1_000;
+export const REPORT_NO_CHART_REASON_MAX_LENGTH = 300;
+export const REPORT_MAX_SERIALIZED_BYTES = 24 * 1_024;
+
+const boundedNonblankString = (maxLength: number) =>
+  z
+    .string()
+    .min(1)
+    .max(maxLength)
+    .refine((value) => value.trim().length > 0, {
+      message: "Value must contain a non-whitespace character.",
+    });
+const identifierString = boundedNonblankString(REPORT_ID_MAX_LENGTH);
+const fieldReferenceString = boundedNonblankString(FIELD_REFERENCE_MAX_LENGTH);
+const labelString = boundedNonblankString(REPORT_LABEL_MAX_LENGTH);
+const titleString = boundedNonblankString(REPORT_TITLE_MAX_LENGTH);
+const rationaleString = boundedNonblankString(REPORT_RATIONALE_MAX_LENGTH);
+const narrativeString = boundedNonblankString(REPORT_NARRATIVE_MAX_LENGTH);
+const unitString = boundedNonblankString(REPORT_UNIT_MAX_LENGTH);
+const periodString = boundedNonblankString(REPORT_PERIOD_MAX_LENGTH);
+const quoteString = boundedNonblankString(REPORT_QUOTE_MAX_LENGTH);
+const noChartReasonString = boundedNonblankString(
+  REPORT_NO_CHART_REASON_MAX_LENGTH,
+);
 const idsAreUnique = (
   items: Array<{ id: string }>,
   context: z.RefinementCtx,
@@ -38,7 +64,7 @@ const idsAreUnique = (
 };
 
 export const fieldReferenceSchema = z
-  .object({ fieldId: nonblankString })
+  .object({ fieldId: fieldReferenceString })
   .strict();
 export const countAggregationSchema = z
   .object({ kind: z.literal(COUNT_AGGREGATION_KIND) })
@@ -56,9 +82,9 @@ export const aggregationSchema = z.discriminatedUnion("kind", [
 
 const chartBaseSchema = z
   .object({
-    id: nonblankString,
-    title: nonblankString,
-    rationale: nonblankString,
+    id: identifierString,
+    title: titleString,
+    rationale: rationaleString,
   })
   .strict();
 const topNSchema = z
@@ -107,8 +133,8 @@ export const chartSpecificationSchema = z.discriminatedUnion("kind", [
 ]);
 export const metricSpecificationSchema = z
   .object({
-    id: nonblankString,
-    label: nonblankString,
+    id: identifierString,
+    label: labelString,
     aggregation: aggregationSchema,
   })
   .strict();
@@ -135,7 +161,7 @@ const chartedAnalysisProposalSchema = z
 const noChartAnalysisProposalSchema = z
   .object({
     outcome: z.literal("no-chart"),
-    reason: nonblankString,
+    reason: noChartReasonString,
     metrics: z.array(metricSpecificationSchema).min(2).max(4),
   })
   .strict()
@@ -150,10 +176,10 @@ export const analysisPlanSchema = analysisProposalSchema;
 
 export const reportEvidenceSchema = z
   .object({
-    id: nonblankString,
+    id: identifierString,
     kind: z.enum(["row-range", "quote"]),
-    label: nonblankString,
-    excerpt: nonblankString.optional(),
+    label: labelString,
+    excerpt: quoteString.optional(),
     coverage: z
       .object({
         included: z.number().int().nonnegative(),
@@ -165,35 +191,34 @@ export const reportEvidenceSchema = z
   .strict();
 export const reportFactSchema = z
   .object({
-    id: nonblankString,
-    label: nonblankString,
+    id: identifierString,
+    label: labelString,
     value: z.number().finite(),
-    unit: z.string().optional(),
-    evidenceIds: z.array(nonblankString).min(1),
+    unit: unitString.optional(),
+    evidenceIds: z.array(identifierString).min(1).max(7),
   })
   .strict();
 export const reportChartSchema = z
   .object({
-    id: nonblankString,
+    id: identifierString,
     kind: z.enum([BAR_CHART_KIND, LINE_CHART_KIND, DONUT_CHART_KIND]),
-    title: nonblankString,
-    rationale: nonblankString,
-    unit: z.string().optional(),
+    title: titleString,
+    rationale: rationaleString,
+    unit: unitString.optional(),
     points: z
       .array(
-        z
-          .object({ label: nonblankString, value: z.number().finite() })
-          .strict(),
+        z.object({ label: labelString, value: z.number().finite() }).strict(),
       )
-      .min(1),
-    evidenceIds: z.array(nonblankString).min(1),
+      .min(1)
+      .max(LINE_MAX_POINTS),
+    evidenceIds: z.array(identifierString).min(1).max(7),
   })
   .strict();
 export const reportNarrativeItemSchema = z
   .object({
-    text: nonblankString,
-    factIds: z.array(nonblankString).default([]),
-    evidenceIds: z.array(nonblankString).default([]),
+    text: narrativeString,
+    factIds: z.array(identifierString).max(4).default([]),
+    evidenceIds: z.array(identifierString).max(7).default([]),
     kind: z
       .enum(["observation", "hypothesis", "action"])
       .default("observation"),
@@ -209,9 +234,9 @@ export const finalReportSchema = z
     hero: z.array(reportNarrativeItemSchema).min(1).max(3),
     metrics: z.array(reportFactSchema).max(4),
     charts: z.array(reportChartSchema).max(3),
-    evidence: z.array(reportEvidenceSchema).min(1),
+    evidence: z.array(reportEvidenceSchema).min(1).max(7),
     recommendations: z.array(reportNarrativeItemSchema).max(3),
-    noChartReason: nonblankString.optional(),
+    noChartReason: noChartReasonString.optional(),
   })
   .strict()
   .superRefine((report, context) => {
@@ -230,6 +255,14 @@ export const finalReportSchema = z
     idsAreUnique(report.evidence, context, "evidence");
     idsAreUnique(report.metrics, context, "metrics");
     idsAreUnique(report.charts, context, "charts");
+    if (
+      new TextEncoder().encode(JSON.stringify(report)).byteLength >
+      REPORT_MAX_SERIALIZED_BYTES
+    )
+      context.addIssue({
+        code: "custom",
+        message: "Report exceeds the serialized size limit.",
+      });
   });
 export const narrativeResponseSchema = z
   .object({
@@ -237,9 +270,9 @@ export const narrativeResponseSchema = z
       .array(
         z
           .object({
-            text: nonblankString,
-            factIds: z.array(nonblankString),
-            evidenceIds: z.array(nonblankString).default([]),
+            text: narrativeString,
+            factIds: z.array(identifierString).max(4),
+            evidenceIds: z.array(identifierString).max(7).default([]),
             kind: z
               .enum(["observation", "hypothesis", "action"])
               .default("observation"),
@@ -252,9 +285,9 @@ export const narrativeResponseSchema = z
       .array(
         z
           .object({
-            text: nonblankString,
-            factIds: z.array(nonblankString),
-            evidenceIds: z.array(nonblankString).default([]),
+            text: narrativeString,
+            factIds: z.array(identifierString).max(4),
+            evidenceIds: z.array(identifierString).max(7).default([]),
             kind: z.literal("action").default("action"),
           })
           .strict(),
@@ -268,13 +301,13 @@ export const textExtractionResponseSchema = z
       .array(
         z
           .object({
-            id: nonblankString,
-            label: nonblankString,
+            id: identifierString,
+            label: labelString,
             value: z.number().finite(),
-            unit: z.string().optional(),
-            period: z.string().optional(),
+            unit: unitString,
+            period: periodString,
             paragraphIndex: z.number().int().positive(),
-            quote: nonblankString,
+            quote: quoteString,
           })
           .strict(),
       )
@@ -283,9 +316,9 @@ export const textExtractionResponseSchema = z
       .array(
         z
           .object({
-            id: nonblankString,
+            id: identifierString,
             paragraphIndex: z.number().int().positive(),
-            quote: nonblankString,
+            quote: quoteString,
           })
           .strict(),
       )

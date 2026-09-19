@@ -34,6 +34,15 @@ export type AnalysisStage =
   | "table-repair"
   | "text-extraction"
   | "narrative";
+export const MODEL_CALL_TIMEOUT_MS = 15_000;
+export const MODEL_OUTPUT_TOKEN_LIMITS: Readonly<
+  Record<AnalysisStage, number>
+> = {
+  "table-plan": 1_200,
+  "table-repair": 1_200,
+  "text-extraction": 1_800,
+  narrative: 1_200,
+};
 export type ModelCall = (request: {
   stage: AnalysisStage;
   prompt: string;
@@ -46,13 +55,15 @@ function defaultCallModel(): ModelCall {
   const model = getAnalysisModel();
   if (!model)
     throw new AnalysisError("unavailable", "Analysis is not configured.");
-  return async ({ prompt, schema, signal }) => {
+  return async ({ stage, prompt, schema, signal }) => {
     const response = await generateText({
       model,
       output: Output.object({ schema }),
       prompt,
       maxRetries: 0,
+      maxOutputTokens: MODEL_OUTPUT_TOKEN_LIMITS[stage],
       abortSignal: signal,
+      timeout: MODEL_CALL_TIMEOUT_MS,
     });
     return response.output;
   };
@@ -129,11 +140,53 @@ function reportFromTable(
       : {}),
   });
 }
+const numericTokenPattern =
+  /[+\-−]?(?:\d{1,3}(?:[ \u00a0\u202f'’.,]\d{3})+|\d+)(?:[.,]\d+)?/g;
+
+function canonicalNumericToken(token: string): number | undefined {
+  const normalizedSign = token.startsWith("−") ? "-" : token[0];
+  const sign =
+    normalizedSign === "+" || normalizedSign === "-" ? normalizedSign : "";
+  const unsigned = sign ? token.slice(1) : token;
+  const compact = unsigned.replace(/[ \u00a0\u202f'’]/g, "");
+  const dots = [...compact.matchAll(/\./g)].map((match) => match.index ?? 0);
+  const commas = [...compact.matchAll(/,/g)].map((match) => match.index ?? 0);
+
+  if (dots.length === 0 && commas.length === 0)
+    return Number(`${sign}${compact}`);
+
+  if (dots.length > 0 && commas.length > 0) {
+    const decimalIndex = Math.max(dots.at(-1) ?? 0, commas.at(-1) ?? 0);
+    const whole = compact.slice(0, decimalIndex).replace(/[.,]/g, "");
+    const fraction = compact.slice(decimalIndex + 1);
+    return /^\d+$/.test(whole) && /^\d+$/.test(fraction)
+      ? Number(`${sign}${whole}.${fraction}`)
+      : undefined;
+  }
+
+  const separator = dots.length > 0 ? "." : ",";
+  const parts = compact.split(separator);
+  if (parts.length === 2 && parts[1]?.length !== 3)
+    return Number(`${sign}${parts[0]}.${parts[1]}`);
+  if (parts.length > 2 && parts.slice(1).every((part) => part.length === 3))
+    return Number(`${sign}${parts.join("")}`);
+
+  // A lone separator followed by exactly three digits is locale-ambiguous
+  // (for example, "1,234"). Rejecting it prevents a false grounding match.
+  return undefined;
+}
+
 function quoteHasValue(quote: string, value: number): boolean {
-  const normalized = quote.replaceAll(" ", "").replaceAll(",", ".");
-  return new RegExp(
-    `(?<![\\d.])${String(value).replace(".", "\\.")}(?![\\d.])`,
-  ).test(normalized);
+  for (const match of quote.matchAll(numericTokenPattern)) {
+    const token = match[0];
+    const start = match.index ?? 0;
+    const before = quote[start - 1] ?? "";
+    const after = quote[start + token.length] ?? "";
+    if (/^[\p{L}\p{N}_]$/u.test(before) || /^[\p{L}\p{N}_]$/u.test(after))
+      continue;
+    if (Object.is(canonicalNumericToken(token), value)) return true;
+  }
+  return false;
 }
 async function analyzeText(
   source: TextSource,

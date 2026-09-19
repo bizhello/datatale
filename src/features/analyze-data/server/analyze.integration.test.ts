@@ -92,6 +92,17 @@ const narrative = {
   ],
   recommendations: [],
 };
+const textNarrative = {
+  hero: [
+    {
+      text: "Проверенный факт.",
+      factIds: ["revenue"],
+      evidenceIds: [],
+      kind: "observation" as const,
+    },
+  ],
+  recommendations: [],
+};
 
 describe("analysis orchestration", () => {
   it("calculates complete-table display data and makes only plan plus narrative calls", async () => {
@@ -210,5 +221,81 @@ describe("analysis orchestration", () => {
       analyzeSource(text, { callModel: invalidQuote }),
     ).rejects.toMatchObject({ code: "invalid-model-output" });
     expect(calls).toEqual(["text-extraction"]);
+  });
+  it("preserves numeric signs and accepts unambiguous locale-formatted values", async () => {
+    const text: TextSource = {
+      version: 1,
+      id: "text",
+      source: { kind: "text" },
+      rawText: "Выручка составила −1 234,50 ₽ за январь 2026.",
+      paragraphs: [
+        { index: 1, text: "Выручка составила −1 234,50 ₽ за январь 2026." },
+      ],
+    };
+    const extraction = {
+      facts: [
+        {
+          id: "revenue",
+          label: "Выручка",
+          value: -1234.5,
+          unit: "₽",
+          period: "январь 2026",
+          paragraphIndex: 1,
+          quote: "Выручка составила −1 234,50 ₽ за январь 2026.",
+        },
+      ],
+      observations: [],
+    };
+    const call: ModelCall = async ({ stage }) =>
+      stage === "text-extraction" ? extraction : textNarrative;
+
+    await expect(
+      analyzeSource(text, { callModel: call }),
+    ).resolves.toMatchObject({
+      metrics: [{ value: -1234.5, unit: "₽" }],
+    });
+
+    await expect(
+      analyzeSource(text, {
+        callModel: async ({ stage }) =>
+          stage === "text-extraction"
+            ? {
+                ...extraction,
+                facts: [{ ...extraction.facts[0], value: 1234.5 }],
+              }
+            : textNarrative,
+      }),
+    ).rejects.toMatchObject({ code: "invalid-model-output" });
+  });
+  it("rejects text facts that omit an explicitly grounded unit or period", async () => {
+    const text: TextSource = {
+      version: 1,
+      id: "text",
+      source: { kind: "text" },
+      rawText: "Revenue was 12 RUB in January.",
+      paragraphs: [{ index: 1, text: "Revenue was 12 RUB in January." }],
+    };
+    const fact = {
+      id: "revenue",
+      label: "Revenue",
+      value: 12,
+      unit: "RUB",
+      period: "January",
+      paragraphIndex: 1,
+      quote: "Revenue was 12 RUB in January.",
+    };
+
+    for (const incompleteFact of [
+      { ...fact, unit: undefined },
+      { ...fact, period: undefined },
+    ])
+      await expect(
+        analyzeSource(text, {
+          callModel: async ({ stage }) =>
+            stage === "text-extraction"
+              ? { facts: [incompleteFact], observations: [] }
+              : textNarrative,
+        }),
+      ).rejects.toMatchObject({ code: "invalid-model-output" });
   });
 });
