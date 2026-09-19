@@ -4,15 +4,14 @@
 
 ## Main flow
 
-1. Open the workspace: upload/text input, one-click demo, and guest report history. On a first visit, offer the skippable tour defined below.
+1. Open the workspace: upload/text input and one-click demo. On a first visit, offer the skippable tour defined below.
 2. Select CSV/XLSX or paste text. Preview detected columns, units, dates and warnings. Ask for correction only where ambiguity materially changes a result.
 3. Optionally state a question or goal. A blank goal means a general overview.
 4. Run analysis with real processing stages, cancellation and actionable errors.
 5. Read a 2–3 sentence hero insight, meaningful metrics, 2–3 interactive charts on suitable data, and recommendations with supporting facts.
 6. Open evidence: rows/paragraphs, formula, units and coverage. A sample is never represented as the entire dataset.
 7. Ask questions below the dashboard. Missing information produces the exact assignment refusal; unsupported operations and provider failures get different explanations.
-8. Reopen the saved report and chat in the same browser without paying for a new model call.
-9. Delete a report or all guest data. Later, reuse an analysis blueprint with a new file: recalculate everything and never carry over old conclusions.
+8. Delete all data in the current guest workspace and clear the local session.
 
 The product UI remains Russian unless explicitly changed. Engineering artifacts are English. User-facing source quotations, filenames and the required refusal may retain their original language.
 
@@ -20,7 +19,7 @@ The product UI remains Russian unless explicitly changed. Engineering artifacts 
 
 Show a brief welcome with Start tour and Skip. Starting opens a labeled, deterministic demo and guides the user through input, hero/evidence, charts and chat. The demo requires no upload or model request. Keep normal product controls available when the tour is closed.
 
-Persist completion or dismissal as the non-sensitive preference `datatale:onboarding:v1` in localStorage. Closing with Skip, the close control or Escape dismisses the tour. Reloading or guest-cookie expiry must not restart a dismissed/completed tour. Clearing browser storage may show it again. Provide Show tour in Help for explicit replay.
+Persist completion or dismissal as the non-sensitive preference `datatale:onboarding:v1` in localStorage. Closing with Skip, the close control or Escape dismisses the tour. Reloading or guest-cookie expiry must not restart a dismissed/completed tour. Clearing browser storage may show it again. Provide a header control for explicit replay.
 
 If storage is unavailable, retain the preference for the current page session and allow normal use. Onboarding never creates a guest workspace or changes report retention. Tour presentation and lifecycle requirements are in UI.md.
 
@@ -72,4 +71,4 @@ Text with no measurable quantities gets an honest chart limitation. This edge ca
 
 ## Scope priority
 
-Required: all four assignment features, responsive polished UI, themes/branding, error handling and reliable answers. Enhancements: guest history, evidence drill-down, guided tour and reuse blueprint. Do not sacrifice a Must Have to build template CRUD, exports, public sharing, background jobs or extra chart types. History is the first substantial enhancement after a working vertical slice; blueprint reuse follows it.
+Required and delivered: all four assignment features, responsive polished UI, themes/branding, error handling, reliable answers, evidence drill-down, and the guided tour. Future enhancements are guest history/reopen and blueprint reuse. Do not add template CRUD, exports, public sharing, background jobs, or extra chart types without a separate product decision.

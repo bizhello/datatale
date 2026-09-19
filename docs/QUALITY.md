@@ -2,7 +2,7 @@
 
 **Make failures visible at the boundary that owns the rule.** Type checking, runtime validation, semantic tests and browser review protect different risks. None makes the project impossible to break.
 
-Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Coverage includes parser contracts, strict provider wire-schema compatibility, semantic plan validation, deterministic calculations, provider doubles, guest/deletion/cleanup lifecycle, owner-scoped saved-analysis persistence, immutable source/report payloads, chat replay/quota/refusal/claim validation, source replacement races, responsive dashboard containment, expanded charts, viewport overflow and automated accessibility in Chromium and WebKit. Local live Spiro table/text probes passed; broader real-provider quality, isolated Neon concurrency/expiry, and Vercel runtime checks remain separate release gates.
+Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Coverage includes parser contracts, strict provider wire-schema compatibility, semantic plan validation, deterministic calculations, provider doubles, guest/deletion/cleanup lifecycle, owner-scoped saved-analysis persistence, immutable source/report payloads, chat replay/quota/refusal/claim validation, source replacement races, onboarding, responsive dashboard containment, expanded charts, viewport overflow and automated accessibility in Chromium and WebKit. The release gate passes 231 Vitest tests and 66 Playwright scenarios; production Vercel/Neon/provider smoke checks separately prove the deployed integration.
 
 ## Gate design
 
@@ -59,7 +59,7 @@ Parser integration exercises synthetic CSV/XLSX and canonical Dataset validation
 | Duplicate spending | Concurrent identical idempotency keys claim one run; refresh does not call model again |
 | Races | Replace file/cancel mid-request, late response, interrupted stream, expired run deadline |
 | Storage failure | No success/saved label before commit; rollback and retry preserve ownership |
-| UI states | Upload → analyze → charts → chat → evidence → reopen/delete; empty/error/loading/retry paths |
+| UI states | Upload → analyze → charts → chat → evidence → delete-all; empty/error/loading/retry paths |
 | Expanded chart | Every supported kind opens/resizes/closes on desktop and mobile; keyboard focus returns to the trigger; legend/filter state and report scroll survive; opening makes no AI request or save |
 | Themes/responsive | Reload/system theme, no hydration flash; mobile keyboard, all target widths, long labels, reduced motion |
 | Onboarding | First-visit welcome, demo steps, persisted skip/completion, replay, cookie independence, unavailable storage/targets, unmount cleanup, focus/Escape, mobile and reduced motion |
