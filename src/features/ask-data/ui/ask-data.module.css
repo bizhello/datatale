@@ -1,0 +1,154 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 52rem;
+  margin: 2rem auto 0;
+  padding: clamp(1rem, 3vw, 1.75rem);
+  border: 1px solid var(--line);
+  border-radius: 1.5rem;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.header h2 {
+  margin: 0;
+  font-size: clamp(1.25rem, 3vw, 1.6rem);
+}
+.subtitle {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-height: 8rem;
+  max-height: 28rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  padding: 0.25rem;
+}
+.messageRow {
+  display: flex;
+  width: 100%;
+}
+.userRow {
+  justify-content: flex-end;
+}
+.assistantRow {
+  justify-content: flex-start;
+}
+.bubble {
+  max-width: min(88%, 40rem);
+  padding: 0.75rem 1rem;
+  border-radius: 1.1rem;
+}
+.bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.userBubble {
+  background: var(--accent-soft);
+  color: var(--foreground);
+  border-bottom-right-radius: 0.35rem;
+}
+.assistantBubble {
+  background: var(--surface-raised);
+  border-bottom-left-radius: 0.35rem;
+}
+.pending {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--muted);
+}
+.evidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+}
+.suggestions {
+  padding: 0.5rem 0;
+}
+.suggestions p {
+  margin: 0 0 0.65rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.suggestionList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--danger);
+  border-radius: 0.85rem;
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+.form {
+  display: flex;
+  align-items: end;
+  gap: 0.75rem;
+}
+.form > :first-child {
+  min-width: 0;
+  flex: 1;
+}
+.actions {
+  flex: 0 0 auto;
+}
+.actions button {
+  min-height: 2.75rem;
+}
+
+@media (max-width: 600px) {
+  .panel {
+    margin-top: 1.25rem;
+    border-radius: 1.1rem;
+  }
+  .form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .actions button {
+    width: 100%;
+  }
+  .bubble {
+    max-width: 94%;
+  }
+  .error {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .error button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messages {
+    scroll-behavior: auto;
+  }
+}
