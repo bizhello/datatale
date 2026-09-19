@@ -29,7 +29,9 @@ describe("analysis workspace deletion", () => {
       );
     vi.stubGlobal("fetch", fetch);
     render(<AnalyzeWorkspace source={source} onDelete={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Запустить анализ" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Запустить AI-анализ" }),
+    );
     expect(
       await screen.findByRole("heading", { name: "Продолжить анализ" }),
     ).toBeVisible();
@@ -45,7 +47,9 @@ describe("analysis workspace deletion", () => {
       );
     vi.stubGlobal("fetch", fetch);
     render(<AnalyzeWorkspace source={source} onDelete={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Запустить анализ" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Запустить AI-анализ" }),
+    );
     expect(
       await screen.findByText(
         "Лимит этого кода приглашения на сегодня исчерпан.",
@@ -96,7 +100,7 @@ describe("analysis workspace deletion", () => {
     expect(await screen.findByText("Не удалось удалить данные")).toBeVisible();
     expect(onDelete).not.toHaveBeenCalled();
     expect(
-      screen.getByRole("button", { name: "Запустить анализ" }),
+      screen.getByRole("button", { name: "Запустить AI-анализ" }),
     ).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Повторить удаление" }));

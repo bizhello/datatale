@@ -14,6 +14,8 @@
 8. Reopen a saved report and its chat from the current guest workspace without rerunning analysis.
 9. Delete all data in the current guest workspace and clear the local session.
 
+The accepted source becomes a compact provenance summary while analysis is in progress, failed, or complete. Replacing it cancels the active request and returns to input. The optional goal is normalized, bounded to 400 characters, frozen at launch, and retained for same-key retries without being treated as evidence.
+
 The product UI remains Russian unless explicitly changed. Engineering artifacts are English. User-facing source quotations, filenames and the required refusal may retain their original language.
 
 ## First-visit tour

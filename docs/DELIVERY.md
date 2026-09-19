@@ -13,7 +13,7 @@ The release gate passes Biome, Steiger, strict TypeScript, the Turbopack product
 | Package | Production outcome | State |
 | --- | --- | --- |
 | Input | Local CSV/XLSX worker parsing, sheet selection, text input, bounded preview, warnings, cancellation, and actionable errors | done |
-| Analysis | Strict provider schemas, semantic plan validation, deterministic full-source calculations, grounded 2–3 sentence hero, recommendations, and honest no-chart text reports | done |
+| Analysis | Strict provider schemas, bounded optional focus, semantic plan validation, deterministic full-source calculations, grounded 2–3 sentence hero, recommendations, and honest no-chart text reports | done |
 | Charts | Two or three AI-selected bar/line/donut charts for suitable tables, tabular equivalents, rationale/evidence, and responsive expanded dialogs | done |
 | Ask the Data | Owner-scoped immutable context, canonical claims, exact insufficient-data refusal, persisted replay, quota, and inference lease | done |
 | Guest safety | Sealed workspace, anonymous and invite quotas, idempotency, seven-day saved-analysis retention, delete-all, and scheduled cleanup | done |
@@ -44,6 +44,12 @@ GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI
 | Guest history/reopen v1 | history executor | `ba0f2b5` | removed after integration | Saved-analysis read API, owner isolation, report/chat hydration, tests | deployed in `339d1c8` |
 | Liquid editorial first viewport | visual executor | `ba0f2b5` | removed after integration | Existing empty workspace presentation, responsive/reduced-motion tests | deployed in `339d1c8` |
 | Product-wave integration | conductor | `ba0f2b5` | removed after integration | Shared docs, integration, review, release | PR #21 merged and production Ready |
+
+## Active product wave
+
+| Task | Owner | Base | Worktree | Scope | State |
+| --- | --- | --- | --- | --- | --- |
+| Guided analysis transition | guided-analysis executor | `71e1602` | `../datatale-worktrees/guided-analysis` | Optional analysis focus, one-action launch, compact source state, accessible result transition | implemented; awaiting integration |
 
 ## Remaining delivery artifact
 

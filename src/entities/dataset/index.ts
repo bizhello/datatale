@@ -1,3 +1,4 @@
+export { sourceDisplaySummary } from "./lib/source-display";
 export type {
   Dataset,
   DatasetColumn,

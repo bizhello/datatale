@@ -39,6 +39,8 @@ Provide a visible close button, Escape dismissal, focus containment/restoration 
 
 ## Loading, feedback and errors
 
+After a source is accepted, the analysis owner shows a compact source summary with a touch-sized replace control and an optional focus field. Launching freezes the normalized focus and moves the primary focus to progress. Completion moves focus to the report heading; failure moves it to the actionable alert. Invite-modal focus takes precedence over the background alert, and restored history stays ready without an analysis request. Source replacement aborts the active request and prevents stale results from returning.
+
 Use HeroUI Skeleton shaped like the final hero/metric/chart cards to minimize layout shift. Skeletons are placeholders, not the completed layout with invented values. Announce the current stage once; do not repeatedly read decorative skeletons or every streamed token to screen readers.
 
 Show named stages for unknown inference duration. Measured progress percentages require a measurable denominator; an explicitly labeled estimate may use a provisional baseline when it is clearly described as approximate. Make cancel/retry available where meaningful. Avoid artificial waiting to display an animation. Stable empty/error layouts explain the issue and next action without clearing a valid selected file unnecessarily.

@@ -8,6 +8,10 @@ import {
 } from "@/entities/dataset";
 import type { GuestWorkspace } from "@/entities/guest-workspace";
 import { type FinalReport, finalReportSchema } from "@/entities/report";
+import {
+  type AnalysisFocus,
+  analysisFocusSchema,
+} from "@/features/analyze-data";
 import type { RunGateOutcome } from "@/features/analyze-data/server";
 import { inputLimits } from "@/shared/config";
 import {
@@ -48,7 +52,7 @@ type AnalyzeHandlerDependencies = Readonly<{
   hashIp(ip: string): string | undefined;
   validCodeFingerprint?(fingerprint: string): boolean;
   gate(): AnalyzeGate;
-  analyze(source: CanonicalSource): Promise<FinalReport>;
+  analyze(source: CanonicalSource, focus?: AnalysisFocus): Promise<FinalReport>;
   saveAnalysis(input: {
     analysisId: string;
     workspaceId: string;
@@ -71,7 +75,9 @@ function canonicalText(source: TextSource) {
   );
 }
 
-function parseSource(body: string): CanonicalSource | undefined {
+function parseRequest(
+  body: string,
+): { source: CanonicalSource; focus?: AnalysisFocus } | undefined {
   let value: unknown;
   try {
     value = JSON.parse(body);
@@ -82,15 +88,28 @@ function parseSource(body: string): CanonicalSource | undefined {
     typeof value !== "object" ||
     value === null ||
     Array.isArray(value) ||
-    Object.keys(value).length !== 1 ||
+    Object.keys(value).some((key) => key !== "source" && key !== "focus") ||
     !("source" in value)
   )
     return undefined;
+  const parsedFocus = analysisFocusSchema.safeParse(
+    "focus" in value ? (value as { focus: unknown }).focus : "",
+  );
+  if (!parsedFocus.success) return undefined;
   const source = (value as { source: unknown }).source;
   const dataset = datasetSchema.safeParse(source);
-  if (dataset.success) return dataset.data;
+  if (dataset.success)
+    return {
+      source: dataset.data,
+      ...(parsedFocus.data ? { focus: parsedFocus.data } : {}),
+    };
   const text = textSourceSchema.safeParse(source);
-  return text.success && canonicalText(text.data) ? text.data : undefined;
+  return text.success && canonicalText(text.data)
+    ? {
+        source: text.data,
+        ...(parsedFocus.data ? { focus: parsedFocus.data } : {}),
+      }
+    : undefined;
 }
 
 function stableJson(value: unknown): string {
@@ -170,19 +189,29 @@ export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
 
     let body: string;
     try {
-      body = await readBoundedBody(request, inputLimits.canonicalSourceBytes);
+      body = await readBoundedBody(
+        request,
+        inputLimits.canonicalSourceBytes + 4 * 1024,
+      );
     } catch (error) {
       return error instanceof BodyTooLargeError
         ? privateJson({ code: "too-large" }, 413)
         : privateJson({ code: "invalid-source" }, 422);
     }
-    const source = parseSource(body);
-    if (!source) return privateJson({ code: "invalid-source" }, 422);
+    const parsedRequest = parseRequest(body);
+    if (!parsedRequest) return privateJson({ code: "invalid-source" }, 422);
+    const source = parsedRequest.source;
+    const canonicalSourceBytes = new TextEncoder().encode(
+      JSON.stringify(source),
+    ).byteLength;
+    if (canonicalSourceBytes > inputLimits.canonicalSourceBytes)
+      return privateJson({ code: "too-large" }, 413);
+    const focus = parsedRequest.focus;
 
     const ipHash = dependencies.hashIp(requestIp(request));
     if (!ipHash) return privateJson({ code: "unavailable" }, 503);
     const fingerprint = createHash("sha256")
-      .update(stableJson(source))
+      .update(stableJson({ source, ...(focus ? { focus } : {}) }))
       .digest("hex");
     let gate: AnalyzeGate;
     let outcome: RunGateOutcome<FinalReport>;
@@ -244,7 +273,7 @@ export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
     let report: FinalReport;
     try {
       const parsedReport = finalReportSchema.safeParse(
-        await dependencies.analyze(source),
+        await dependencies.analyze(source, focus),
       );
       if (!parsedReport.success)
         throw Object.assign(new Error("Invalid final report."), {

@@ -23,6 +23,6 @@ export const POST = createAnalyzeHandler({
   hashIp,
   validCodeFingerprint: isValidInviteFingerprint,
   gate: getRunGate,
-  analyze: analyzeSource,
+  analyze: (source, focus) => analyzeSource(source, { focus }),
   saveAnalysis: (input) => savedAnalysisRepository.create(input),
 });

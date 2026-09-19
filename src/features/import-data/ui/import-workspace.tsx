@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@heroui/react";
+import type { ReactNode } from "react";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import { useImportWorkspace } from "../model/use-import-workspace";
 import { ErrorState } from "./error-state";
@@ -11,9 +12,13 @@ import { SourcePreview } from "./source-preview";
 
 type ImportWorkspaceProps = {
   onReady?: (source: Dataset | TextSource) => void;
+  renderReadyAction?: (source: Dataset | TextSource) => ReactNode;
 };
 
-export function ImportWorkspace({ onReady }: ImportWorkspaceProps) {
+export function ImportWorkspace({
+  onReady,
+  renderReadyAction,
+}: ImportWorkspaceProps) {
   const {
     state,
     acceptText,
@@ -82,6 +87,7 @@ export function ImportWorkspace({ onReady }: ImportWorkspaceProps) {
           onSheet={selectSheet}
           onClear={clear}
           {...(onReady ? { onAnalyze: onReady } : {})}
+          {...(renderReadyAction ? { renderAction: renderReadyAction } : {})}
         />
       )}
     </section>

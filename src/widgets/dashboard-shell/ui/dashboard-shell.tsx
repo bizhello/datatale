@@ -4,7 +4,11 @@ import { BarChart3, BookOpen } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import { ReportDashboard } from "@/entities/report/ui";
-import { AnalyzeWorkspace } from "@/features/analyze-data";
+import {
+  type AnalysisFocus,
+  AnalysisLaunchPanel,
+  AnalyzeWorkspace,
+} from "@/features/analyze-data";
 import { ImportWorkspace } from "@/features/import-data";
 import { OnboardingTour } from "@/features/onboarding";
 import { AskDataPanel, createAskDataSend } from "@/features/query-report";
@@ -16,6 +20,7 @@ import { OnboardingDemo } from "./onboarding-demo";
 export function DashboardShell() {
   const [mounted, setMounted] = useState(false);
   const [source, setSource] = useState<Dataset | TextSource>();
+  const [analysisFocus, setAnalysisFocus] = useState<AnalysisFocus>();
   const [workspaceVersion, setWorkspaceVersion] = useState(0);
   const [onboardingActive, setOnboardingActive] = useState(false);
   const handleAccessLost = useCallback(() => {
@@ -37,21 +42,22 @@ export function DashboardShell() {
   } = useHistory({ onAccessLost: handleAccessLost });
   const refreshHistory = useCallback(() => void loadHistory(), [loadHistory]);
   const handleSourceReady = useCallback(
-    (next: Dataset | TextSource) => {
+    (next: Dataset | TextSource, focus?: AnalysisFocus) => {
       sourceReady();
       setSource(next);
+      setAnalysisFocus(focus);
     },
     [sourceReady],
   );
+  const handleReplace = useCallback(() => {
+    sourceReady();
+    setSource(undefined);
+    setAnalysisFocus(undefined);
+    setWorkspaceVersion((version) => version + 1);
+  }, [sourceReady]);
   useEffect(() => setMounted(true), []);
   useEffect(() => {
-    if (!selectedHistory) return;
-    setSource(selectedHistory.source);
-    const focus = () =>
-      document.getElementById("onboarding-analysis-flow")?.focus();
-    if (typeof requestAnimationFrame === "function")
-      requestAnimationFrame(focus);
-    else setTimeout(focus, 0);
+    if (selectedHistory) setSource(selectedHistory.source);
   }, [selectedHistory]);
   const handleDelete = useCallback(() => {
     clearHistory();
@@ -91,7 +97,16 @@ export function DashboardShell() {
           }}
           onRetryList={() => void loadHistory()}
         />
-        <ImportWorkspace key={workspaceVersion} onReady={handleSourceReady} />
+        {!source && (
+          <ImportWorkspace
+            key={workspaceVersion}
+            renderReadyAction={(next) => (
+              <AnalysisLaunchPanel
+                onLaunch={(focus) => handleSourceReady(next, focus)}
+              />
+            )}
+          />
+        )}
         {source && (
           <div
             aria-hidden={onboardingActive || undefined}
@@ -102,10 +117,13 @@ export function DashboardShell() {
             <AnalyzeWorkspace
               key={`${source.id}:${selectedHistory?.analysisId ?? "new"}`}
               source={source}
+              autoStart
+              analysisFocus={analysisFocus}
               {...(selectedHistory
                 ? { restoredAnalysis: selectedHistory }
                 : {})}
               onAnalysisReady={refreshHistory}
+              onReplace={handleReplace}
               renderReport={(analysisId, report, expiresAt) => (
                 <>
                   <ReportDashboard report={report} expiresAt={expiresAt} />

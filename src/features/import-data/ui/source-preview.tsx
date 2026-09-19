@@ -1,6 +1,7 @@
 import { Alert, Button, Label, ListBox, Select } from "@heroui/react";
 import { AlertTriangle, CheckCircle2, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import type { ReactNode } from "react";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import { isTextSource } from "../lib/source-guards";
 import type { ReadyState } from "../model/import-workspace-state";
@@ -11,6 +12,7 @@ type SourcePreviewProps = {
   onSheet: (value: string) => void;
   onClear: () => void;
   onAnalyze?: (source: Dataset | TextSource) => void;
+  renderAction?: (source: Dataset | TextSource) => ReactNode;
 };
 
 export function SourcePreview({
@@ -18,6 +20,7 @@ export function SourcePreview({
   onSheet,
   onClear,
   onAnalyze,
+  renderAction,
 }: SourcePreviewProps) {
   const prefersReducedMotion = useReducedMotion();
   const source = state.result.source;
@@ -112,7 +115,9 @@ export function SourcePreview({
       ) : (
         data && <TablePreview data={data} />
       )}
-      {onAnalyze ? (
+      {renderAction ? (
+        renderAction(source)
+      ) : onAnalyze ? (
         <div className="analysis-action">
           <p className="analysis-note">
             Полный проверенный источник будет передан AI-провайдеру. Его правила

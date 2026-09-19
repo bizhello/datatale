@@ -561,6 +561,31 @@ footer {
 .analysis-workspace {
   align-items: stretch;
 }
+.compact-source-summary,
+.analysis-launch-panel {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+.compact-source-summary strong {
+  display: block;
+  margin-top: 4px;
+}
+.analysis-launch-panel {
+  align-items: end;
+  background: var(--surface-raised);
+}
+.analysis-launch-panel .textfield {
+  flex: 1;
+}
+.analysis-launch-panel .button {
+  min-height: 44px;
+}
 .delete-session {
   align-self: flex-start;
 }
@@ -1136,6 +1161,11 @@ footer span:last-child {
   }
 }
 @media (max-width: 700px) {
+  .compact-source-summary,
+  .analysis-launch-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
   .history-picker {
     justify-content: stretch;
   }

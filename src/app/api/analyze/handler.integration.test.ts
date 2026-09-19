@@ -194,6 +194,22 @@ describe("POST /api/analyze handler", () => {
     await expect(response.json()).resolves.toEqual({ code: "invalid-source" });
   });
 
+  it("accepts a bounded focus and forwards its normalized value to analysis", async () => {
+    const analyze = vi.fn(async () => report);
+    const handler = createAnalyzeHandler(dependencies({ analyze }));
+    expect(
+      (
+        await handler(
+          request({ source, focus: "  compare regions and find gaps  " }),
+        )
+      ).status,
+    ).toBe(200);
+    expect(analyze).toHaveBeenCalledWith(
+      source,
+      "compare regions and find gaps",
+    );
+  });
+
   it.each([
     [{ kind: "quota", scope: "workspace" }, 429, "quota"],
     [{ kind: "conflict" }, 409, "conflict"],

@@ -204,8 +204,7 @@ test("replay restores a populated source and report after dismissal", async ({
   await page
     .getByRole("button", { name: "Загрузить синтетический демо-набор" })
     .click();
-  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
-  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  await page.getByRole("button", { name: "Запустить AI-анализ" }).click();
   await expect(
     page.getByRole("heading", { name: "Стабильный отчёт" }),
   ).toBeVisible();
@@ -231,5 +230,7 @@ test("replay restores a populated source and report after dismissal", async ({
   await expect(
     page.getByRole("heading", { name: "Стабильный отчёт" }),
   ).toBeVisible();
-  await expect(page.getByText("Таблица готова к анализу")).toBeVisible();
+  await expect(
+    page.getByText("ПРОВЕРЕННЫЙ ИСТОЧНИК", { exact: true }),
+  ).toBeVisible();
 });

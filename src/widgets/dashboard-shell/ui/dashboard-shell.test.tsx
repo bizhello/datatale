@@ -67,7 +67,7 @@ describe("Dashboard input shell", () => {
       ),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Продолжить к анализу" }),
+      screen.getByRole("button", { name: "Запустить AI-анализ" }),
     ).toBeVisible();
   });
 
@@ -81,7 +81,7 @@ describe("Dashboard input shell", () => {
       }),
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "Продолжить к анализу" }),
+      screen.getByRole("button", { name: "Запустить AI-анализ" }),
     );
     fireEvent.click(
       screen.getByRole("button", {

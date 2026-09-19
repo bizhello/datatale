@@ -161,8 +161,7 @@ test("renders a fixture dashboard and expands charts without another analysis re
   await page
     .getByRole("button", { name: "Загрузить синтетический демо-набор" })
     .click();
-  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
-  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  await page.getByRole("button", { name: "Запустить AI-анализ" }).click();
   await expect(
     page.getByRole("heading", { name: /Выручка выросла/ }),
   ).toBeVisible();
@@ -315,8 +314,7 @@ test("asks a grounded question about the analyzed report", async ({ page }) => {
   await page
     .getByRole("button", { name: "Загрузить синтетический демо-набор" })
     .click();
-  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
-  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  await page.getByRole("button", { name: "Запустить AI-анализ" }).click();
   const composer = page.getByRole("textbox", { name: "Ваш вопрос к отчёту" });
   await composer.fill("Какая выручка?");
   await composer.press("Enter");
@@ -355,8 +353,7 @@ test("shows an approximate analysis estimate while the server request is pending
   await page
     .getByRole("button", { name: "Загрузить синтетический демо-набор" })
     .click();
-  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
-  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  await page.getByRole("button", { name: "Запустить AI-анализ" }).click();
   await expect(page.getByRole("status")).toHaveText("Выбор и проверка плана…");
   await expect(
     page.getByRole("progressbar", {
@@ -402,9 +399,7 @@ test("shows an approximate analysis estimate while the server request is pending
   expect(estimateValue).toBeLessThanOrEqual(95);
   await page.getByRole("button", { name: "Отменить анализ" }).click();
   releaseAnalysis?.();
-  await expect(
-    page.getByRole("button", { name: "Запустить снова" }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Повторить" })).toBeVisible();
 });
 
 test("unlocks workspace quota with invite retry and preserves the source", async ({
@@ -439,8 +434,7 @@ test("unlocks workspace quota with invite retry and preserves the source", async
   await page
     .getByRole("button", { name: "Загрузить синтетический демо-набор" })
     .click();
-  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
-  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  await page.getByRole("button", { name: "Запустить AI-анализ" }).click();
   await expect(
     page.getByRole("heading", { name: "Продолжить анализ" }),
   ).toBeVisible();
@@ -473,8 +467,7 @@ test("keeps code quota terminal without opening invite modal", async ({
   await page
     .getByRole("button", { name: "Загрузить синтетический демо-набор" })
     .click();
-  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
-  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  await page.getByRole("button", { name: "Запустить AI-анализ" }).click();
   await expect(
     page.getByText("Лимит этого кода приглашения на сегодня исчерпан."),
   ).toBeVisible();

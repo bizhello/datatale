@@ -71,7 +71,11 @@ export function ReportDashboard({
     <section className="report-dashboard" aria-labelledby={reportTitleId}>
       <div className="report-hero">
         <p className="eyebrow">ПРОВЕРЕННЫЙ АНАЛИЗ</p>
-        <h2 id={reportTitleId}>
+        <h2
+          id={reportTitleId}
+          data-analysis-report-heading="true"
+          tabIndex={-1}
+        >
           {report.hero.map((item) => item.text).join(" ")}
         </h2>
       </div>
