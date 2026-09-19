@@ -5,6 +5,7 @@ import type { Dataset, TextSource } from "@/entities/dataset";
 import { useImportWorkspace } from "../model/use-import-workspace";
 import { ErrorState } from "./error-state";
 import { InputOptions } from "./input-options";
+import { LiquidResultPreview } from "./liquid-result-preview";
 import { LoadingState } from "./loading-state";
 import { SourcePreview } from "./source-preview";
 
@@ -31,13 +32,16 @@ export function ImportWorkspace({ onReady }: ImportWorkspaceProps) {
       aria-labelledby="input-title"
       id="onboarding-source"
     >
-      <div className="section-heading">
-        <p className="eyebrow">ИСТОЧНИК ДАННЫХ</p>
-        <h1 id="input-title">Начните с того, что у вас уже есть.</h1>
-        <p>
-          Файлы сначала обрабатываются в этом браузере. После проверки вы сами
-          запускаете AI-анализ.
-        </p>
+      <div className="import-hero-grid">
+        <div className="section-heading">
+          <p className="eyebrow">ИСТОЧНИК ДАННЫХ</p>
+          <h1 id="input-title">Начните с того, что у вас уже есть.</h1>
+          <p>
+            Файлы сначала обрабатываются в этом браузере. После проверки вы сами
+            запускаете AI-анализ.
+          </p>
+        </div>
+        <LiquidResultPreview />
       </div>
       {state.status === "error" && (
         <ErrorState
