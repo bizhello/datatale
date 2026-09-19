@@ -543,37 +543,48 @@ async function analyzeText(
     label: string;
     excerpt: string;
   }>;
-  const facts = extraction.facts.map((fact) => {
-    const paragraph = source.paragraphs.find(
-      (candidate) => candidate.index === fact.paragraphIndex,
-    );
-    if (
-      !paragraph?.text.includes(fact.quote) ||
-      usedQuotes.has(fact.quote) ||
-      !quoteHasValue(fact.quote, fact.value) ||
-      !quoteHasExactPhrase(fact.quote, fact.unit) ||
-      !quoteHasExactPhrase(fact.quote, fact.period)
-    )
-      throw new AnalysisError(
-        "invalid-model-output",
-        "Text fact must use one exact, unused paragraph quotation containing its value, unit, and period.",
-      );
-    usedQuotes.add(fact.quote);
-    const evidenceId = `quote-${fact.id}`;
+  const addQuoteEvidence = (
+    id: string,
+    paragraphIndex: number,
+    quote: string,
+  ) => {
+    usedQuotes.add(quote);
     evidence.push({
-      id: evidenceId,
+      id: `quote-${id}`,
       kind: "quote",
-      label: `Paragraph ${fact.paragraphIndex}`,
-      excerpt: fact.quote,
+      label: `Paragraph ${paragraphIndex}`,
+      excerpt: quote,
     });
-    return {
-      id: fact.id,
-      label: fact.label,
-      value: fact.value,
-      ...(fact.unit ? { unit: fact.unit } : {}),
-      evidenceIds: [evidenceId],
-    };
-  });
+  };
+  const facts = extraction.facts
+    .map((fact) => {
+      const paragraph = source.paragraphs.find(
+        (candidate) => candidate.index === fact.paragraphIndex,
+      );
+      if (!paragraph?.text.includes(fact.quote) || usedQuotes.has(fact.quote))
+        throw new AnalysisError(
+          "invalid-model-output",
+          "Text fact must use one exact, unused paragraph quotation.",
+        );
+      const grounded =
+        quoteHasValue(fact.quote, fact.value) &&
+        quoteHasExactPhrase(fact.quote, fact.unit) &&
+        quoteHasExactPhrase(fact.quote, fact.period);
+      // A provider can preserve the source quote while slightly paraphrasing a
+      // numeric field. Keep the exact quote as evidence, but never promote the
+      // ungrounded number to a metric.
+      const evidenceId = `quote-${fact.id}`;
+      addQuoteEvidence(fact.id, fact.paragraphIndex, fact.quote);
+      if (!grounded) return undefined;
+      return {
+        id: fact.id,
+        label: fact.label,
+        value: fact.value,
+        ...(fact.unit ? { unit: fact.unit } : {}),
+        evidenceIds: [evidenceId],
+      };
+    })
+    .filter((fact): fact is NonNullable<typeof fact> => fact !== undefined);
   for (const observation of extraction.observations) {
     const paragraph = source.paragraphs.find(
       (candidate) => candidate.index === observation.paragraphIndex,
