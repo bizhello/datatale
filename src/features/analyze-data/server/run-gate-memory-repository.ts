@@ -50,9 +50,16 @@ export class MemoryRunGateRepository<Report = unknown>
         return { kind: "claimed", receiptId: reclaimed.id };
       }
     }
-    const scopes: Array<[string, number]> = [
-      [`workspace:${input.workspaceId}`, config.workspaceDailyLimit],
-      [`ip:${input.ipHash}`, config.ipDailyLimit],
+    const scopes: ReadonlyArray<readonly [string, number]> = [
+      ...(input.codeFingerprint
+        ? [[`code:${input.codeFingerprint}`, config.codeDailyLimit] as const]
+        : [
+            [
+              `workspace:${input.workspaceId}`,
+              config.workspaceDailyLimit,
+            ] as const,
+            [`ip:${input.ipHash}`, config.ipDailyLimit] as const,
+          ]),
       ["global", config.globalDailyLimit],
     ];
     for (const [scope, limit] of scopes) {
@@ -65,7 +72,9 @@ export class MemoryRunGateRepository<Report = unknown>
               ? "global"
               : scope.startsWith("ip:")
                 ? "ip"
-                : "workspace",
+                : scope.startsWith("code:")
+                  ? "code"
+                  : "workspace",
         };
     }
     for (const [scope] of scopes) {

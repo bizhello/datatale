@@ -1,11 +1,9 @@
-CREATE TABLE IF NOT EXISTS guest_workspaces (id uuid PRIMARY KEY, expires_at timestamptz NOT NULL, revoked_at timestamptz);
-CREATE TABLE IF NOT EXISTS analysis_runs (id uuid PRIMARY KEY, workspace_id uuid NOT NULL REFERENCES guest_workspaces(id) ON DELETE CASCADE, idempotency_key text NOT NULL, fingerprint text NOT NULL, state text NOT NULL CHECK (state IN ('claimed', 'provider_started', 'succeeded', 'failed')), provider_started_at timestamptz, lease_expires_at timestamptz NOT NULL, expires_at timestamptz NOT NULL, report jsonb, failure_code text, UNIQUE (workspace_id, idempotency_key));
-CREATE INDEX IF NOT EXISTS analysis_runs_expiry_idx ON analysis_runs (expires_at);
-CREATE TABLE IF NOT EXISTS analysis_quota_buckets (scope text NOT NULL, bucket_start timestamptz NOT NULL, count integer NOT NULL DEFAULT 0 CHECK (count >= 0), expires_at timestamptz NOT NULL, PRIMARY KEY (scope, bucket_start));
-CREATE INDEX IF NOT EXISTS analysis_quota_buckets_expiry_idx ON analysis_quota_buckets (expires_at);
+-- Upgrade an already-provisioned database from the pre-access-gate function
+-- signature. The complete current function definition is kept in 0001 for
+-- fresh installs; this drop allows the new signature to be installed by the
+-- deployment migration runner before 0001's idempotent definition is applied.
+DROP FUNCTION IF EXISTS claim_analysis_run(uuid, uuid, text, text, text, timestamptz, integer, integer, integer, integer, integer, integer);
 
--- A claim is deliberately one database operation: every branch below shares the
--- transaction opened for this function call, including the advisory key lock.
 CREATE OR REPLACE FUNCTION claim_analysis_run(
   p_id uuid, p_workspace_id uuid, p_key text, p_fingerprint text, p_ip_hash text,
   p_code_fingerprint text, p_now timestamptz, p_workspace_limit integer, p_ip_limit integer,
@@ -36,7 +34,6 @@ BEGIN
     RETURN QUERY SELECT 'claimed', current_run.id, NULL::jsonb, NULL::text; RETURN;
   END IF;
   IF FOUND THEN DELETE FROM analysis_runs WHERE id = current_run.id; END IF;
-  -- Establish and lock all three buckets in a fixed order before testing any cap.
   INSERT INTO analysis_quota_buckets(scope, bucket_start, count, expires_at) VALUES
     ('global', bucket_start, 0, quota_expiry), ('ip:' || p_ip_hash, bucket_start, 0, quota_expiry), ('workspace:' || p_workspace_id::text, bucket_start, 0, quota_expiry)
   ON CONFLICT (scope, bucket_start) DO NOTHING;
@@ -69,9 +66,7 @@ DECLARE
   current_count integer;
 BEGIN
   PERFORM pg_advisory_xact_lock(hashtextextended('access-invalid:' || p_ip_hash || ':' || bucket_start::text, 0));
-  INSERT INTO analysis_quota_buckets(scope, bucket_start, count, expires_at)
-    VALUES ('access-invalid:' || p_ip_hash, bucket_start, 0, expiry)
-    ON CONFLICT (scope, bucket_start) DO NOTHING;
+  INSERT INTO analysis_quota_buckets(scope, bucket_start, count, expires_at) VALUES ('access-invalid:' || p_ip_hash, bucket_start, 0, expiry) ON CONFLICT (scope, bucket_start) DO NOTHING;
   SELECT count INTO current_count FROM analysis_quota_buckets WHERE scope = 'access-invalid:' || p_ip_hash AND bucket_start = claim_access_attempt.bucket_start FOR UPDATE;
   IF current_count >= p_limit THEN RETURN QUERY SELECT false; RETURN; END IF;
   UPDATE analysis_quota_buckets SET count = count + 1, expires_at = expiry WHERE scope = 'access-invalid:' || p_ip_hash AND bucket_start = claim_access_attempt.bucket_start;

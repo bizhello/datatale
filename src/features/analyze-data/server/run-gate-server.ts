@@ -18,6 +18,7 @@ export function getRunGateConfig(): RunGateConfig {
     workspaceDailyLimit: positive(process.env.ANALYSIS_WORKSPACE_DAILY_LIMIT),
     ipDailyLimit: positive(process.env.ANALYSIS_IP_DAILY_LIMIT),
     globalDailyLimit: positive(process.env.ANALYSIS_GLOBAL_DAILY_LIMIT),
+    codeDailyLimit: positive(process.env.ANALYSIS_CODE_DAILY_LIMIT) || 10,
   };
 }
 export function getRunGate<Report = unknown>() {

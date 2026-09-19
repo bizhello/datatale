@@ -35,3 +35,16 @@ export function hasSafeAnalysisRuntime() {
       positiveInteger(process.env.ANALYSIS_GLOBAL_DAILY_LIMIT),
   );
 }
+
+export function hasSafeAccessRuntime() {
+  const configured = process.env.ANALYSIS_INVITE_CODE_HASHES?.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return Boolean(
+    hasSafeGuestRuntime() &&
+      nonblank(process.env.RATE_LIMIT_SALT) &&
+      configured?.length &&
+      configured.every((value) => /^[a-f0-9]{64}$/i.test(value)) &&
+      positiveInteger(process.env.ANALYSIS_CODE_DAILY_LIMIT),
+  );
+}

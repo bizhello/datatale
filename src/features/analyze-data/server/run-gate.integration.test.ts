@@ -9,6 +9,7 @@ const input = (
     ipHash: string;
     key: string;
     fingerprint: string;
+    codeFingerprint: string;
     now: Date;
   }> = {},
 ) => ({
@@ -32,6 +33,35 @@ const setup = () => {
 };
 
 describe("RunGate lifecycle", () => {
+  it("gives an invite fingerprint its own ten-call daily budget across workspaces", async () => {
+    const repository = new MemoryRunGateRepository();
+    const gate = new RunGate(repository, {
+      workspaceDailyLimit: 1,
+      ipDailyLimit: 1,
+      codeDailyLimit: 10,
+      globalDailyLimit: 20,
+    });
+    for (let index = 0; index < 10; index++) {
+      await expect(
+        gate.claim(
+          input({
+            workspaceId: `00000000-0000-4000-8000-${String(index + 10).padStart(12, "0")}`,
+            key: `code-${index}`,
+            codeFingerprint: "invite",
+          }),
+        ),
+      ).resolves.toMatchObject({ kind: "claimed" });
+    }
+    await expect(
+      gate.claim(
+        input({
+          workspaceId: "00000000-0000-4000-8000-000000000099",
+          key: "code-11",
+          codeFingerprint: "invite",
+        }),
+      ),
+    ).resolves.toEqual({ kind: "quota", scope: "code" });
+  });
   it("allows only one concurrent same-key claim and replays a completed matching receipt", async () => {
     const { gate } = setup();
     const first = await gate.claim(input());

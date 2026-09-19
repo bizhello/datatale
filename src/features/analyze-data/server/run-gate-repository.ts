@@ -24,13 +24,13 @@ export class SqlRunGateRepository<Report = unknown>
   ): Promise<RunGateOutcome<Report>> {
     const now = input.now ?? new Date();
     const rows =
-      await this.client()`SELECT * FROM claim_analysis_run(${randomUUID()}, ${input.workspaceId}, ${input.key}, ${input.fingerprint}, ${input.ipHash}, ${now}, ${config.workspaceDailyLimit}, ${config.ipDailyLimit}, ${config.globalDailyLimit}, ${config.receiptTtlMs}, ${config.leaseMs}, ${config.quotaTtlMs})`;
+      await this.client()`SELECT * FROM claim_analysis_run(${randomUUID()}, ${input.workspaceId}, ${input.key}, ${input.fingerprint}, ${input.ipHash}, ${input.codeFingerprint ?? null}, ${now}, ${config.workspaceDailyLimit}, ${config.ipDailyLimit}, ${config.codeDailyLimit}, ${config.globalDailyLimit}, ${config.receiptTtlMs}, ${config.leaseMs}, ${config.quotaTtlMs})`;
     const result = rows[0] as
       | {
           kind: string;
           receipt_id: string | null;
           report: Report | null;
-          quota_scope: "workspace" | "ip" | "global" | null;
+          quota_scope: "workspace" | "ip" | "code" | "global" | null;
         }
       | undefined;
     if (!result || result.kind === "unavailable")

@@ -9,5 +9,7 @@ export {
   clearGuestSession,
   getGuestSession,
   readGuestWorkspace,
+  readInviteCodeFingerprint,
   saveGuestWorkspace,
+  saveInviteCodeFingerprint,
 } from "./session";

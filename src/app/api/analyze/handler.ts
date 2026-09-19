@@ -43,6 +43,7 @@ type AnalyzeGate = Readonly<{
 type AnalyzeHandlerDependencies = Readonly<{
   runtimeSafe(): boolean;
   readWorkspace(): Promise<GuestWorkspace | undefined>;
+  readInviteCodeFingerprint?(): Promise<string | undefined>;
   isWorkspaceActive(id: string, now: Date): Promise<boolean>;
   hashIp(ip: string): string | undefined;
   gate(): AnalyzeGate;
@@ -183,11 +184,13 @@ export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
     let outcome: RunGateOutcome<FinalReport>;
     try {
       gate = dependencies.gate();
+      const codeFingerprint = await dependencies.readInviteCodeFingerprint?.();
       outcome = await gate.claim({
         workspaceId: workspace.id,
         ipHash,
         key,
         fingerprint,
+        ...(codeFingerprint ? { codeFingerprint } : {}),
       });
     } catch {
       return privateJson({ code: "unavailable" }, 503);

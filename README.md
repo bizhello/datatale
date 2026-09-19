@@ -6,6 +6,8 @@ Turn a CSV, an Excel workbook, or a short report into a grounded story, interact
 
 Analysis creates a sealed 30-day guest workspace and a 15-minute idempotency receipt in Neon. The complete source is transmitted to the configured AI provider for the current request but is not persisted by this feature. Chat, saved report history, onboarding, and long-lived dataset/report storage remain planned. Paid analysis fails closed until database, provider, session, salt, and quota settings are valid; deletion and cleanup use smaller independent runtime gates.
 
+Guests receive one analysis per UTC day. After that, an invite code is required; configure only comma-separated SHA-256 invite-code hashes in `ANALYSIS_INVITE_CODE_HASHES` (never plaintext codes). Generate one with the Node command in `.env.example`. Each code has a separate atomic ten-analysis UTC-day budget across users and IPs, plus the global cap. Invalid attempts are limited by salted IP and return generic errors.
+
 The normalized Dataset contract and chart-planning catalog are integrated. The repository uses Bun, Biome, strict TypeScript, Steiger, Vitest and Playwright/axe. GitHub: https://github.com/bizhello/datatale.
 
 Live app: https://datatale.bizhov.ru (also https://datatale.vercel.app). See [deployment status](docs/DEPLOYMENT.md) for infrastructure and pending external setup.

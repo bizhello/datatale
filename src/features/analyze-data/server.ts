@@ -1,3 +1,5 @@
+export { SqlAccessRepository } from "./server/access";
+export { inviteFingerprint, isValidInviteCode } from "./server/access-code";
 export { AnalysisError, analyzeSource } from "./server/analyze";
 export type { RunGateOutcome } from "./server/run-gate";
 export {

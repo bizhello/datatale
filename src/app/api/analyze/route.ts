@@ -1,5 +1,6 @@
 import {
   readGuestWorkspace,
+  readInviteCodeFingerprint,
   SqlGuestWorkspaceRepository,
 } from "@/entities/guest-workspace/server";
 import {
@@ -15,6 +16,7 @@ const workspaceRepository = new SqlGuestWorkspaceRepository();
 export const POST = createAnalyzeHandler({
   runtimeSafe: hasSafeAnalysisRuntime,
   readWorkspace: readGuestWorkspace,
+  readInviteCodeFingerprint,
   isWorkspaceActive: (id, now) => workspaceRepository.isActive(id, now),
   hashIp,
   gate: getRunGate,

@@ -5,6 +5,7 @@ import { analysisLimits } from "@/shared/config";
 import { type GuestWorkspace, guestWorkspaceSchema } from "./model/schema";
 
 type GuestSession = Partial<GuestWorkspace> & {
+  inviteCodeFingerprint?: string;
   destroy(): void;
   save(): Promise<void>;
 };
@@ -59,4 +60,17 @@ export async function clearGuestSession() {
     session.destroy();
     await session.save();
   }
+}
+
+export async function readInviteCodeFingerprint() {
+  const session = await getGuestSession();
+  return session?.inviteCodeFingerprint;
+}
+
+export async function saveInviteCodeFingerprint(fingerprint: string) {
+  const session = await getGuestSession();
+  if (!session) return false;
+  session.inviteCodeFingerprint = fingerprint;
+  await session.save();
+  return true;
 }

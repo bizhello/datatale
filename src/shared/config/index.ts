@@ -1,5 +1,6 @@
 export { analysisLimits } from "./analysis-limits";
 export {
+  hasSafeAccessRuntime,
   hasSafeAnalysisRuntime,
   hasSafeCleanupRuntime,
   hasSafeGuestRuntime,

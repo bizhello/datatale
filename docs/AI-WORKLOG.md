@@ -116,6 +116,12 @@ The conductor defined component ownership in AGENTS and ARCHITECTURE. The execut
 
 **Correction verification:** the updated text case passed in desktop Chromium, mobile Chromium, and mobile WebKit. In a disposable checkout at `e13220c`, the same mobile-WebKit test failed because `.page-shell` lacked `data-hydrated="true"`, establishing that the new readiness contract distinguishes the base. `bun run check` passed Biome, Steiger, strict types, 49 Vitest tests, and the production build; `bun run test:e2e` passed all 27 browser cases. Independent review approved the exact final tree, [PR #10](https://github.com/bizhello/datatale/pull/10) integrated it as `2514d84`, and post-merge hosted CI passed all 27 browser cases. Production smoke at `datatale.bizhov.ru` opened the chooser from the visible button, loaded a CSV, and accepted hydrated text successfully.
 
+## 2026-09-19 — paid analysis access gate
+
+Implemented the guest access gate on the isolated `feat/access-gate` worktree. The existing atomic run claim now selects either the one-call free workspace/IP path or a sealed invite-code fingerprint path with a ten-call daily code bucket and the global cap. `POST /api/access` validates configured SHA-256 hashes in constant time, rate-limits invalid attempts by salted IP, and never stores raw codes. The UI opens an accessible Russian HeroUI unlock modal after the free quota response and retries the selected source after a successful unlock.
+
+The migration adds the code and invalid-attempt bucket branches plus the upgrade function definition; cleanup already removes expired buckets. The environment and deployment docs include the hash-generation command and fail-closed requirements. Focused access and quota tests passed, along with lint and strict typecheck; full check and browser E2E remain release checks.
+
 ## 2026-09-19 — AI Dashboard candidate (DT-01/04/05/06/07)
 
 **Request (translated summary):** deliver the next feature as one substantial vertical slice, keep the code easy to extend and hard to break, use HeroUI broadly, calculate values in code, let AI select only supported charts, and keep canonical documentation current.
