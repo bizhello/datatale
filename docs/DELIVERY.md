@@ -2,7 +2,7 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** DT-INPUT and HeroUI adoption are integrated through `2514d84`. The AI Dashboard candidate now connects CSV/XLSX/text input to bounded AI analysis, checked facts, a responsive narrative dashboard, and atomic guest/quota/idempotency controls. Local static, unit, integration, build, and browser gates pass. Independent exact-candidate review, isolated Neon verification, Vercel preview, and live-model evaluation remain required before its PR. Chat, durable history, onboarding, and long-lived source/report persistence are not implemented.
+**Current state:** DT-INPUT and HeroUI adoption are integrated through `2514d84`. The AI Dashboard candidate now connects CSV/XLSX/text input to bounded AI analysis, checked facts, a responsive narrative dashboard, and atomic guest/quota/idempotency controls. The first independent review rejected nine lifecycle, grounding, calculation, output-bound, and UI issues; all are corrected with regression coverage. Local static, unit, integration, build, browser, and visual gates pass. Repeat exact-candidate review, isolated Neon verification, Vercel preview, and live-model evaluation remain required before its PR. Chat, durable history, onboarding, and long-lived source/report persistence are not implemented.
 
 ## Work packages
 
@@ -53,7 +53,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| AI Dashboard (DT-01/04/06/07 vertical) | Executor: Terra medium; conductor: contracts/dependencies/docs/integration; reviewer: Sol medium | review handoff | `feat/ai-dashboard` / `../datatale-worktrees/ai-dashboard` | Candidate owns report/workspace entities, analyze-data, AI/DB adapters, API routes, dashboard composition, migration/config, related tests/styles and canonical docs | Commit exact candidate, run independent review, then verify isolated Neon and Vercel preview; production remains fail-closed until migration, quotas, cron, and live evals pass |
+| AI Dashboard (DT-01/04/06/07 vertical) | Executors: Terra medium; conductor: contracts/docs/integration; reviewer: Sol medium | repeat review handoff | `feat/ai-dashboard` / `../datatale-worktrees/ai-dashboard` | Candidate owns report/workspace entities, analyze-data, AI/DB adapters, API routes, dashboard composition, migration/config, related tests/styles and canonical docs | Repeat independent review on the corrected exact candidate, then verify isolated Neon and Vercel preview; production remains fail-closed until migration, quotas, cron, and live evals pass |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 

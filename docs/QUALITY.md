@@ -2,7 +2,7 @@
 
 **Make failures visible at the boundary that owns the rule.** Type checking, runtime validation, semantic tests and browser review protect different risks. None makes the project impossible to break.
 
-Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Coverage includes parser contracts, semantic plan validation, deterministic calculations, provider doubles, guest/route lifecycle, responsive dashboard rendering, expanded charts, viewport overflow and automated accessibility in Chromium and WebKit. Real-provider quality, isolated Neon concurrency/expiry, and Vercel runtime checks remain separate release gates.
+Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Coverage includes parser contracts, semantic plan validation, deterministic calculations, provider doubles, guest/deletion/cleanup lifecycle, source replacement races, responsive dashboard containment, expanded charts, viewport overflow and automated accessibility in Chromium and WebKit. Real-provider quality, isolated Neon concurrency/expiry, and Vercel runtime checks remain separate release gates.
 
 ## Gate design
 
