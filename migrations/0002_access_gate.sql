@@ -1,8 +1,5 @@
 -- Upgrade an already-provisioned database from the pre-access-gate function
--- signature. The complete current function definition is kept in 0001 for
--- fresh installs; this drop allows the new signature to be installed by the
--- deployment migration runner before 0001's idempotent definition is applied.
-DROP FUNCTION IF EXISTS claim_analysis_run(uuid, uuid, text, text, text, timestamptz, integer, integer, integer, integer, integer, integer);
+-- signature. Keep that signature below as a rollback-compatible wrapper.
 
 CREATE OR REPLACE FUNCTION claim_analysis_run(
   p_id uuid, p_workspace_id uuid, p_key text, p_fingerprint text, p_ip_hash text,
@@ -13,7 +10,7 @@ CREATE OR REPLACE FUNCTION claim_analysis_run(
 LANGUAGE plpgsql AS $$
 DECLARE
   current_run analysis_runs%ROWTYPE;
-  bucket_start timestamptz := date_trunc('day', p_now AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
+  quota_bucket_start timestamptz := date_trunc('day', p_now AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
   quota_expiry timestamptz := p_now + make_interval(secs => p_quota_ttl_ms / 1000.0);
   receipt_expiry timestamptz := p_now + make_interval(secs => p_receipt_ttl_ms / 1000.0);
   lease_expiry timestamptz := p_now + make_interval(secs => p_lease_ms / 1000.0);
@@ -35,24 +32,41 @@ BEGIN
   END IF;
   IF FOUND THEN DELETE FROM analysis_runs WHERE id = current_run.id; END IF;
   INSERT INTO analysis_quota_buckets(scope, bucket_start, count, expires_at) VALUES
-    ('global', bucket_start, 0, quota_expiry), ('ip:' || p_ip_hash, bucket_start, 0, quota_expiry), ('workspace:' || p_workspace_id::text, bucket_start, 0, quota_expiry)
+    ('global', quota_bucket_start, 0, quota_expiry), ('ip:' || p_ip_hash, quota_bucket_start, 0, quota_expiry), ('workspace:' || p_workspace_id::text, quota_bucket_start, 0, quota_expiry)
   ON CONFLICT (scope, bucket_start) DO NOTHING;
-  SELECT b.count INTO current_count FROM analysis_quota_buckets b WHERE b.scope = 'global' AND b.bucket_start = bucket_start FOR UPDATE;
+  SELECT b.count INTO current_count FROM analysis_quota_buckets b WHERE b.scope = 'global' AND b.bucket_start = quota_bucket_start FOR UPDATE;
   IF current_count >= p_global_limit THEN RETURN QUERY SELECT 'quota', NULL::uuid, NULL::jsonb, 'global'; RETURN; END IF;
-  SELECT b.count INTO current_count FROM analysis_quota_buckets b WHERE b.scope = 'ip:' || p_ip_hash AND b.bucket_start = bucket_start FOR UPDATE;
+  SELECT b.count INTO current_count FROM analysis_quota_buckets b WHERE b.scope = 'ip:' || p_ip_hash AND b.bucket_start = quota_bucket_start FOR UPDATE;
   IF p_code_fingerprint IS NULL THEN
     IF current_count >= p_ip_limit THEN RETURN QUERY SELECT 'quota', NULL::uuid, NULL::jsonb, 'ip'; RETURN; END IF;
-    SELECT b.count INTO current_count FROM analysis_quota_buckets b WHERE b.scope = 'workspace:' || p_workspace_id::text AND b.bucket_start = bucket_start FOR UPDATE;
+    SELECT b.count INTO current_count FROM analysis_quota_buckets b WHERE b.scope = 'workspace:' || p_workspace_id::text AND b.bucket_start = quota_bucket_start FOR UPDATE;
     IF current_count >= p_workspace_limit THEN RETURN QUERY SELECT 'quota', NULL::uuid, NULL::jsonb, 'workspace'; RETURN; END IF;
-    UPDATE analysis_quota_buckets b SET count = b.count + 1, expires_at = quota_expiry WHERE b.bucket_start = bucket_start AND b.scope IN ('global', 'ip:' || p_ip_hash, 'workspace:' || p_workspace_id::text);
+    UPDATE analysis_quota_buckets b SET count = b.count + 1, expires_at = quota_expiry WHERE b.bucket_start = quota_bucket_start AND b.scope IN ('global', 'ip:' || p_ip_hash, 'workspace:' || p_workspace_id::text);
   ELSE
-    INSERT INTO analysis_quota_buckets(scope, bucket_start, count, expires_at) VALUES ('code:' || p_code_fingerprint, bucket_start, 0, quota_expiry) ON CONFLICT (scope, bucket_start) DO NOTHING;
-    SELECT b.count INTO current_count FROM analysis_quota_buckets b WHERE b.scope = 'code:' || p_code_fingerprint AND b.bucket_start = bucket_start FOR UPDATE;
+    INSERT INTO analysis_quota_buckets(scope, bucket_start, count, expires_at) VALUES ('code:' || p_code_fingerprint, quota_bucket_start, 0, quota_expiry) ON CONFLICT (scope, bucket_start) DO NOTHING;
+    SELECT b.count INTO current_count FROM analysis_quota_buckets b WHERE b.scope = 'code:' || p_code_fingerprint AND b.bucket_start = quota_bucket_start FOR UPDATE;
     IF current_count >= p_code_limit THEN RETURN QUERY SELECT 'quota', NULL::uuid, NULL::jsonb, 'code'; RETURN; END IF;
-    UPDATE analysis_quota_buckets b SET count = b.count + 1, expires_at = quota_expiry WHERE b.bucket_start = bucket_start AND b.scope IN ('global', 'code:' || p_code_fingerprint);
+    UPDATE analysis_quota_buckets b SET count = b.count + 1, expires_at = quota_expiry WHERE b.bucket_start = quota_bucket_start AND b.scope IN ('global', 'code:' || p_code_fingerprint);
   END IF;
   INSERT INTO analysis_runs(id, workspace_id, idempotency_key, fingerprint, state, lease_expires_at, expires_at) VALUES (p_id, p_workspace_id, p_key, p_fingerprint, 'claimed', lease_expiry, receipt_expiry);
   RETURN QUERY SELECT 'claimed', p_id, NULL::jsonb, NULL::text;
+END;
+$$;
+
+-- Preserve the old application call during rollback or a mixed deployment.
+CREATE OR REPLACE FUNCTION claim_analysis_run(
+  p_id uuid, p_workspace_id uuid, p_key text, p_fingerprint text, p_ip_hash text,
+  p_now timestamptz, p_workspace_limit integer, p_ip_limit integer,
+  p_global_limit integer, p_receipt_ttl_ms integer, p_lease_ms integer,
+  p_quota_ttl_ms integer
+) RETURNS TABLE(kind text, receipt_id uuid, report jsonb, quota_scope text)
+LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN QUERY SELECT * FROM claim_analysis_run(
+    p_id, p_workspace_id, p_key, p_fingerprint, p_ip_hash, NULL::text,
+    p_now, p_workspace_limit, p_ip_limit, 1, p_global_limit,
+    p_receipt_ttl_ms, p_lease_ms, p_quota_ttl_ms
+  );
 END;
 $$;
 
@@ -61,15 +75,15 @@ CREATE OR REPLACE FUNCTION claim_access_attempt(
 ) RETURNS TABLE(allowed boolean)
 LANGUAGE plpgsql AS $$
 DECLARE
-  bucket_start timestamptz := date_trunc('day', p_now AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
+  access_bucket_start timestamptz := date_trunc('day', p_now AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
   expiry timestamptz := p_now + make_interval(secs => p_ttl_ms / 1000.0);
   current_count integer;
 BEGIN
-  PERFORM pg_advisory_xact_lock(hashtextextended('access-invalid:' || p_ip_hash || ':' || bucket_start::text, 0));
-  INSERT INTO analysis_quota_buckets(scope, bucket_start, count, expires_at) VALUES ('access-invalid:' || p_ip_hash, bucket_start, 0, expiry) ON CONFLICT (scope, bucket_start) DO NOTHING;
-  SELECT count INTO current_count FROM analysis_quota_buckets WHERE scope = 'access-invalid:' || p_ip_hash AND bucket_start = claim_access_attempt.bucket_start FOR UPDATE;
+  PERFORM pg_advisory_xact_lock(hashtextextended('access-invalid:' || p_ip_hash || ':' || access_bucket_start::text, 0));
+  INSERT INTO analysis_quota_buckets(scope, bucket_start, count, expires_at) VALUES ('access-invalid:' || p_ip_hash, access_bucket_start, 0, expiry) ON CONFLICT (scope, bucket_start) DO NOTHING;
+  SELECT count INTO current_count FROM analysis_quota_buckets WHERE scope = 'access-invalid:' || p_ip_hash AND bucket_start = access_bucket_start FOR UPDATE;
   IF current_count >= p_limit THEN RETURN QUERY SELECT false; RETURN; END IF;
-  UPDATE analysis_quota_buckets SET count = count + 1, expires_at = expiry WHERE scope = 'access-invalid:' || p_ip_hash AND bucket_start = claim_access_attempt.bucket_start;
+  UPDATE analysis_quota_buckets SET count = count + 1, expires_at = expiry WHERE scope = 'access-invalid:' || p_ip_hash AND bucket_start = access_bucket_start;
   RETURN QUERY SELECT true;
 END;
 $$;

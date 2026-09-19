@@ -19,4 +19,22 @@ describe("claim_analysis_run migration contract", () => {
     );
     expect(migration).toContain("INSERT INTO analysis_runs");
   });
+
+  it("keeps migration variables distinct from bucket columns and preserves the legacy overload", async () => {
+    const [initial, upgrade] = await Promise.all([
+      readFile("migrations/0001_ai_dashboard.sql", "utf8"),
+      readFile("migrations/0002_access_gate.sql", "utf8"),
+    ]);
+    for (const migration of [initial, upgrade]) {
+      expect(migration).toContain("quota_bucket_start");
+      expect(migration).toContain("access_bucket_start");
+      expect(migration).toContain("ON CONFLICT (scope, bucket_start)");
+      expect(migration).toContain(
+        "CREATE OR REPLACE FUNCTION claim_analysis_run(",
+      );
+      expect(migration).not.toContain("DROP FUNCTION claim_analysis_run");
+    }
+    expect(upgrade).toContain("p_code_fingerprint text");
+    expect(upgrade).toContain("NULL::text");
+  });
 });
