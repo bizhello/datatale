@@ -2,7 +2,7 @@
 
 **Make failures visible at the boundary that owns the rule.** Type checking, runtime validation, semantic tests and browser review protect different risks. None makes the project impossible to break.
 
-Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Coverage includes parser contracts, strict provider wire-schema compatibility, semantic plan validation, deterministic calculations, provider doubles, guest/deletion/cleanup lifecycle, source replacement races, responsive dashboard containment, expanded charts, viewport overflow and automated accessibility in Chromium and WebKit. Local live Spiro table/text probes passed; broader real-provider quality, isolated Neon concurrency/expiry, and Vercel runtime checks remain separate release gates.
+Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Coverage includes parser contracts, strict provider wire-schema compatibility, semantic plan validation, deterministic calculations, provider doubles, guest/deletion/cleanup lifecycle, owner-scoped saved-analysis persistence, immutable source/report payloads, chat replay/quota/refusal/claim validation, source replacement races, responsive dashboard containment, expanded charts, viewport overflow and automated accessibility in Chromium and WebKit. Local live Spiro table/text probes passed; broader real-provider quality, isolated Neon concurrency/expiry, and Vercel runtime checks remain separate release gates.
 
 ## Gate design
 
@@ -32,6 +32,7 @@ A behavioral feature is incomplete without tests for its acceptance and meaningf
 | Boundary between real components | Integration test exercising the connected components, including error propagation and validation |
 | Route plus persistence/session | Integration against isolated test storage for ownership, transaction behavior, expiry and failure; mock external inference rather than the entire data path |
 | AI orchestration | Integration of actual validators/calculations with controlled provider responses; separate live-model evaluations for output quality |
+| Grounded chat and persistence | Route integration with isolated storage: owner isolation, immutable source/report, seven-day fixed expiry, ten-turn daily quota, retry replay, exact refusal and canonical claim-ID validation |
 | Bug fix | Regression test that reproduces the defect and passes after the correction |
 | Documentation or cosmetic formatting only | Relevant static/manual verification; no artificial behavioral tests |
 

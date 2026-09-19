@@ -81,7 +81,12 @@ test("failed delete-all keeps the report visible and exposes an actionable retry
     });
   });
   await page.route("**/api/analyze", async (route) => {
-    await route.fulfill({ json: { report } });
+    await route.fulfill({
+      json: {
+        analysisId: "6ccce6e7-f6c2-4b81-bdbc-a67520f9f80a",
+        report,
+      },
+    });
   });
   await openAnalysis(page);
   await page.getByRole("button", { name: "Запустить анализ" }).click();

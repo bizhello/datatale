@@ -1,5 +1,6 @@
 "use client";
 
+export { createAskDataSend } from "./model/send-question";
 export {
   type AskDataAnswer,
   AskDataClientError,

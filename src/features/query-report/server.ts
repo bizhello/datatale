@@ -6,4 +6,4 @@ export {
   type ChatDependencies,
   type ChatProvider,
   ChatProviderError,
-} from "./service";
+} from "./server/service";

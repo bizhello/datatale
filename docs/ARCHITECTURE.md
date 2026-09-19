@@ -1,6 +1,6 @@
 # Architecture
 
-**Model:** a guest workspace currently owns short-lived analysis receipts. An AI analysis plan becomes checked facts; a report combines those facts with narrative and chart specifications. Application code owns arithmetic and semantic validation. Durable datasets, reports, messages, and history are the next storage phase.
+**Model:** a guest workspace owns analysis receipts and saved analyses. An AI analysis plan becomes checked facts; a report combines those facts with narrative and chart specifications. Application code owns arithmetic and semantic validation. Accepted source, validated report, and chat messages are persisted server-side for seven days from creation and remain owner-scoped and immutable.
 
 ## Target structure
 
@@ -13,7 +13,7 @@ src/
   features/
     import-data/                picker, preview, parsing orchestration
     analyze-data/               client lifecycle, prompt orchestration, calculations, verified report UI
-    ask-data/                   chat UI and server orchestration
+    query-report/               grounded chat UI and server orchestration
   entities/
     dataset/                    source schema, normalization and pure calculations
     report/                     report/plan contracts, chart capabilities and renderers
@@ -72,7 +72,8 @@ flowchart LR
   Facts --> Story[AI narrative with evidence]
   Story --> Receipt[Validate and cache receipt for 15 minutes]
   Receipt --> UI[Typed renderer registry]
-  Receipt -. future .-> Chat[Persist source and enable grounded chat]
+  Receipt --> Save[Persist immutable source and report]
+  Save --> Chat[Owner-scoped grounded chat]
 ```
 
 | Record | Ownership and contents |
@@ -80,10 +81,10 @@ flowchart LR
 | GuestWorkspace | Implemented: random server ID, inactivity expiry/revocation; no account credentials |
 | AnalysisRun | Implemented: workspace/key/fingerprint, lease/provider state, failure or validated report; 15-minute TTL |
 | QuotaBucket | Implemented: UTC daily workspace, hashed-IP and global counters; 48-hour TTL |
-| Dataset | Planned: immutable normalized source, schema, units, warnings, fingerprint, version and expiry |
-| Report / Message | Planned: durable report provenance and owner-checked chat history |
+| Dataset | Saved as immutable accepted source with schema, units, warnings, fingerprint and fixed expiry |
+| Report / Message | Saved report provenance and owner-checked chat history; assistant result envelopes enable replay |
 
-The current analysis request sends the complete canonical source to the server and provider, then discards it; only the validated report and exact evidence excerpts can remain in the 15-minute receipt. Do not retain original binary files. Chat cannot be implemented from saved chart output alone: the next storage phase must retain the accepted canonical dataset until its retention deadline. Corrections produce a new dataset/report version rather than silently changing old evidence.
+The analysis request sends the complete canonical source to the server and provider, then saves the validated source/report under the workspace. Original binary files are not retained. Saved analyses and messages expire seven days after creation; viewing or chatting never extends that deadline. Replays use the persisted validated result and do not call the provider again. Corrections produce a new analysis rather than silently changing old evidence.
 
 ## Guest access
 
@@ -97,12 +98,13 @@ Use a server-only secret and explicit TTL settings matching PRODUCT. Dev HTTP co
 POST/DELETE /api/guest            implemented
 POST        /api/analyze          implemented
 GET         /api/cron/cleanup     implemented, Bearer CRON_SECRET
-POST/GET    /api/reports          planned
-GET/DELETE  /api/reports/:id      planned
-POST        /api/reports/:id/chat planned
+POST/GET    /api/reports          future history list/detail API
+GET/DELETE  /api/reports/:id      future report management API
+POST        /api/chat              implemented, owner-scoped grounded chat
+GET         /api/chat/history      future explicit history API
 ```
 
-Mutations require same-origin requests. `/api/analyze` revalidates the canonical source, hashes the IP only as an abuse signal, atomically claims quotas and an idempotency receipt, and validates replayed reports. The client creates the guest workspace before analysis and never receives its ID. Future report detail and source lookup remain owner-checked.
+Mutations require same-origin requests. `/api/analyze` revalidates the canonical source, hashes the IP only as an abuse signal, atomically claims quotas and an idempotency receipt, and validates replayed reports. The client creates the guest workspace before analysis and never receives its ID. `/api/chat` accepts only an analysis UUID, message UUID and question; it loads owner-scoped source/report/history and never trusts browser-supplied facts. A user message consumes one of ten workspace chat turns per UTC day; assistant messages and idempotent replays do not consume quota.
 
 ## Failure and extension boundaries
 

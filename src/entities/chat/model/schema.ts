@@ -18,7 +18,7 @@ const boundedText = (max: number) =>
 export const chatQuestionSchema = boundedText(CHAT_QUESTION_MAX_LENGTH);
 export const chatRequestSchema = z
   .object({
-    analysisId: boundedText(160),
+    analysisId: z.string().uuid(),
     messageId: z.string().uuid(),
     question: chatQuestionSchema,
   })

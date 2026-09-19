@@ -3,8 +3,10 @@ import { Chip } from "@heroui/react";
 import { BarChart3, BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Dataset, TextSource } from "@/entities/dataset";
+import { ReportDashboard } from "@/entities/report/ui";
 import { AnalyzeWorkspace } from "@/features/analyze-data";
 import { ImportWorkspace } from "@/features/import-data";
+import { AskDataPanel, createAskDataSend } from "@/features/query-report";
 import { ThemeControl } from "@/shared/ui/theme-control";
 
 export function DashboardShell() {
@@ -37,6 +39,12 @@ export function DashboardShell() {
           <AnalyzeWorkspace
             key={source.id}
             source={source}
+            renderReport={(analysisId, report) => (
+              <>
+                <ReportDashboard report={report} />
+                <AskDataPanel send={createAskDataSend(analysisId)} />
+              </>
+            )}
             onDelete={() => {
               setSource(undefined);
               setWorkspaceVersion((version) => version + 1);

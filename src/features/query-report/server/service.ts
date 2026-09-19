@@ -21,19 +21,10 @@ import { getAnalysisModel } from "@/shared/lib/ai";
 
 export const CHAT_TIMEOUT_MS = 30_000;
 const PROVIDER_OUTPUT_MAX_TOKENS = 700;
-const providerReferenceSchema = z
-  .object({ id: z.string().min(1).max(160) })
-  .strict();
-const providerClaimSchema = z
-  .object({
-    text: z.string().min(1).max(280),
-    references: z.array(providerReferenceSchema).min(1).max(4),
-  })
-  .strict();
 const providerResponseSchema = z
   .object({
     outcome: z.enum(["answered", "insufficient_data", "unsupported_operation"]),
-    claims: z.array(providerClaimSchema).max(6),
+    claimIds: z.array(z.string().min(1).max(160)).max(6),
   })
   .strict();
 
@@ -109,6 +100,8 @@ type SourceReference = {
   factIds: string[];
 };
 
+type CanonicalClaim = { id: string; text: string; references: string[] };
+
 function sourceReferences(
   source: Dataset | TextSource,
   report: FinalReport,
@@ -150,42 +143,53 @@ function sourceReferences(
   return references;
 }
 
+function formatCell(value: string | number | boolean | null, unit?: string) {
+  if (value === null) return "нет значения";
+  if (typeof value === "number")
+    return `${numberText(value)}${unit ? ` ${unit}` : ""}`;
+  return String(value);
+}
+
+function canonicalClaims(
+  source: Dataset | TextSource,
+  report: FinalReport,
+): CanonicalClaim[] {
+  const claims: CanonicalClaim[] = [];
+  for (const [index, fact] of report.metrics.entries()) {
+    const evidenceId = reportReferenceId(report, fact.evidenceIds[0] ?? "");
+    if (evidenceId)
+      claims.push({
+        id: `fact-${index}`,
+        text: `${fact.label}: ${formatCell(fact.value, fact.unit)}.`,
+        references: [evidenceId],
+      });
+  }
+  if ("rows" in source) {
+    for (const [rowIndex, row] of source.rows.entries()) {
+      const referenceId = `row-${rowIndex}`;
+      for (const [columnIndex, column] of source.columns.entries()) {
+        claims.push({
+          id: `cell-${rowIndex}-${columnIndex}`,
+          text: `${column.label}: ${formatCell(row.values[column.id] ?? null, column.unit)}.`,
+          references: [referenceId],
+        });
+      }
+    }
+  } else {
+    for (const [index, paragraph] of source.paragraphs.entries())
+      claims.push({
+        id: `paragraph-${index}`,
+        text: paragraph.text,
+        references: [`paragraph-${index}`],
+      });
+  }
+  return claims;
+}
+
 function numberText(value: number) {
   return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 6 }).format(
     value,
   );
-}
-
-const numericTokenPattern =
-  /[+\-−]?(?:\d{1,3}(?:[ \u00a0\u202f'’.,]\d{3})+|\d+)(?:[.,]\d+)?/g;
-
-function canonicalNumericToken(token: string): number | undefined {
-  const sign = token.startsWith("−")
-    ? "-"
-    : token[0] === "+" || token[0] === "-"
-      ? token[0]
-      : "";
-  const unsigned = sign ? token.slice(1) : token;
-  const compact = unsigned.replace(/[ \u00a0\u202f'’]/g, "");
-  const dots = [...compact.matchAll(/\./g)].map((match) => match.index ?? 0);
-  const commas = [...compact.matchAll(/,/g)].map((match) => match.index ?? 0);
-  if (dots.length === 0 && commas.length === 0)
-    return Number(`${sign}${compact}`);
-  if (dots.length > 0 && commas.length > 0) {
-    const decimalIndex = Math.max(dots.at(-1) ?? 0, commas.at(-1) ?? 0);
-    const whole = compact.slice(0, decimalIndex).replace(/[.,]/g, "");
-    const fraction = compact.slice(decimalIndex + 1);
-    return /^\d+$/.test(whole) && /^\d+$/.test(fraction)
-      ? Number(`${sign}${whole}.${fraction}`)
-      : undefined;
-  }
-  const separator = dots.length > 0 ? "." : ",";
-  const parts = compact.split(separator);
-  if (parts.length === 2 && parts[1]?.length !== 3)
-    return Number(`${sign}${parts[0]}.${parts[1]}`);
-  if (parts.length > 2 && parts.slice(1).every((part) => part.length === 3))
-    return Number(`${sign}${parts.join("")}`);
-  return undefined;
 }
 
 function deterministicFact(
@@ -292,87 +296,41 @@ function deterministicAggregation(
 
 function validateProviderResult(
   output: unknown,
-  report: FinalReport,
+  claims: CanonicalClaim[],
   references: SourceReference[],
 ): ChatResult {
   const value = providerResponseSchema.parse(output);
   if (value.outcome === "insufficient_data") return insufficient();
   if (value.outcome === "unsupported_operation") return unsupported();
-  if (value.claims.length === 0)
-    throw new Error("Provider answer has no grounded claims.");
-  const checkedClaims = value.claims.map((claim) => {
-    const resolved = claim.references.map((reference) => {
-      const sourceReference = references.find(
-        (candidate) => candidate.id === reference.id,
-      );
-      if (!sourceReference)
-        throw new Error("Provider referenced unknown source evidence.");
-      return sourceReference;
-    });
-    const answerNumbers = [...claim.text.matchAll(numericTokenPattern)].map(
-      (match) => {
-        const number = canonicalNumericToken(match[0]);
-        if (number === undefined || !Number.isFinite(number))
-          throw new Error("Ambiguous numeric claim.");
-        return number;
-      },
-    );
-    const referencedNumbers = resolved.flatMap((reference) =>
-      reference.values.flatMap((item) =>
-        typeof item === "number"
-          ? [item]
-          : typeof item === "string"
-            ? [...item.matchAll(numericTokenPattern)]
-                .map((match) => canonicalNumericToken(match[0]))
-                .filter((number): number is number => number !== undefined)
-            : [],
-      ),
-    );
-    if (
-      answerNumbers.some(
-        (number) =>
-          !referencedNumbers.some((candidate) => Object.is(candidate, number)),
-      )
-    )
-      throw new Error(
-        "Provider introduced a number absent from referenced source values.",
-      );
-    const textLower = claim.text.toLocaleLowerCase("ru-RU");
-    const supported = resolved.some(
-      (reference) =>
-        reference.factIds.some((factId) => {
-          const fact = report.metrics.find(
-            (candidate) => candidate.id === factId,
-          );
-          return Boolean(
-            fact &&
-              (textLower.includes(fact.label.toLocaleLowerCase("ru-RU")) ||
-                answerNumbers.some((number) => Object.is(number, fact.value))),
-          );
-        }) ||
-        reference.values.some(
-          (item) =>
-            typeof item === "string" &&
-            textLower.includes(item.toLocaleLowerCase("ru-RU")),
-        ),
-    );
-    if (!supported)
-      throw new Error("Provider claim is not supported by its references.");
+  if (value.claimIds.length === 0)
+    throw new Error("Provider selected no claims.");
+  const selected: CanonicalClaim[] = [];
+  const seen = new Set<string>();
+  for (const id of value.claimIds) {
+    if (seen.has(id)) throw new Error("Provider selected a duplicate claim.");
+    seen.add(id);
+    const claim = claims.find((candidate) => candidate.id === id);
+    if (!claim) throw new Error("Provider selected an unknown claim.");
+    selected.push(claim);
+  }
+  const answer = selected.map((claim) => claim.text).join(" ");
+  if (answer.length > CHAT_ANSWER_MAX_LENGTH)
+    throw new Error("Selected claims are too long.");
+  const resultReferences = [
+    ...new Set(selected.flatMap((claim) => claim.references)),
+  ].map((id) => {
+    const reference = references.find((candidate) => candidate.id === id);
+    if (!reference)
+      throw new Error("Claim referenced unknown canonical evidence.");
     return {
-      text: claim.text,
-      references: resolved.map((reference) => ({
-        id: reference.id,
-        ...(reference.excerpt ? { excerpt: reference.excerpt } : {}),
-      })),
+      id: reference.id,
+      ...(reference.excerpt ? { excerpt: reference.excerpt } : {}),
     };
   });
-  const answer = checkedClaims.map((claim) => claim.text).join(" ");
-  if (answer.length > CHAT_ANSWER_MAX_LENGTH)
-    throw new Error("Provider answer is too long.");
   return chatResultSchema.parse({
     outcome: "answered",
     answer,
-    references: checkedClaims.flatMap((claim) => claim.references).slice(0, 7),
+    references: resultReferences.slice(0, 7),
   });
 }
 
@@ -402,31 +360,48 @@ async function answerChatCore(
   request: ChatRequest,
   dependencies: ChatDependencies,
 ): Promise<ChatResult> {
+  const signal = dependencies.signal ?? new AbortController().signal;
+  const ensureActive = () => {
+    if (signal.aborted)
+      throw new ChatProviderError(
+        "provider_aborted",
+        "Chat request was cancelled.",
+      );
+  };
   const parsed = chatRequestSchema.parse(request);
-  const context = await dependencies.loadContext(
-    parsed.analysisId,
-    dependencies.signal ?? new AbortController().signal,
-  );
+  let context: ChatContext | undefined;
+  try {
+    context = await dependencies.loadContext(parsed.analysisId, signal);
+  } catch (error) {
+    if (signal.aborted)
+      throw new ChatProviderError(
+        "provider_aborted",
+        "Chat request was cancelled.",
+      );
+    throw new ChatProviderError(
+      "provider_failure",
+      error instanceof Error ? error.message : "Context loading failed.",
+    );
+  }
+  ensureActive();
   if (!context || context.analysisId !== parsed.analysisId)
     return insufficient();
   const history = boundedHistory(context.history);
-  const sourceContext = {
-    source: context.source,
-    report: context.report,
-    history,
-    question: parsed.question,
-  };
-  if (bytes(sourceContext) > CHAT_CONTEXT_MAX_SERIALIZED_BYTES)
-    return unsupported("Контекст отчета слишком велик для безопасного ответа.");
   const requested = requestedAggregation(parsed.question);
-  if (requested === "unsupported") return unsupported();
+  if (requested === "unsupported") {
+    ensureActive();
+    return unsupported();
+  }
   if ("rows" in context.source) {
     const aggregate = deterministicAggregation(
       parsed.question,
       context.source,
       context.report,
     );
-    if (aggregate) return aggregate;
+    if (aggregate) {
+      ensureActive();
+      return aggregate;
+    }
   }
   const direct = deterministicFact(parsed.question, context.report);
   if (
@@ -434,9 +409,15 @@ async function answerChatCore(
     !/\b(which|where|when|region|row|paragraph|какой|какая|где|когда|строк|абзац)/u.test(
       parsed.question.toLocaleLowerCase("ru-RU"),
     )
-  )
+  ) {
+    ensureActive();
     return direct;
-  const signal = dependencies.signal ?? new AbortController().signal;
+  }
+  const claims = canonicalClaims(context.source, context.report);
+  const sourceContext = { claims, history, question: parsed.question };
+  if (bytes(sourceContext) > CHAT_CONTEXT_MAX_SERIALIZED_BYTES)
+    return unsupported("Контекст отчета слишком велик для безопасного ответа.");
+  ensureActive();
   try {
     const provider = dependencies.provider ?? defaultProvider;
     const output = await provider({
@@ -446,7 +427,7 @@ async function answerChatCore(
     try {
       return validateProviderResult(
         output,
-        context.report,
+        claims,
         sourceReferences(context.source, context.report),
       );
     } catch (error) {

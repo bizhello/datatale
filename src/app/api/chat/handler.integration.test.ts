@@ -1,0 +1,142 @@
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
+import { CHAT_REFUSAL, type ChatResult } from "@/entities/chat";
+import { ChatProviderError } from "@/features/query-report/server";
+import { createChatHandler } from "./handler";
+
+const workspace = {
+  id: "00000000-0000-4000-8000-000000000001",
+  expiresAt: "2026-09-26T00:00:00.000Z",
+};
+const body = {
+  analysisId: "00000000-0000-4000-8000-000000000002",
+  messageId: "00000000-0000-4000-8000-000000000003",
+  question: "Какая выручка?",
+};
+const answer: ChatResult = {
+  outcome: "answered",
+  answer: "Выручка: 200 RUB.",
+  references: [{ id: "evidence-0" }],
+};
+
+function request(value: unknown = body) {
+  return new Request("https://example.test/api/chat", {
+    method: "POST",
+    headers: {
+      origin: "https://example.test",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(value),
+  });
+}
+
+function dependencies(overrides: Record<string, unknown> = {}) {
+  return {
+    runtimeSafe: () => true,
+    readWorkspace: async () => workspace,
+    isWorkspaceActive: async () => true,
+    readReply: vi.fn(async () => undefined),
+    claimQuestion: vi.fn(async () => "claimed" as const),
+    answer: vi.fn(async () => answer),
+    saveReply: vi.fn(async () => true),
+    ...overrides,
+  };
+}
+
+describe("POST /api/chat handler", () => {
+  it("requires same-origin, an active owner session, and a strict request", async () => {
+    const base = dependencies();
+    const missingOrigin = request();
+    missingOrigin.headers.delete("origin");
+    expect((await createChatHandler(base)(missingOrigin)).status).toBe(403);
+    expect(
+      (
+        await createChatHandler({
+          ...base,
+          readWorkspace: async () => undefined,
+        })(request())
+      ).status,
+    ).toBe(401);
+    expect(
+      (
+        await createChatHandler(base)(
+          request({ ...body, extra: "not allowed" }),
+        )
+      ).status,
+    ).toBe(400);
+  });
+
+  it("replays a stored result without quota or provider work", async () => {
+    const claimQuestion = vi.fn();
+    const answerCall = vi.fn();
+    const response = await createChatHandler(
+      dependencies({
+        readReply: async () => answer,
+        claimQuestion,
+        answer: answerCall,
+      }),
+    )(request());
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(answer);
+    expect(claimQuestion).not.toHaveBeenCalled();
+    expect(answerCall).not.toHaveBeenCalled();
+  });
+
+  it("claims, answers and saves one grounded turn", async () => {
+    const saveReply = vi.fn(async () => true);
+    const result: ChatResult = {
+      outcome: "insufficient_data",
+      message: CHAT_REFUSAL,
+    };
+    const response = await createChatHandler(
+      dependencies({ answer: async () => result, saveReply }),
+    )(request());
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(result);
+    expect(saveReply).toHaveBeenCalledWith({
+      workspaceId: workspace.id,
+      request: body,
+      result,
+    });
+  });
+
+  it("keeps missing ownership and quota failures out of the provider", async () => {
+    const answerCall = vi.fn(async () => answer);
+    const missing = await createChatHandler(
+      dependencies({
+        claimQuestion: async () => "missing",
+        answer: answerCall,
+      }),
+    )(request());
+    expect(missing.status).toBe(404);
+    const quota = await createChatHandler(
+      dependencies({ claimQuestion: async () => "quota", answer: answerCall }),
+    )(request());
+    expect(quota.status).toBe(429);
+    expect(answerCall).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["provider_timeout", 504, "timeout"],
+    ["invalid_provider_output", 502, "invalid-answer"],
+    ["provider_failure", 502, "provider"],
+  ] as const)(
+    "maps %s without saving an answer",
+    async (code, status, responseCode) => {
+      const saveReply = vi.fn();
+      const response = await createChatHandler(
+        dependencies({
+          answer: async () => {
+            throw new ChatProviderError(code, code);
+          },
+          saveReply,
+        }),
+      )(request());
+      expect(response.status).toBe(status);
+      await expect(response.json()).resolves.toEqual({ code: responseCode });
+      expect(saveReply).not.toHaveBeenCalled();
+    },
+  );
+});

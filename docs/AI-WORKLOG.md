@@ -159,3 +159,13 @@ Migration review correction: both SQL files now use distinct PL/pgSQL bucket var
 **Exact-candidate verification:** after adding strict sentinel contradiction checks, `bun run check` passed Biome over 118 files, Steiger, strict TypeScript, 28 Vitest files with 134 tests, and the Next production build. `bun run test:e2e` passed all 36 cases across desktop Chromium, mobile Chromium, and mobile WebKit. Independent repeat review, isolated Neon behavior, and deployed Vercel runtime checks remain open at this point.
 
 **Final wire-boundary review correction:** independent review rejected active chart limits that were silently replaced by code defaults (`0 → 12/24/6` and empty missing-period policy → `reject`). Zero and empty strings are sentinels only for fields owned by other chart kinds. The converter now rejects every invalid active-kind value and passes valid provider values through unchanged. Focused regressions cover all four cases; the full 134-test/build gate and all 36 browser cases passed again.
+
+## 2026-09-19 — grounded Ask the Data and saved analysis wave (DT-05/08/09)
+
+The integrated wave adds owner-scoped saved analyses and grounded chat. A successful analysis stores the validated canonical source and report under the stable `analysisId`; original binary uploads are not retained. Saved analyses and messages have a fixed seven-day lifetime from creation. Cleanup removes expired saved analyses and cascaded messages independently of AI availability.
+
+The chat route accepts only a UUID analysis ID, UUID message ID and bounded question. The server verifies the guest owner, loads immutable source/report/history, claims one user turn from the ten-turn-per-workspace UTC-day quota, and persists the validated assistant result. Reusing a message ID replays the stored result without another provider call; assistant messages do not consume quota. The exact absent-data result remains `В этом отчете нет такой информации`.
+
+The provider receives canonical server-built claims and may return only `outcome` plus selected claim IDs. The server rejects unknown, duplicate or excessive IDs and constructs the user-facing answer/references from trusted claims. Deterministic report facts and source row/paragraph claims remain available before the provider context-size guard. Timeout, abort, invalid output, storage failure and owner isolation have typed route outcomes.
+
+The UI uses the `features/query-report` slice with a stable message UUID, retry/cancel handling, stale-response protection, keyboard behavior, responsive HeroUI states and reduced-motion support. Final integrated test counts, exact integration SHA and full browser/release evidence remain pending until the conductor completes combined verification.

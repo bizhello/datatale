@@ -36,7 +36,7 @@ Preview a labeled sample while showing full accepted row/column counts. Empty ce
 
 - Create a random guest workspace when first saving/analyzing; do not create an account or identify a person by IP.
 - Guest access expires after approximately 30 days of inactivity. Refresh explicitly on meaningful use, normally at most daily. Cookie TTL and server expiry must agree; the UI must not promise precision beyond the refresh policy.
-- The current idempotency receipt and its validated report expire after 15 minutes; the complete source is not stored by the AI Dashboard feature. Future saved reports, accepted datasets and associated chat expire 7 days after report creation. Viewing/chatting does not extend that deadline.
+- The idempotency receipt expires after 15 minutes. Saved reports, accepted datasets and associated chat expire seven days after analysis creation. Viewing or chatting does not extend that deadline.
 - Expired data is immediately inaccessible. Scheduled cleanup removes it from the primary database, with a target daily interval. Provider/backup retention is separate.
 - Cookie loss, another browser or private mode can end access early. There is no IP-based recovery or cross-device synchronization.
 - Cookie deletion alone is not server-data deletion. A dedicated delete-all operation removes content, revokes the workspace, and clears cookie/client caches.
@@ -48,6 +48,8 @@ Cookie mechanisms: ARCHITECTURE.md. Cleanup: DEPLOYMENT.md.
 
 An anonymous workspace may run one AI analysis per UTC day. The same salted-IP trial cap applies across new workspaces, so deleting browser cookies does not reset the free call. IP hashes are abuse counters, not account identifiers or recovery keys, and expire with the quota buckets.
 
+Each saved analysis allows ten user chat turns per workspace per UTC day. Assistant messages and idempotent retries do not consume turns. Chat is available only while the workspace and saved analysis are active.
+
 After the free call, show the invite-code modal without clearing the accepted source. A valid high-entropy code grants a sealed session capability and shares an atomic ten-analysis UTC-day budget across every user of that code. Code and global exhaustion are terminal states for that day and must not reopen the unlock modal. Removing a configured code hash revokes existing capabilities. Raw codes and IP addresses are never persisted.
 
 ## Acceptance against the assignment
@@ -58,7 +60,7 @@ After the free call, show the invite-code modal without clearing the accepted so
 | Polished loading | Skeleton shapes, real stages, measured progress only where available; otherwise use a clearly labeled time estimate and a brief completion acknowledgment after validation |
 | Hero insight | Prominent 2–3 sentence grounded summary |
 | AI-selected charts | Model selects from supported kinds; suitable fixture renders 2–3 useful interactive charts |
-| Ask the Data | Composer below analysis; answers derive exclusively from accepted source or checked calculations |
+| Ask the Data | Composer below analysis; owner-scoped answers derive exclusively from the immutable accepted source or checked calculations; persisted assistant results replay by message ID |
 | Missing information | Exact refusal: “В этом отчете нет такой информации” |
 | Visual quality | UI.md acceptance passes for desktop/mobile and light/dark |
 | Error recovery | Empty/corrupt input, limit, network, invalid AI result, timeout, persistence and expired-session states are actionable |

@@ -32,7 +32,7 @@ For text, extract explicitly stated quantities with exact source quotations befo
 
 ## Prompt and schema ownership
 
-Analysis prompt assets are `features/analyze-data/server/prompts/table.md`, `text.md`, and `narrative.md`. The future chat prompt belongs to `features/ask-data`. Instructions are English and require Russian report copy.
+Analysis prompt assets are `features/analyze-data/server/prompts/table.md`, `text.md`, and `narrative.md`. The grounded chat prompt is owned by `features/query-report/server/prompts/chat.md`. Instructions are English and require Russian report copy.
 
 Each prompt describes its role, permitted sources, allowed actions, uncertainty rules and response intent. Zod defines the response shape; the capability catalog defines available charts. Prompt files are loaded through static URL references so the Next server bundle includes them. Persistent prompt/version provenance remains release work and must be added with saved reports.
 
@@ -49,18 +49,18 @@ Treat uploaded text as untrusted context, never as system instructions. No shell
 
 ## Chat
 
-The server checks guest/report ownership, loads the immutable dataset and bounded history, and reconstructs trusted context. The browser sends a question and report reference, not trusted system messages or source facts.
+The server checks guest/report ownership, loads the immutable dataset/report and bounded history, and reconstructs trusted context. The browser sends only an analysis ID, message ID and question, never trusted system messages or source facts. Completed assistant results are persisted and replayed by message ID without another model call.
 
-Use existing Facts when sufficient. Otherwise, allow one bounded validated aggregation over the accepted source and answer from its result. Distinguish information absent from the source from an operation the product does not support.
+Use existing Facts when sufficient. Otherwise, allow one bounded validated aggregation over the accepted source and answer from its result. The provider returns only an outcome and canonical claim IDs; the server constructs the final answer and references from trusted source/report claims. Unknown, duplicate or excessive claim IDs fail closed. Distinguish information absent from the source from an operation the product does not support.
 
 When information is absent, return `insufficient_data` and display exactly: “В этом отчете нет такой информации”. Unsupported analysis gets a separate honest explanation. Neither condition is a provider exception.
 
-Use cleaned full context for small files or checked aggregates/source retrieval for larger accepted ones. Do not silently trim rows and answer as if all data was examined. Trim older chat first; if source still exceeds budget, explain the limit.
+Use cleaned full context for small files or checked aggregates/source retrieval for larger accepted ones. Do not silently trim rows and answer as if all data was examined. Trim older chat first; if source still exceeds budget, explain the limit. Chat history is bounded and stored with the saved analysis.
 
 Streaming may show progress/provisional text, but only a validated completed answer may be marked verified and saved as final. An interrupted stream is not a successful answer. Chat does not silently rewrite saved charts.
 
 ## Operational bounds
 
-Use the configured Spiro OpenAI-compatible gateway and server-side model ID. The server-only provider adapter in `shared/lib/ai` passes the base URL and key explicitly. Paid analysis fails closed unless provider, Neon, session, rate-salt and quota settings all exist; deletion and cleanup do not depend on provider availability. AI SDK transport retries are disabled. A table uses at most plan + one repair + narrative (three calls); text uses extraction + narrative (two calls). Each call has a 30-second deadline within one 75-second analysis deadline and a stage-specific 1,200–1,800 output-token cap; model strings and the final serialized report are bounded. Neon atomically enforces daily workspace, hashed-IP and global quotas. Receipts expire after 15 minutes, leases after 90 seconds, workspaces after 30 days of inactivity, and quota buckets after 48 hours. Local live table and text probes passed through Spiro with `gpt-5.6-terra`; Vercel's hidden production credential and deployed runtime remain release gates.
+Use the configured Spiro OpenAI-compatible gateway and server-side model ID. The server-only provider adapter in `shared/lib/ai` passes the base URL and key explicitly. Paid analysis fails closed unless provider, Neon, session, rate-salt and quota settings all exist; deletion and cleanup do not depend on provider availability. AI SDK transport retries are disabled. A table uses at most plan + one repair + narrative (three calls); text uses extraction + narrative (two calls); chat uses one bounded provider call after deterministic facts and source context are prepared. Each call has a 30-second deadline within one 75-second analysis deadline and a stage-specific output-token cap; model strings and serialized reports/results are bounded. Neon atomically enforces daily workspace, hashed-IP and global quotas, and saved-analysis chat enforces ten user turns per workspace per UTC day. Receipts expire after 15 minutes, saved analyses/messages after seven days from creation, leases after 90 seconds, workspaces after 30 days of inactivity, and quota buckets after 48 hours. Local live table and text probes passed through Spiro with `gpt-5.6-terra`; Vercel's hidden production credential and deployed runtime remain release gates.
 
 Log request ID, stage, model, token usage, duration and error category, not raw uploads or personal chat. Explain provider transmission and retention separately from database retention. Tests and live-model evaluation: QUALITY.md.

@@ -63,7 +63,7 @@ const report: FinalReport = {
 };
 
 const request = {
-  analysisId: "analysis-1",
+  analysisId: "00000000-0000-4000-8000-000000000002",
   messageId: "123e4567-e89b-12d3-a456-426614174000",
   question: "What is Revenue?",
 };
@@ -100,7 +100,10 @@ describe("grounded chat service", () => {
         { ...request, question: "What is the profit?" },
         {
           loadContext: async (_analysisId, _signal) => context,
-          provider: async () => ({ outcome: "insufficient_data", claims: [] }),
+          provider: async () => ({
+            outcome: "insufficient_data",
+            claimIds: [],
+          }),
         },
       ),
     ).resolves.toEqual({ outcome: "insufficient_data", message: CHAT_REFUSAL });
@@ -138,9 +141,7 @@ describe("grounded chat service", () => {
           loadContext: async (_analysisId, _signal) => context,
           provider: async () => ({
             outcome: "answered",
-            claims: [
-              { text: "Other workspace secret", references: [{ id: "other" }] },
-            ],
+            claimIds: ["other"],
           }),
         },
       ),
@@ -155,18 +156,13 @@ describe("grounded chat service", () => {
           loadContext: async (_analysisId, _signal) => context,
           provider: async () => ({
             outcome: "answered",
-            claims: [
-              {
-                text: "Revenue составляет 200,0 RUB.",
-                references: [{ id: "evidence-0" }],
-              },
-            ],
+            claimIds: ["fact-0"],
           }),
         },
       ),
     ).resolves.toEqual({
       outcome: "answered",
-      answer: "Revenue составляет 200,0 RUB.",
+      answer: "Revenue: 200 RUB.",
       references: [{ id: "evidence-0" }],
     });
   });
@@ -190,12 +186,7 @@ describe("grounded chat service", () => {
           loadContext: async (_analysisId, _signal) => context,
           provider: async () => ({
             outcome: "answered",
-            claims: [
-              {
-                text: "Revenue is 999 RUB.",
-                references: [{ id: "evidence-0" }],
-              },
-            ],
+            claimIds: ["unknown-claim"],
           }),
         },
       ),
@@ -257,15 +248,13 @@ describe("grounded chat service", () => {
           loadContext: async (_analysisId, _signal) => context,
           provider: async () => ({
             outcome: "answered",
-            claims: [
-              { text: "North has revenue 120.", references: [{ id: "row-0" }] },
-            ],
+            claimIds: ["cell-0-0", "cell-0-1"],
           }),
         },
       ),
     ).resolves.toEqual({
       outcome: "answered",
-      answer: "North has revenue 120.",
+      answer: "Region: North. Revenue: 120 RUB.",
       references: [{ id: "row-0" }],
     });
   });
@@ -278,12 +267,7 @@ describe("grounded chat service", () => {
           loadContext: async (_analysisId, _signal) => context,
           provider: async () => ({
             outcome: "answered",
-            claims: [
-              {
-                text: "North launched Tuesday with revenue 1,000.",
-                references: [{ id: "row-0" }],
-              },
-            ],
+            claimIds: ["row-0"],
           }),
         },
       ),
@@ -295,12 +279,7 @@ describe("grounded chat service", () => {
           loadContext: async (_analysisId, _signal) => context,
           provider: async () => ({
             outcome: "answered",
-            claims: [
-              {
-                text: "North has 1.000 revenue.",
-                references: [{ id: "row-0" }],
-              },
-            ],
+            claimIds: ["row-0"],
           }),
         },
       ),
@@ -325,12 +304,7 @@ describe("grounded chat service", () => {
           }),
           provider: async () => ({
             outcome: "answered",
-            claims: [
-              {
-                text: "The launch shipped on Tuesday.",
-                references: [{ id: "paragraph-0" }],
-              },
-            ],
+            claimIds: ["paragraph-0"],
           }),
         },
       ),
@@ -361,12 +335,7 @@ describe("grounded chat service", () => {
           }),
           provider: async () => ({
             outcome: "answered",
-            claims: [
-              {
-                text: "Loss was −1 200,5 RUB.",
-                references: [{ id: "paragraph-0" }],
-              },
-            ],
+            claimIds: ["paragraph-0"],
           }),
         },
       ),
@@ -439,7 +408,10 @@ describe("grounded chat service", () => {
         {
           loadContext: async (_analysisId, _signal) => context,
           signal: controller.signal,
-          provider: async () => ({ outcome: "insufficient_data", claims: [] }),
+          provider: async () => ({
+            outcome: "insufficient_data",
+            claimIds: [],
+          }),
         },
       ),
     ).rejects.toMatchObject({ code: "provider_aborted" });
@@ -465,7 +437,10 @@ describe("grounded chat service", () => {
         { ...request, question: "Tell me a narrative summary" },
         {
           loadContext: async (_analysisId, _signal) => context,
-          provider: async () => ({ outcome: "insufficient_data", claims: [] }),
+          provider: async () => ({
+            outcome: "insufficient_data",
+            claimIds: [],
+          }),
         },
       ),
     ).resolves.toEqual({ outcome: "insufficient_data", message: CHAT_REFUSAL });

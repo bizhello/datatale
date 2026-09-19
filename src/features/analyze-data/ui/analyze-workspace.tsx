@@ -1,7 +1,9 @@
 "use client";
 import { Button } from "@heroui/react";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import type { Dataset, TextSource } from "@/entities/dataset";
+import type { FinalReport } from "@/entities/report";
 import { ReportDashboard } from "@/entities/report/ui";
 import {
   analysisErrorMessages,
@@ -14,8 +16,13 @@ import { InviteAccessModal } from "./invite-access-modal";
 type AnalyzeWorkspaceProps = {
   source: Dataset | TextSource;
   onDelete: () => void;
+  renderReport?: (analysisId: string, report: FinalReport) => ReactNode;
 };
-export function AnalyzeWorkspace({ source, onDelete }: AnalyzeWorkspaceProps) {
+export function AnalyzeWorkspace({
+  source,
+  onDelete,
+  renderReport,
+}: AnalyzeWorkspaceProps) {
   const { state, run, cancel, retry } = useAnalysis(source);
   const [deleteState, setDeleteState] = useState<"idle" | "deleting" | "error">(
     "idle",
@@ -73,7 +80,10 @@ export function AnalyzeWorkspace({ source, onDelete }: AnalyzeWorkspaceProps) {
           </div>
         </div>
       )}
-      {state.status === "ready" && <ReportDashboard report={state.report} />}
+      {state.status === "ready" &&
+        (renderReport?.(state.analysisId, state.report) ?? (
+          <ReportDashboard report={state.report} />
+        ))}
       <InviteAccessModal
         isOpen={accessOpen}
         onOpenChange={setAccessOpen}

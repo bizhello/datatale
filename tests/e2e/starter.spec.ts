@@ -1,10 +1,9 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-
-const analysisId = "00000000-0000-4000-8000-000000000009";
-
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { createMultiSheetXlsx } from "../fixtures/import/xlsx";
+
+const analysisId = "00000000-0000-4000-8000-000000000009";
 
 const dashboardReport = {
   version: 1,
@@ -151,6 +150,48 @@ test("renders a fixture dashboard and expands charts without another analysis re
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await expect(expandButton).toBeFocused();
   expect(requests).toEqual(["guest", "analyze"]);
+});
+
+test("asks a grounded question about the analyzed report", async ({ page }) => {
+  let chatRequest: Record<string, unknown> | undefined;
+  await page.route("**/api/guest", async (route) => {
+    await route.fulfill({
+      json: { expiresAt: "2026-10-19T00:00:00.000Z" },
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  });
+  await page.route("**/api/analyze", async (route) => {
+    await route.fulfill({ json: { analysisId, report: dashboardReport } });
+  });
+  await page.route("**/api/chat", async (route) => {
+    chatRequest = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      json: {
+        outcome: "answered",
+        answer: "Выручка: 274 000 ₽.",
+        references: [{ id: "evidence-0" }],
+      },
+    });
+  });
+
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Загрузить синтетический демо-набор" })
+    .click();
+  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
+  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  const composer = page.getByRole("textbox", { name: "Ваш вопрос к отчёту" });
+  await composer.fill("Какая выручка?");
+  await composer.press("Enter");
+
+  await expect(page.getByText("Выручка: 274 000 ₽.")).toBeVisible();
+  expect(chatRequest).toMatchObject({
+    analysisId,
+    messageId: expect.stringMatching(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    ),
+    question: "Какая выручка?",
+  });
 });
 
 test("shows an approximate analysis estimate while the server request is pending", async ({

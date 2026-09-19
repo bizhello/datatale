@@ -22,4 +22,10 @@ export default defineConfig([
     files: ["./src/features/analyze-data", "./src/features/analyze-data/**"],
     rules: { "fsd/insignificant-slice": "off" },
   },
+  {
+    // Query Report owns grounded chat UI, transport, and server orchestration.
+    // Keep this cohesive feature boundary despite its single widget composer.
+    files: ["./src/features/query-report", "./src/features/query-report/**"],
+    rules: { "fsd/insignificant-slice": "off" },
+  },
 ]);
