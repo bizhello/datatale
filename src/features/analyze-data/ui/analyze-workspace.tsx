@@ -1,8 +1,8 @@
 "use client";
 import { Button, Skeleton } from "@heroui/react";
 import { useState } from "react";
-import { type FinalReport, ReportDashboard } from "@/entities/report";
 import type { Dataset, TextSource } from "@/entities/dataset";
+import { type FinalReport, ReportDashboard } from "@/entities/report";
 
 type AnalyzeWorkspaceProps = {
   source: Dataset | TextSource;

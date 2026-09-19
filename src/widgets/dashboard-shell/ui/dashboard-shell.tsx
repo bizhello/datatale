@@ -3,9 +3,9 @@ import { Chip, ToggleButton, ToggleButtonGroup, Tooltip } from "@heroui/react";
 import { BarChart3, BookOpen, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import type { Dataset, TextSource } from "@/entities/dataset";
 import { AnalyzeWorkspace } from "@/features/analyze-data";
 import { ImportWorkspace } from "@/features/import-data";
-import type { Dataset, TextSource } from "@/entities/dataset";
 
 export function DashboardShell() {
   const { setTheme, theme } = useTheme();

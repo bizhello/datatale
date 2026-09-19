@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 import { datasetSchema, textSourceSchema } from "@/entities/dataset";
 import { AnalysisError, analyzeSource } from "@/features/analyze-data/server";
-import { inputLimits } from "@/shared/config";
+import { hasSafeAnalysisRuntime, inputLimits } from "@/shared/config";
 
 export async function POST(request: Request) {
+  if (!hasSafeAnalysisRuntime())
+    return NextResponse.json(
+      { code: "unavailable" },
+      { status: 503, headers: { "Cache-Control": "private, no-store" } },
+    );
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin)
     return NextResponse.json(

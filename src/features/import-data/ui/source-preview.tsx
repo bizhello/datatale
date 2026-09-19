@@ -1,9 +1,9 @@
 import { Alert, Button, Label, ListBox, Select } from "@heroui/react";
 import { AlertTriangle, CheckCircle2, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import type { Dataset, TextSource } from "@/entities/dataset";
 import { isTextSource } from "../lib/source-guards";
 import type { ReadyState } from "../model/import-workspace-state";
-import type { Dataset, TextSource } from "@/entities/dataset";
 import { TablePreview } from "./table-preview";
 
 type SourcePreviewProps = {
