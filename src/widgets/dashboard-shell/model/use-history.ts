@@ -19,6 +19,10 @@ type HistoryState = Readonly<{
   retryId: string | undefined;
 }>;
 
+type UseHistoryOptions = Readonly<{
+  onAccessLost?: () => void;
+}>;
+
 const initialState: HistoryState = {
   analyses: [],
   selected: undefined,
@@ -29,7 +33,7 @@ const initialState: HistoryState = {
   retryId: undefined,
 };
 
-export function useHistory() {
+export function useHistory({ onAccessLost }: UseHistoryOptions = {}) {
   const [state, setState] = useState<HistoryState>(initialState);
   const generation = useRef(0);
   const listController = useRef<AbortController | undefined>(undefined);
@@ -70,9 +74,11 @@ export function useHistory() {
         setState((current) => ({
           ...current,
           analyses: [],
+          selected: undefined,
           loading: false,
           error: false,
         }));
+        onAccessLost?.();
         return;
       }
       if (!response.ok) throw new Error("History unavailable");
@@ -95,53 +101,71 @@ export function useHistory() {
         return;
       setState((current) => ({ ...current, loading: false, error: true }));
     }
-  }, []);
+  }, [onAccessLost]);
 
-  const open = useCallback(async (id: string) => {
-    const requestGeneration = ++generation.current;
-    listController.current?.abort();
-    detailController.current?.abort();
-    const controller = new AbortController();
-    detailController.current = controller;
-    setState((current) => ({
-      ...current,
-      opening: true,
-      openError: false,
-      retryId: id,
-      selected: undefined,
-    }));
-    try {
-      const response = await fetch(`/api/saved-analysis/${id}`, {
-        method: "GET",
-        signal: controller.signal,
-      });
-      if (!response.ok) throw new Error("History item unavailable");
-      const parsed = historyDetailSchema.safeParse(await response.json());
-      if (!parsed.success) throw new Error("Invalid history item");
-      if (requestGeneration !== generation.current || !mounted.current) return;
+  const open = useCallback(
+    async (id: string) => {
+      const requestGeneration = ++generation.current;
+      listController.current?.abort();
+      detailController.current?.abort();
+      const controller = new AbortController();
+      detailController.current = controller;
       setState((current) => ({
         ...current,
-        selected: {
-          ...parsed.data,
-          messages: restoreMessages(parsed.data.messages),
-        },
-        opening: false,
+        opening: true,
         openError: false,
+        retryId: id,
       }));
-    } catch {
-      if (
-        controller.signal.aborted ||
-        requestGeneration !== generation.current ||
-        !mounted.current
-      )
-        return;
-      setState((current) => ({
-        ...current,
-        opening: false,
-        openError: true,
-      }));
-    }
-  }, []);
+      try {
+        const response = await fetch(`/api/saved-analysis/${id}`, {
+          method: "GET",
+          signal: controller.signal,
+        });
+        if (response.status === 401) {
+          if (requestGeneration !== generation.current || !mounted.current)
+            return;
+          setState((current) => ({
+            ...current,
+            analyses: [],
+            selected: undefined,
+            loading: false,
+            opening: false,
+            openError: false,
+            retryId: undefined,
+          }));
+          onAccessLost?.();
+          return;
+        }
+        if (!response.ok) throw new Error("History item unavailable");
+        const parsed = historyDetailSchema.safeParse(await response.json());
+        if (!parsed.success) throw new Error("Invalid history item");
+        if (requestGeneration !== generation.current || !mounted.current)
+          return;
+        setState((current) => ({
+          ...current,
+          selected: {
+            ...parsed.data,
+            messages: restoreMessages(parsed.data.messages),
+          },
+          opening: false,
+          openError: false,
+        }));
+      } catch {
+        if (
+          controller.signal.aborted ||
+          requestGeneration !== generation.current ||
+          !mounted.current
+        )
+          return;
+        setState((current) => ({
+          ...current,
+          opening: false,
+          openError: true,
+        }));
+      }
+    },
+    [onAccessLost],
+  );
 
   const sourceReady = useCallback(() => invalidate(false), [invalidate]);
   const deleteAll = useCallback(() => invalidate(true), [invalidate]);

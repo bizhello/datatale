@@ -18,6 +18,10 @@ export function DashboardShell() {
   const [source, setSource] = useState<Dataset | TextSource>();
   const [workspaceVersion, setWorkspaceVersion] = useState(0);
   const [onboardingActive, setOnboardingActive] = useState(false);
+  const handleAccessLost = useCallback(() => {
+    setSource(undefined);
+    setWorkspaceVersion((version) => version + 1);
+  }, []);
   const {
     analyses: history,
     selected: selectedHistory,
@@ -30,7 +34,7 @@ export function DashboardShell() {
     open: openHistory,
     sourceReady,
     deleteAll: clearHistory,
-  } = useHistory();
+  } = useHistory({ onAccessLost: handleAccessLost });
   const refreshHistory = useCallback(() => void loadHistory(), [loadHistory]);
   const handleSourceReady = useCallback(
     (next: Dataset | TextSource) => {
