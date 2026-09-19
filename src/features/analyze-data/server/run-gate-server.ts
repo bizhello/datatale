@@ -26,3 +26,9 @@ export function getRunGate<Report = unknown>() {
     getRunGateConfig(),
   );
 }
+export function cleanupAnalysisGate(now = new Date()) {
+  return new SqlRunGateRepository().cleanup(now);
+}
+export function deleteAnalysisWorkspace(workspaceId: string) {
+  return new SqlRunGateRepository().deleteWorkspace(workspaceId);
+}

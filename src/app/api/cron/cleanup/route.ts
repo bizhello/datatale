@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { SqlRunGateRepository } from "@/features/analyze-data/server/run-gate-repository";
+import { cleanupAnalysisGate } from "@/features/analyze-data/server";
 import { hasSafeAnalysisRuntime } from "@/shared/config";
 
 export async function GET(request: Request) {
@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   ) {
     return NextResponse.json({ code: "unauthorized" }, { status: 401 });
   }
-  const deleted = await new SqlRunGateRepository().cleanup(new Date());
+  const deleted = await cleanupAnalysisGate();
   return NextResponse.json(
     { deleted },
     { headers: { "Cache-Control": "no-store" } },

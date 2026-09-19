@@ -9,11 +9,7 @@ import type {
 } from "./run-gate";
 
 type Sql = ReturnType<typeof getDatabase>;
-const day = (date: Date) =>
-  new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-  );
-/** PostgreSQL repository. Its claim statement locks the receipt key before incrementing quota buckets. */
+/** The migration's claim_analysis_run function performs every claim decision atomically. */
 export class SqlRunGateRepository<Report = unknown>
   implements RunGateRepository<Report>
 {
@@ -26,56 +22,32 @@ export class SqlRunGateRepository<Report = unknown>
     input: ClaimInput,
     config: Required<RunGateConfig>,
   ): Promise<RunGateOutcome<Report>> {
-    const sql = this.client();
     const now = input.now ?? new Date();
-    const expires = new Date(now.getTime() + config.receiptTtlMs);
-    const lease = new Date(now.getTime() + config.leaseMs);
-    const quotaExpires = new Date(now.getTime() + config.quotaTtlMs);
-    const id = randomUUID();
-    // One transaction serializes a workspace/key claim. Quotas are incremented only for a new/reclaimed unspent receipt.
-    const rows = await sql.transaction([
-      sql`SELECT pg_advisory_xact_lock(hashtext(${`${input.workspaceId}:${input.key}`}))`,
-      sql`SELECT id, fingerprint, state, provider_started_at, lease_expires_at, expires_at, report FROM analysis_runs WHERE workspace_id = ${input.workspaceId} AND idempotency_key = ${input.key} FOR UPDATE`,
-    ]);
-    const existing = rows[1]?.[0] as Record<string, unknown> | undefined;
-    if (existing && new Date(String(existing.expires_at)) > now) {
-      if (existing.fingerprint !== input.fingerprint)
-        return { kind: "conflict" };
-      if (existing.state === "succeeded" && existing.report !== null)
-        return { kind: "replay", report: existing.report as Report };
-      if (
-        existing.state === "provider_started" ||
-        (existing.state === "failed" && existing.provider_started_at)
-      )
-        return { kind: "provider-started" };
-      if (
-        existing.state === "claimed" &&
-        new Date(String(existing.lease_expires_at)) > now
-      )
-        return { kind: "in-flight" };
-      await sql`UPDATE analysis_runs SET state = 'claimed', lease_expires_at = ${lease}, failure_code = NULL WHERE id = ${existing.id as string}`;
-      return { kind: "claimed", receiptId: existing.id as string };
-    }
-    const scopes: Array<[string, number, "workspace" | "ip" | "global"]> = [
-      [
-        `workspace:${input.workspaceId}`,
-        config.workspaceDailyLimit,
-        "workspace",
-      ],
-      [`ip:${input.ipHash}`, config.ipDailyLimit, "ip"],
-      ["global", config.globalDailyLimit, "global"],
-    ];
-    const bucket = day(now);
-    for (const [scope, limit, kind] of scopes) {
-      const count =
-        await sql`SELECT count FROM analysis_quota_buckets WHERE scope = ${scope} AND bucket_start = ${bucket} AND expires_at > ${now}`;
-      if (Number(count[0]?.count ?? 0) >= limit)
-        return { kind: "quota", scope: kind };
-    }
-    for (const [scope] of scopes)
-      await sql`INSERT INTO analysis_quota_buckets (scope, bucket_start, count, expires_at) VALUES (${scope}, ${bucket}, 1, ${quotaExpires}) ON CONFLICT (scope, bucket_start) DO UPDATE SET count = analysis_quota_buckets.count + 1, expires_at = EXCLUDED.expires_at`;
-    await sql`INSERT INTO analysis_runs (id, workspace_id, idempotency_key, fingerprint, state, lease_expires_at, expires_at) VALUES (${id}, ${input.workspaceId}, ${input.key}, ${input.fingerprint}, 'claimed', ${lease}, ${expires}) ON CONFLICT (workspace_id, idempotency_key) DO NOTHING`;
-    return { kind: "claimed", receiptId: id };
+    const rows =
+      await this.client()`SELECT * FROM claim_analysis_run(${randomUUID()}, ${input.workspaceId}, ${input.key}, ${input.fingerprint}, ${input.ipHash}, ${now}, ${config.workspaceDailyLimit}, ${config.ipDailyLimit}, ${config.globalDailyLimit}, ${config.receiptTtlMs}, ${config.leaseMs}, ${config.quotaTtlMs})`;
+    const result = rows[0] as
+      | {
+          kind: string;
+          receipt_id: string | null;
+          report: Report | null;
+          quota_scope: "workspace" | "ip" | "global" | null;
+        }
+      | undefined;
+    if (!result || result.kind === "unavailable")
+      return { kind: "unavailable" };
+    if (result.kind === "claimed" && result.receipt_id)
+      return { kind: "claimed", receiptId: result.receipt_id };
+    if (result.kind === "replay" && result.report !== null)
+      return { kind: "replay", report: result.report };
+    if (result.kind === "quota" && result.quota_scope)
+      return { kind: "quota", scope: result.quota_scope };
+    if (
+      result.kind === "conflict" ||
+      result.kind === "in-flight" ||
+      result.kind === "provider-started"
+    )
+      return { kind: result.kind };
+    return { kind: "unavailable" };
   }
   async markProviderStarted(workspaceId: string, receiptId: string, now: Date) {
     const rows =

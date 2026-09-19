@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import {
   clearGuestSession,
   readGuestWorkspace,
-} from "@/entities/guest-workspace/server";
-import { SqlRunGateRepository } from "@/features/analyze-data/server/run-gate-repository";
+} from "@/entities/guest-workspace";
+import { deleteAnalysisWorkspace } from "@/features/analyze-data/server";
 import { hasSafeAnalysisRuntime } from "@/shared/config";
 
 export async function DELETE() {
@@ -18,7 +18,7 @@ export async function DELETE() {
       { code: "expired" },
       { status: 401, headers: { "Cache-Control": "private, no-store" } },
     );
-  await new SqlRunGateRepository().deleteWorkspace(workspace.id);
+  await deleteAnalysisWorkspace(workspace.id);
   await clearGuestSession();
   return new NextResponse(null, {
     status: 204,
