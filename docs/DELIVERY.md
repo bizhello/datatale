@@ -2,7 +2,7 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** DT-INPUT and HeroUI adoption are integrated through `2514d84`. The current vertical slice connects CSV/XLSX/text input to bounded AI analysis, checked facts, a responsive narrative dashboard, atomic guest/quota/idempotency controls, and grounded Ask the Data chat. Successful analyses persist immutable source/report payloads and owner-scoped messages for seven days from creation; chat uses a ten-user-turn-per-workspace daily quota, exact absent-data refusal, canonical server-owned claims and persisted result replay. Isolated Neon deployment verification, Vercel preview, and production credential/runtime verification remain required. Final integrated test counts and SHA are pending this wave's combined review.
+**Current state:** the complete MVP journey is integrated through `63b6b36`: CSV/XLSX/text input → bounded AI analysis → checked narrative and charts → grounded Ask the Data chat. Successful analyses persist immutable source/report payloads and owner-scoped messages for seven days from creation; chat uses a ten-user-turn-per-workspace daily quota, exact absent-data refusal, canonical server-owned claims, persisted replay, and a paid-call inference lease. Sol approved the exact code candidate after disposable PostgreSQL concurrency probes; 209 Vitest and 48 Playwright cases pass. Live Neon migration, Vercel preview/runtime, production gateway invocation, and scheduled cleanup remain release gates.
 
 ## Work packages
 
@@ -15,17 +15,17 @@ These are acceptance packages, not mandatory separate PRs. Dispatch complete use
 | DT-02 | Visual shell: responsive layout, light/dark/system, custom identity/favicon, HeroUI Skeleton and accessible states; both-theme mobile/desktop evidence | DT-00 | implemented in PR #7 |
 | DT-03 | CSV input: picker/dropzone, preview, limits and canonical normalization; quoted newlines/BOM/duplicate headers/empty input tests | DT-01a | implemented in PR #7 |
 | DT-04 | Verified metrics: profile, approved aggregations and semantic plan checks over all accepted rows; known totals, zero denominator, units and invalid-chart tests | DT-01 | exact candidate approved; external gates pending |
-| DT-05 | Guest storage boundary: Neon/Drizzle and iron-session, immutable source/report/message persistence, ownership, fixed expiry and atomic/idempotent claims; isolation and failure tests | DT-01, EXT-02 | implemented in current integration; isolated Neon and final combined review pending |
+| DT-05 | Guest storage boundary: Neon/Drizzle and iron-session, immutable source/report/message persistence, ownership, fixed expiry and atomic/idempotent claims; isolation and failure tests | DT-01, EXT-02 | exact candidate approved; disposable PostgreSQL passed, live Neon pending |
 | DT-06 | AI analysis: catalog-generated prompt context, bounded plan repair, checked facts and 2–3 sentence narrative with evidence; invalid output, injection, timeout and real-provider fixtures | DT-04, EXT-01 | candidate complete; local live table/text compatibility passed, deployed eval pending |
 | DT-07 | Report rendering: exhaustive Recharts registry, hero, evidence and chart rationale; 2–3 useful interactive charts from canonical fixtures, touch/keyboard, both themes and expanded chart dialog per UI.md | DT-01, DT-02 | exact candidate approved; preview gate pending |
-| DT-08 | Grounded chat: owner-checked source context, bounded calculations, persisted history/result replay, ten-turn quota, canonical claim IDs, timeout/error handling and exact insufficient-data refusal | DT-05, DT-06 | implemented in current integration; final combined review pending |
-| DT-09 | Connected journey: thin API routes, input → analysis → charts → chat, stage state/cancel/retry; owner-scoped saved report/chat replay and cleanup | DT-03, DT-05, DT-06, DT-07, DT-08 | implemented in current integration; final browser/release gate pending |
+| DT-08 | Grounded chat: owner-checked source context, bounded calculations, persisted history/result replay, ten-turn quota, canonical claim IDs, timeout/error handling and exact insufficient-data refusal | DT-05, DT-06 | exact candidate approved |
+| DT-09 | Connected journey: thin API routes, input → analysis → charts → chat, stage state/cancel/retry; owner-scoped saved report/chat replay and cleanup | DT-03, DT-05, DT-06, DT-07, DT-08 | integrated and locally verified; external release gates pending |
 | DT-10 | XLSX/text input: sheet selection, explicit text quantities with quotations, bounded parsing and honest no-chart state; integrate and test through the same journey | DT-01a for input; AI dashboard for extraction | input integrated; text extraction candidate complete |
 | DT-11 | Release: real-model quality, production/mobile/theme/error checks, GitHub README, Vercel/subdomain and 3–5 minute pitch with actual AI evidence | DT-10, EXT-03 | queued |
 | DT-12 | Enhancement: skippable/replayable Driver.js demo tour; persistence, mobile, focus and reduced-motion checks | DT-09 | queued |
 | DT-13 | Enhancement: reuse a blueprint with new input, explicit mapping and recalculation; no carried-over facts | DT-10 | queued |
 
-Integrate incremental adapters and smoke tests as each package lands; DT-09 is the completed journey gate, not permission to postpone all integration until the end. DT-05 defines the storage boundary early to avoid competing temporary backends. Detailed history UI is completed in DT-09 after the four-feature path works.
+Integrate incremental adapters and smoke tests as each package lands; DT-09 is the completed four-feature journey gate, not permission to postpone all integration until the end. DT-05 defines the storage boundary early to avoid competing temporary backends. Detailed history and reopening UI remain the first substantial enhancement after the MVP journey.
 
 ## External prerequisites
 
@@ -42,7 +42,7 @@ Never put credentials in this board. Local implementation and provider/storage d
 1. **DT-INPUT:** DT-02 input shell + DT-03 + DT-10 source acceptance, based on the integrated Dataset contract. XLSX/text analysis remains part of the later dashboard.
 2. **AI dashboard:** remaining DT-01 contracts + DT-04/DT-06/DT-07 and necessary connection work; finish input-to-grounded-dashboard before extras.
 3. **Grounded chat:** DT-08 plus required API/source context. Keep credentials and private access server-side.
-4. **Saved history:** DT-05 and reopening/deletion in DT-09, after isolated storage prerequisites exist.
+4. **Saved history enhancement:** add history listing, reopening, and report deletion on top of DT-05 persistence after the four-feature MVP and external storage gates pass.
 5. **Release:** DT-11 and final polish; onboarding DT-12 only after the core journey passes. DT-13 remains first to cut.
 
 One feature branch/PR may span several packages. Keep independent exact-candidate review, targeted tests during development and one applicable full release gate. Use multiple executors only when paths and contracts are genuinely independent.
@@ -53,9 +53,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| AI Dashboard (DT-01/04/06/07 vertical) | Executors: Terra/Luna; conductor: contracts/docs/integration; reviewer: Sol medium | code candidate approved; external gates pending | `feat/ai-dashboard` / `../datatale-worktrees/ai-dashboard` | Candidate owns report/workspace entities, access gate, analyze-data, AI/DB adapters, API routes, dashboard composition, migration/config, related tests/styles and canonical docs | Verify isolated Neon and Vercel preview; production remains fail-closed until migrations, invite hashes, quotas, cron, and deployed runtime checks pass |
-| DT-05 durable report storage | Luna executor; conductor integrates | integrated in current wave | `feat/dt-05-report-storage` | Owner-scoped immutable source/report/message repository and migration | Final combined review and isolated Neon verification |
-| DT-08 grounded chat | Luna executors; conductor integrates | integrated in current wave | `feat/dt-08-grounded-chat` | `entities/chat`, `features/query-report`, `/api/chat`, saved-analysis runtime and route integration | Final combined review, browser run and docs evidence |
+| AI Dashboard MVP (DT-01/04/05/06/07/08/09) | Luna/Terra executors; conductor integration; Sol review | exact code candidate approved; external gates pending | `63b6b36`; `feat/ai-dashboard`; `../datatale-worktrees/ai-dashboard` | Input, analysis, report, persistence, grounded chat, cleanup, migrations, tests, and canonical docs | Apply migrations `0001`–`0004` to isolated/live Neon, verify Vercel preview and production runtime, then prepare release evidence |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 
@@ -71,6 +69,7 @@ For each active task, add its filled assignment from WORKFLOW under this section
 | DT-INPUT component ownership | `169a04c` ([PR #8](https://github.com/bizhello/datatale/pull/8)) | Sol medium approved exact candidate `61f5c11`; squash tree matched reviewed candidate | `bun run check:all`: 49 Vitest + 21 Playwright tests passed; hosted CI, Vercel deployment and production HTTP smoke passed |
 | DT-INPUT HeroUI adoption | `e13220c` ([PR #9](https://github.com/bizhello/datatale/pull/9)); corrected in `2514d84` ([PR #10](https://github.com/bizhello/datatale/pull/10)) | Independent review rejected a non-discriminating event-handler workaround, then approved the exact hydration-synchronized candidate | `bun run check`, 27 Playwright cases, post-merge hosted CI, and production picker/text smoke passed |
 | AI Dashboard estimated progress | `1a7e3e8` | Sol approved exact pre-integration candidate `6b724ae` after stale-request timer ownership, stepped cadence, honest estimate copy and canonical documentation corrections | Integrated `bun run check`: Biome, Steiger, strict TypeScript, 163 Vitest tests and default Turbopack build passed; 45 Playwright cases passed across desktop Chromium, mobile Chromium and mobile WebKit |
+| Grounded chat and saved analyses | `63b6b36` | Sol approved exact combined code candidate after provider-claim, grounding, retention, migration, ownership, and concurrency review | `bun run check`: 209 Vitest tests and production build passed; Playwright 48/48 passed. PostgreSQL 16 applied migrations `0001`–`0004` and serialized concurrent inference claims; live Neon/Vercel remain pending |
 
 Append one concise row per integrated task. Update task state and any changed README/domain contracts in the same integration handoff. Git retains prior board revisions; AI-WORKLOG retains selected real prompts/errors for the pitch.
 
