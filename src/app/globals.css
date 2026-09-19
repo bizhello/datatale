@@ -347,6 +347,9 @@ footer {
   align-items: end;
   gap: clamp(24px, 6vw, 84px);
 }
+.import-hero-grid-single {
+  grid-template-columns: 1fr;
+}
 .liquid-result-preview {
   position: relative;
   isolation: isolate;

@@ -32,7 +32,9 @@ export function ImportWorkspace({ onReady }: ImportWorkspaceProps) {
       aria-labelledby="input-title"
       id="onboarding-source"
     >
-      <div className="import-hero-grid">
+      <div
+        className={`import-hero-grid${state.status === "empty" ? "" : " import-hero-grid-single"}`}
+      >
         <div className="section-heading">
           <p className="eyebrow">ИСТОЧНИК ДАННЫХ</p>
           <h1 id="input-title">Начните с того, что у вас уже есть.</h1>
@@ -41,7 +43,7 @@ export function ImportWorkspace({ onReady }: ImportWorkspaceProps) {
             запускаете AI-анализ.
           </p>
         </div>
-        <LiquidResultPreview />
+        {state.status === "empty" && <LiquidResultPreview />}
       </div>
       {state.status === "error" && (
         <ErrorState
