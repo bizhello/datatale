@@ -4,7 +4,7 @@ DataTale's production MVP delivers the complete assignment journey: CSV/XLSX/tex
 
 ## Current state
 
-All Must Have features and the optional first-visit tour are deployed. Production commit `fd464cb` is Ready. The ordered migration set contains `0001`–`0005`; guarded production builds run the checksum-ledger migration runner before Next.js. Branch and pull-request Vercel deployments are disabled; historical and canceled preview deployments were removed, leaving no preview deployments.
+All Must Have features and the optional first-visit tour are deployed. Production commit `fd464cb` is Ready with migrations `0001`–`0004`. This candidate adds `0005_strict_report_hero.sql`; the guarded production build will apply it before Next.js after merge. Branch and pull-request Vercel deployments are disabled; historical and canceled preview deployments were removed, leaving no preview deployments.
 
 The release gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 231 Vitest tests, and 66 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. A post-merge production table run returned HTTP 200 with three hero statements, three metrics, and three charts; missing-data chat returned the exact refusal with HTTP 200. Desktop Chromium and mobile WebKit onboarding smoke passed with an inert welcome, local deterministic demo, Escape/replay, unique IDs, and zero `/api/analyze` calls.
 
@@ -28,7 +28,7 @@ The release gate passes Biome, Steiger, strict TypeScript, the Turbopack product
 | [#13](https://github.com/bizhello/datatale/pull/13) | Advisory-locked checksum migration runner; main-only Vercel deployments | Ledger drift and reconciliation fail closed; migrations `0001`–`0004` applied to production |
 | [#14](https://github.com/bizhello/datatale/pull/14) | Grounded text evidence survives model unit/period paraphrases | Exact source quotations remain evidence while unsupported numeric facts are excluded |
 | [#15](https://github.com/bizhello/datatale/pull/15) | Production build migrates before Next.js | Review required both `VERCEL_ENV=production` and `VERCEL_GIT_COMMIT_REF=main`; migration failure blocks deployment |
-| [#16](https://github.com/bizhello/datatale/pull/16) | New AI reports require two or three separately grounded hero sentences | A live one-sentence result exposed the gap; prompt, generation, persistence, replay, UI fixtures, and database constraints now enforce the same canonical contract |
+| [#16](https://github.com/bizhello/datatale/pull/16) | New AI reports require two or three separately grounded hero sentences | A live one-sentence result exposed the generation gap; the current reliability candidate extends the same contract through persistence, replay, UI fixtures, cleanup, and database constraints |
 | [#17](https://github.com/bizhello/datatale/pull/17) | Accessible first-visit onboarding | Review corrected duplicate IDs during replay, light-theme contrast, and non-modal welcome interaction; final desktop/mobile checks passed |
 
 GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI, component-ownership, HeroUI, and hydration history. [AI-WORKLOG.md](AI-WORKLOG.md) records the material AI-assisted mistakes and corrections used for the pitch.
