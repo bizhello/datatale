@@ -2,7 +2,9 @@
 
 Turn a CSV, an Excel workbook, or a short report into a grounded story, interactive charts, and answers supported by the source.
 
-**Current implementation: local input workspace.** Import CSV/XLSX or paste a report, choose an Excel sheet, inspect a labeled preview and full accepted counts, or try the synthetic demo. File parsing runs in a cancellable browser worker with resource limits; light/dark/system themes and mobile layouts are supported. This step does not send source data to a server or save it. AI analysis, chart rendering, chat, persistence and onboarding remain planned.
+**Current implementation: input-to-dashboard candidate.** Import CSV/XLSX or paste a report, inspect the bounded preview, and run a grounded analysis. AI proposes metrics and supported bar/line/donut charts; application code validates the proposal, calculates every displayed value over the complete accepted table, and asks AI for a narrative tied to checked facts. Text reports use exact quotation-backed evidence and return an honest no-chart result. The responsive HeroUI/Recharts dashboard includes loading, error, retry, cancellation, evidence, and expanded-chart states.
+
+Analysis creates a sealed 30-day guest workspace and a 15-minute idempotency receipt in Neon. The complete source is transmitted to the configured AI provider for the current request but is not persisted by this feature. Chat, saved report history, onboarding, and long-lived dataset/report storage remain planned. Production analysis fails closed until every database, provider, session, quota, and cleanup variable is configured.
 
 The normalized Dataset contract and chart-planning catalog are integrated. The repository uses Bun, Biome, strict TypeScript, Steiger, Vitest and Playwright/axe. GitHub: https://github.com/bizhello/datatale.
 
@@ -17,7 +19,7 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
-Open http://localhost:3000. Local input and preview need no secrets. Refreshing the page clears source data; only the theme preference persists.
+Open http://localhost:3000. Local input and preview need no secrets. Analysis requires every variable in `.env.example` plus migration `migrations/0001_ai_dashboard.sql` applied to an isolated Neon database. Refreshing the page clears source data and the displayed report; only the theme preference persists.
 
 ```bash
 bun run check                       # lint, architecture, types, unit tests, production build

@@ -28,7 +28,7 @@ If storage is unavailable, retain the preference for the current page session an
 
 Support CSV, XLSX and text; explain that legacy XLS must be converted. A workbook needs sheet selection. Cached formula values are not a guarantee of recalculation; macros never run. Dates, decimal separators, currencies, missing values and duplicate headers require explicit normalization rules.
 
-Input acceptance limits: 2 MiB per file, 1 MiB canonical source JSON, 5,000 data rows, 30 columns and 30,000 text characters. The strictest limit wins; reject instead of silently truncating. XLSX parsing is bounded by 16 MiB actual total archive expansion, 256 entries, 150,030 physical cells and a 15-second worker deadline. Check worksheet dimensions and cell coordinates before dense-array construction. The future API must validate again even when browser validation passed.
+Input acceptance limits: 2 MiB per file, 1 MiB canonical source JSON, 5,000 data rows, 30 columns and 30,000 text characters. The strictest limit wins; reject instead of silently truncating. XLSX parsing is bounded by 16 MiB actual total archive expansion, 256 entries, 150,030 physical cells and a 15-second worker deadline. Check worksheet dimensions and cell coordinates before dense-array construction. The analysis API validates the canonical source and byte limit again even when browser validation passed.
 
 Preview a labeled sample while showing full accepted row/column counts. Empty cells become null. Generate safe internal IDs independently of source headers. Preserve identifiers with leading zeros, ambiguous dates, locale decimals and currency strings; report conservative inference warnings instead of guessing units or locale. Retain raw text and paragraph references without inventing numeric facts. Input preparation alone sends no source data to a server and does not create a guest session or save a report. Model transmission disclosure applies when analysis is introduced.
 
@@ -36,7 +36,7 @@ Preview a labeled sample while showing full accepted row/column counts. Empty ce
 
 - Create a random guest workspace when first saving/analyzing; do not create an account or identify a person by IP.
 - Guest access expires after approximately 30 days of inactivity. Refresh explicitly on meaningful use, normally at most daily. Cookie TTL and server expiry must agree; the UI must not promise precision beyond the refresh policy.
-- Every report, accepted dataset and associated chat expires 7 days after report creation. Viewing/chatting does not extend that deadline.
+- The current idempotency receipt and its validated report expire after 15 minutes; the complete source is not stored by the AI Dashboard feature. Future saved reports, accepted datasets and associated chat expire 7 days after report creation. Viewing/chatting does not extend that deadline.
 - Expired data is immediately inaccessible. Scheduled cleanup removes it from the primary database, with a target daily interval. Provider/backup retention is separate.
 - Cookie loss, another browser or private mode can end access early. There is no IP-based recovery or cross-device synchronization.
 - Cookie deletion alone is not server-data deletion. A dedicated delete-all operation removes content, revokes the workspace, and clears cookie/client caches.

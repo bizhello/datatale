@@ -2,7 +2,7 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** DT-INPUT, its component-ownership refactor, and HeroUI input adoption are integrated through `2514d84` via [PR #7](https://github.com/bizhello/datatale/pull/7), [PR #8](https://github.com/bizhello/datatale/pull/8), [PR #9](https://github.com/bizhello/datatale/pull/9), and the mobile-WebKit hydration correction in [PR #10](https://github.com/bizhello/datatale/pull/10). Independent review, post-merge CI, and production smoke passed. AI-dashboard work remains next; analysis, charts, chat, persistence and onboarding are not implemented.
+**Current state:** DT-INPUT and HeroUI adoption are integrated through `2514d84`. The AI Dashboard candidate now connects CSV/XLSX/text input to bounded AI analysis, checked facts, a responsive narrative dashboard, and atomic guest/quota/idempotency controls. Local static, unit, integration, build, and browser gates pass. Independent exact-candidate review, isolated Neon verification, Vercel preview, and live-model evaluation remain required before its PR. Chat, durable history, onboarding, and long-lived source/report persistence are not implemented.
 
 ## Work packages
 
@@ -11,16 +11,16 @@ These are acceptance packages, not mandatory separate PRs. Dispatch complete use
 | ID | Outcome and acceptance | Depends on | State |
 | --- | --- | --- | --- |
 | DT-00 | Establish baseline: inspect intended files, frozen install and foundation checks, baseline commit; record SHA | — | done |
-| DT-01 | Core contracts: canonical Dataset, AnalysisPlan, Facts and Report schemas; serializable bar/line/donut catalog; shared synthetic fixture and invalid-plan cases. Feature boundaries validate cross-entity references | DT-00 | queued |
+| DT-01 | Core contracts: canonical Dataset, AnalysisPlan, Facts and Report schemas; serializable bar/line/donut catalog; shared synthetic fixture and invalid-plan cases. Feature boundaries validate cross-entity references | DT-00 | candidate complete; review pending |
 | DT-02 | Visual shell: responsive layout, light/dark/system, custom identity/favicon, HeroUI Skeleton and accessible states; both-theme mobile/desktop evidence | DT-00 | implemented in PR #7 |
 | DT-03 | CSV input: picker/dropzone, preview, limits and canonical normalization; quoted newlines/BOM/duplicate headers/empty input tests | DT-01a | implemented in PR #7 |
-| DT-04 | Verified metrics: profile, approved aggregations and semantic plan checks over all accepted rows; known totals, zero denominator, units and invalid-chart tests | DT-01 | queued |
-| DT-05 | Guest storage boundary: Neon/Drizzle and iron-session, source/report/message persistence, ownership, expiry and atomic/idempotent run claims; isolation and failure tests | DT-01, EXT-02 | queued |
-| DT-06 | AI analysis: catalog-generated prompt context, bounded plan repair, checked facts and 2–3 sentence narrative with evidence; invalid output, injection, timeout and real-provider fixtures | DT-04, EXT-01 | queued |
-| DT-07 | Report rendering: exhaustive Recharts registry, hero, evidence and chart rationale; 2–3 useful interactive charts from canonical fixtures, touch/keyboard, both themes and expanded chart dialog per UI.md | DT-01, DT-02 | queued |
+| DT-04 | Verified metrics: profile, approved aggregations and semantic plan checks over all accepted rows; known totals, zero denominator, units and invalid-chart tests | DT-01 | candidate complete; review pending |
+| DT-05 | Guest storage boundary: Neon/Drizzle and iron-session, source/report/message persistence, ownership, expiry and atomic/idempotent run claims; isolation and failure tests | DT-01, EXT-02 | guest session, quotas and run receipts in candidate; durable source/report/message storage queued |
+| DT-06 | AI analysis: catalog-generated prompt context, bounded plan repair, checked facts and 2–3 sentence narrative with evidence; invalid output, injection, timeout and real-provider fixtures | DT-04, EXT-01 | mocked candidate complete; live eval pending |
+| DT-07 | Report rendering: exhaustive Recharts registry, hero, evidence and chart rationale; 2–3 useful interactive charts from canonical fixtures, touch/keyboard, both themes and expanded chart dialog per UI.md | DT-01, DT-02 | candidate complete; review pending |
 | DT-08 | Grounded chat: owner-checked source context, bounded calculations, stream/error handling and exact insufficient-data refusal; supported/absent/injection cases | DT-05, DT-06 | queued |
-| DT-09 | Connected journey: thin API routes, input → analysis → charts → chat, stage state/cancel/retry; history reopen/delete without repeat inference; production E2E | DT-03, DT-05, DT-06, DT-07, DT-08 | queued |
-| DT-10 | XLSX/text input: sheet selection, explicit text quantities with quotations, bounded parsing and honest no-chart state; integrate and test through the same journey | DT-01a for input; AI dashboard for extraction | input implemented in PR #7; extraction queued |
+| DT-09 | Connected journey: thin API routes, input → analysis → charts → chat, stage state/cancel/retry; history reopen/delete without repeat inference; production E2E | DT-03, DT-05, DT-06, DT-07, DT-08 | input → analysis → charts candidate complete; chat/history queued |
+| DT-10 | XLSX/text input: sheet selection, explicit text quantities with quotations, bounded parsing and honest no-chart state; integrate and test through the same journey | DT-01a for input; AI dashboard for extraction | input integrated; text extraction candidate complete |
 | DT-11 | Release: real-model quality, production/mobile/theme/error checks, GitHub README, Vercel/subdomain and 3–5 minute pitch with actual AI evidence | DT-10, EXT-03 | queued |
 | DT-12 | Enhancement: skippable/replayable Driver.js demo tour; persistence, mobile, focus and reduced-motion checks | DT-09 | queued |
 | DT-13 | Enhancement: reuse a blueprint with new input, explicit mapping and recalculation; no carried-over facts | DT-10 | queued |
@@ -53,7 +53,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| AI Dashboard (DT-01/04/06/07 vertical) | Executor: Terra medium; conductor: contracts/dependencies/docs/integration; reviewer: Sol medium | active | `1baf9ad4087c1704bda0e08d0d949a26ccfdc7e8` / `feat/ai-dashboard` / `../datatale-worktrees/ai-dashboard` | Executor: report/workspace entities, analyze-data, AI/DB server adapters, API routes, dashboard/import composition, migrations/config, related tests/styles; conductor: dependencies and canonical docs | Implement reviewed `.dev-tasks/ai-dashboard.md` checkpoints; production remains fail-closed until isolated DB, quotas, cron, and live evals pass |
+| AI Dashboard (DT-01/04/06/07 vertical) | Executor: Terra medium; conductor: contracts/dependencies/docs/integration; reviewer: Sol medium | review handoff | `feat/ai-dashboard` / `../datatale-worktrees/ai-dashboard` | Candidate owns report/workspace entities, analyze-data, AI/DB adapters, API routes, dashboard composition, migration/config, related tests/styles and canonical docs | Commit exact candidate, run independent review, then verify isolated Neon and Vercel preview; production remains fail-closed until migration, quotas, cron, and live evals pass |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 
