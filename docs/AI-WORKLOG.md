@@ -24,7 +24,7 @@ The wave adds an owner-scoped saved-report picker that reopens the validated sou
 
 Independent review rejected the first green candidate because a late detail response could restore private data after deletion or source replacement, malformed SQL rows were silently omitted, same-day labels were ambiguous, and loading/error states were incomplete for assistive technology and mobile. The corrected history hook owns abort controllers and request generations, handles React Strict Mode, preserves report A when report B fails, clears reopened private state on list/detail 401, and does not erase local input for the expected initial no-workspace 401. SQL list/message boundaries now fail closed, and two-owner route evidence proves foreign list exclusion, known-ID 404, and no foreign message read.
 
-The integrated gate passes Biome, Steiger, strict TypeScript, 272 Vitest tests, the Turbopack production build, and 69 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Review approved exact final code candidate `9ec0d9d`; deployment evidence is recorded separately after the main-branch rollout.
+The integrated gate passes Biome, Steiger, strict TypeScript, 272 Vitest tests, the Turbopack production build, and 69 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Review approved exact final code candidate `9ec0d9d`. PR #21 squash-merged as `339d1c8`; deployment `dpl_6LqsNsDSL4McHVvakEnCW9JTtR3c` logged `Applied 0 migrations.`, built both saved-analysis routes, and reached Ready. Production returned HTTPS 200 with the labeled preview; an unauthenticated history probe returned private, uncached 401 without setting a cookie.
 
 ## 2026-09-19 — estimated analysis loading progress
 

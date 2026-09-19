@@ -4,11 +4,9 @@ DataTale's production MVP delivers the complete assignment journey: CSV/XLSX/tex
 
 ## Current state
 
-All Must Have features and the optional first-visit tour are deployed. Production commit `ba0f2b5` contains code release `5a10043` and migrations `0001`–`0005`. The guarded production build applied `0005_strict_report_hero.sql` before Next.js, removed reports written under the previous contract, and enabled the current hero and calculation-provenance constraints. Branch and pull-request Vercel deployments are disabled; the PR #19 preview was canceled by the ignored build step.
+All Must Have features, the optional first-visit tour, owner-scoped history/reopen, and the liquid empty-workspace preview are deployed at production commit `339d1c8`. Migrations `0001`–`0005` remain current. The guarded production build runs the migration ledger before Next.js; the PR #21 rollout logged `Applied 0 migrations.` and reached Ready. Branch and pull-request Vercel deployments remain disabled.
 
-The release gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 244 Vitest tests, and 66 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Earlier production probes verified a three-statement table report and the exact insufficient-data chat refusal. The post-PR #19 homepage returns HTTPS 200; the analysis endpoint reached the production quota gate, while the shared smoke IP had already exhausted its anonymous daily allowance.
-
-The next product-wave candidate adds owner-scoped guest report history/reopen and a restrained liquid result preview. Its integrated gate passes 272 Vitest tests and 69 Playwright scenarios; two independent re-reviews approved the final code candidate after lifecycle, storage-validation, isolation, accessibility, and mobile corrections.
+The release gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 272 Vitest tests, and 69 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Production returns HTTPS 200 and renders the labeled synthetic preview. A history read without a sealed guest cookie returns private, uncached `401 {"code":"expired"}` without creating a cookie. Earlier production probes verified a three-statement table report and the exact insufficient-data chat refusal.
 
 ## Delivered work
 
@@ -21,6 +19,8 @@ The next product-wave candidate adds owner-scoped guest report history/reopen an
 | Guest safety | Sealed workspace, anonymous and invite quotas, idempotency, seven-day saved-analysis retention, delete-all, and scheduled cleanup | done |
 | Operations | Neon migrations, automatic guarded production migration, main-only Vercel deploys, Cloudflare DNS, HTTPS, and production smoke checks | done |
 | Onboarding | Accessible first-visit modal, deterministic local demo, skip/complete persistence, replay, focus restoration, mobile, theme, and reduced-motion behavior | done |
+| History/reopen | Owner-scoped summaries and strict detail hydration without another AI/quota claim; stale-response, expiry, and isolation guards | done |
+| Empty workspace | Explicitly labeled synthetic result preview with finite motion, reduced-motion fallback, and mobile/error-safe layout | done |
 
 ## Release evidence
 
@@ -33,16 +33,17 @@ The next product-wave candidate adds owner-scoped guest report history/reopen an
 | [#16](https://github.com/bizhello/datatale/pull/16) | New AI reports require two or three separately grounded hero sentences | A live one-sentence result exposed the generation gap; PR #19 later extended the same contract through persistence, replay, UI fixtures, cleanup, and database constraints |
 | [#17](https://github.com/bizhello/datatale/pull/17) | Accessible first-visit onboarding | Review corrected duplicate IDs during replay, light-theme contrast, and non-modal welcome interaction; final desktop/mobile checks passed |
 | [#19](https://github.com/bizhello/datatale/pull/19) | Canonical report reliability across generation, persistence, replay, UI, and PostgreSQL | Independent review removed legacy payload acceptance, required metric/chart provenance, fixed XLSX request isolation and chat retry semantics, and verified migration `0005` before production build |
+| [#21](https://github.com/bizhello/datatale/pull/21) | Guest report history/reopen and liquid empty-workspace preview | Review corrected stale private-data restoration, fail-open rows, owner-isolation evidence, access-expiry races, indistinguishable labels, assistive feedback, infinite motion, and mobile layout; CI and production smoke passed |
 
 GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI, component-ownership, HeroUI, and hydration history. [AI-WORKLOG.md](AI-WORKLOG.md) records the material AI-assisted mistakes and corrections used for the pitch.
 
-## Active product wave
+## Completed product wave
 
 | Task | Owner | Base | Worktree | Scope | State |
 | --- | --- | --- | --- | --- | --- |
-| Guest history/reopen v1 | history executor | `ba0f2b5` | `datatale-worktrees/history-reopen` | Saved-analysis read API, owner isolation, report/chat hydration, tests | code complete and approved at `9ec0d9d` |
-| Liquid editorial first viewport | visual executor | `ba0f2b5` | `datatale-worktrees/liquid-hero` | Existing empty workspace presentation, responsive/reduced-motion tests | code complete and approved at `3bb94cb` |
-| Product-wave integration | conductor | `ba0f2b5` | `datatale-worktrees/next-product-wave` | Shared docs, integration, review, release | release candidate ready |
+| Guest history/reopen v1 | history executor | `ba0f2b5` | removed after integration | Saved-analysis read API, owner isolation, report/chat hydration, tests | deployed in `339d1c8` |
+| Liquid editorial first viewport | visual executor | `ba0f2b5` | removed after integration | Existing empty workspace presentation, responsive/reduced-motion tests | deployed in `339d1c8` |
+| Product-wave integration | conductor | `ba0f2b5` | removed after integration | Shared docs, integration, review, release | PR #21 merged and production Ready |
 
 ## Remaining delivery artifact
 

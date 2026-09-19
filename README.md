@@ -10,7 +10,7 @@ Guests receive one analysis per UTC day. Production uses one workspace and one s
 
 The normalized Dataset contract and chart-planning catalog are integrated. The repository uses Bun, Biome, strict TypeScript, Steiger, Vitest and Playwright/axe. GitHub: https://github.com/bizhello/datatale.
 
-Live app: https://datatale.bizhov.ru (also https://datatale.vercel.app). Production AI analysis, grounded chat, quota unlock, migrations, desktop/mobile layout, themes, favicon, and onboarding have been smoke-tested. See [deployment operations](docs/DEPLOYMENT.md).
+Live app: https://datatale.bizhov.ru (also https://datatale.vercel.app). Production AI analysis, grounded chat, owner-scoped history access, quota unlock, migrations, the labeled liquid preview, desktop/mobile layout, themes, favicon, and onboarding have been smoke-tested. See [deployment operations](docs/DEPLOYMENT.md).
 
 ## Development
 
