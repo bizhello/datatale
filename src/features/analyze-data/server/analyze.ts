@@ -237,6 +237,10 @@ export function analysisProposalFromProviderOutput(
       metrics,
     });
   }
+  if (wire.reason !== "")
+    invalidProviderOutput(
+      "Chart proposals must use an empty no-chart reason sentinel.",
+    );
   const charts = wire.charts.map((chart) => {
     const base = {
       id: chart.id,
@@ -251,6 +255,14 @@ export function analysisProposalFromProviderOutput(
     };
     switch (chart.kind) {
       case "bar":
+        if (
+          chart.pointLimit !== 0 ||
+          chart.missingPeriodPolicy !== "" ||
+          chart.segmentLimit !== 0
+        )
+          invalidProviderOutput(
+            "Bar proposals must leave line and donut sentinels empty.",
+          );
         if (chart.topNCount === 0 && chart.topNIncludeOther)
           invalidProviderOutput("A bar top-N sentinel cannot include Other.");
         if (chart.topNCount > 0 && !chart.topNIncludeOther)
@@ -269,6 +281,15 @@ export function analysisProposalFromProviderOutput(
             : {}),
         };
       case "line":
+        if (
+          chart.categoryLimit !== 0 ||
+          chart.topNCount !== 0 ||
+          chart.topNIncludeOther ||
+          chart.segmentLimit !== 0
+        )
+          invalidProviderOutput(
+            "Line proposals must leave bar and donut sentinels empty.",
+          );
         return {
           ...base,
           kind: "line" as const,
@@ -279,6 +300,16 @@ export function analysisProposalFromProviderOutput(
           missingPeriodPolicy: "reject" as const,
         };
       case "donut":
+        if (
+          chart.categoryLimit !== 0 ||
+          chart.topNCount !== 0 ||
+          chart.topNIncludeOther ||
+          chart.pointLimit !== 0 ||
+          chart.missingPeriodPolicy !== ""
+        )
+          invalidProviderOutput(
+            "Donut proposals must leave bar and line sentinels empty.",
+          );
         return {
           ...base,
           kind: "donut" as const,

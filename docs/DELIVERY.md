@@ -2,7 +2,7 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** DT-INPUT and HeroUI adoption are integrated through `2514d84`. The AI Dashboard candidate now connects CSV/XLSX/text input to bounded AI analysis, checked facts, a responsive narrative dashboard, and atomic guest/quota/idempotency controls. Independent review rounds rejected lifecycle, grounding, calculation, output-bound, and UI issues; corrections include adversarial regressions for every finding. Local static, unit, integration, build, browser, and visual gates pass. Final exact-candidate review, isolated Neon verification, Vercel preview, and live-model evaluation remain required before its PR. Chat, durable history, onboarding, and long-lived source/report persistence are not implemented.
+**Current state:** DT-INPUT and HeroUI adoption are integrated through `2514d84`. The AI Dashboard candidate now connects CSV/XLSX/text input to bounded AI analysis, checked facts, a responsive narrative dashboard, and atomic guest/quota/idempotency controls. Independent review rounds rejected lifecycle, grounding, calculation, output-bound, and UI issues; corrections include adversarial regressions for every finding. Local static, unit, integration, build, browser, visual, and live Spiro table/text probes pass. Final exact-candidate review, isolated Neon verification, Vercel preview, and production credential/runtime verification remain required before its PR. Chat, durable history, onboarding, and long-lived source/report persistence are not implemented.
 
 ## Work packages
 
@@ -16,7 +16,7 @@ These are acceptance packages, not mandatory separate PRs. Dispatch complete use
 | DT-03 | CSV input: picker/dropzone, preview, limits and canonical normalization; quoted newlines/BOM/duplicate headers/empty input tests | DT-01a | implemented in PR #7 |
 | DT-04 | Verified metrics: profile, approved aggregations and semantic plan checks over all accepted rows; known totals, zero denominator, units and invalid-chart tests | DT-01 | candidate complete; review pending |
 | DT-05 | Guest storage boundary: Neon/Drizzle and iron-session, source/report/message persistence, ownership, expiry and atomic/idempotent run claims; isolation and failure tests | DT-01, EXT-02 | guest session, quotas and run receipts in candidate; durable source/report/message storage queued |
-| DT-06 | AI analysis: catalog-generated prompt context, bounded plan repair, checked facts and 2–3 sentence narrative with evidence; invalid output, injection, timeout and real-provider fixtures | DT-04, EXT-01 | mocked candidate complete; live eval pending |
+| DT-06 | AI analysis: catalog-generated prompt context, bounded plan repair, checked facts and 2–3 sentence narrative with evidence; invalid output, injection, timeout and real-provider fixtures | DT-04, EXT-01 | candidate complete; local live table/text compatibility passed, deployed eval pending |
 | DT-07 | Report rendering: exhaustive Recharts registry, hero, evidence and chart rationale; 2–3 useful interactive charts from canonical fixtures, touch/keyboard, both themes and expanded chart dialog per UI.md | DT-01, DT-02 | candidate complete; review pending |
 | DT-08 | Grounded chat: owner-checked source context, bounded calculations, stream/error handling and exact insufficient-data refusal; supported/absent/injection cases | DT-05, DT-06 | queued |
 | DT-09 | Connected journey: thin API routes, input → analysis → charts → chat, stage state/cancel/retry; history reopen/delete without repeat inference; production E2E | DT-03, DT-05, DT-06, DT-07, DT-08 | input → analysis → charts candidate complete; chat/history queued |
@@ -31,7 +31,7 @@ Integrate incremental adapters and smoke tests as each package lands; DT-09 is t
 
 | ID | Required evidence | Owner / current state |
 | --- | --- | --- |
-| EXT-01 | Eligible provider/model, server credentials, budget and successful small live fixture | Production env names confirmed; local Chat Completions and strict JSON-schema smoke checks passed. Vercel invocation, streaming, spend limits and grounded fixture evaluation remain unresolved |
+| EXT-01 | Eligible provider/model, server credentials, budget and successful small live fixture | Local AI SDK table/text analysis passed through Spiro with `gpt-5.6-terra`. Vercel's hidden production credential, deployed invocation, spend limits and broader grounded evaluation remain unresolved |
 | EXT-02 | Neon development/test access and session-secret configuration; isolated schema and reviewed migrations | Production Neon provisioned; isolated development/test storage and session configuration remain unresolved. |
 | EXT-03 | GitHub/Vercel project access and permission/access for the subdomain DNS record | Vercel main deployed; Cloudflare CNAME added. Custom domain returns HTTPS 200. |
 
@@ -53,7 +53,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| AI Dashboard (DT-01/04/06/07 vertical) | Executors: Terra medium; conductor: contracts/docs/integration; reviewer: Sol medium | repeat review handoff | `feat/ai-dashboard` / `../datatale-worktrees/ai-dashboard` | Candidate owns report/workspace entities, analyze-data, AI/DB adapters, API routes, dashboard composition, migration/config, related tests/styles and canonical docs | Repeat independent review on the corrected exact candidate, then verify isolated Neon and Vercel preview; production remains fail-closed until migration, quotas, cron, and live evals pass |
+| AI Dashboard (DT-01/04/06/07 vertical) | Executors: Terra medium; conductor: contracts/docs/integration; reviewer: Sol medium | final verification before repeat review | `feat/ai-dashboard` / `../datatale-worktrees/ai-dashboard` | Candidate owns report/workspace entities, analyze-data, AI/DB adapters, API routes, dashboard composition, migration/config, related tests/styles and canonical docs | Complete full local gates, repeat independent review on the exact candidate, then verify isolated Neon and Vercel preview; production remains fail-closed until migration, quotas, cron, and deployed runtime checks pass |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 

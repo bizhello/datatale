@@ -152,6 +152,46 @@ describe("provider-facing structured output", () => {
         ],
       }),
     ).toThrow(/empty field sentinel/);
+    expect(() =>
+      analysisProposalFromProviderOutput({
+        ...providerProposal,
+        reason: "There might be no chart.",
+      }),
+    ).toThrow(/empty no-chart reason sentinel/);
+    expect(() =>
+      analysisProposalFromProviderOutput({
+        ...providerProposal,
+        charts: [
+          { ...providerProposal.charts[0], pointLimit: 12 },
+          providerProposal.charts[1],
+        ],
+      }),
+    ).toThrow(/leave line and donut sentinels empty/);
+    expect(() =>
+      analysisProposalFromProviderOutput({
+        ...providerProposal,
+        charts: [
+          providerProposal.charts[0],
+          { ...providerProposal.charts[1], categoryLimit: 12 },
+        ],
+      }),
+    ).toThrow(/leave bar and donut sentinels empty/);
+    expect(() =>
+      analysisProposalFromProviderOutput({
+        ...providerProposal,
+        charts: [
+          {
+            ...providerProposal.charts[0],
+            id: "donut",
+            kind: "donut",
+            categoryLimit: 0,
+            pointLimit: 1,
+            segmentLimit: 6,
+          },
+          providerProposal.charts[1],
+        ],
+      }),
+    ).toThrow(/leave bar and line sentinels empty/);
   });
 
   it("converts fully required narrative and text wire objects", () => {
