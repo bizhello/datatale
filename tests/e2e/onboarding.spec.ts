@@ -22,6 +22,7 @@ test.beforeEach(async ({ page }, testInfo) => {
 test("shows the welcome, mounts stable demo targets, and restores focus after skip", async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await expect(page.locator(".page-shell")).toHaveAttribute(
     "data-hydrated",
@@ -37,7 +38,6 @@ test("shows the welcome, mounts stable demo targets, and restores focus after sk
       localStorage.setItem("theme", value);
       document.documentElement.classList.toggle("dark", value === "dark");
     }, theme);
-    await page.waitForTimeout(100);
     const results = await new AxeBuilder({ page })
       .include(".onboarding-welcome")
       .analyze();
@@ -131,8 +131,12 @@ test("Done completes onboarding and suppresses the welcome after reload", async 
   await page.getByRole("button", { name: "Начать знакомство" }).click();
   const next = page.locator(".driver-popover-next-btn");
   const done = page.locator(".driver-popover-done-btn");
-  for (let step = 0; step < 10 && !(await done.isVisible()); step += 1)
+  await expect(page.locator(".driver-popover")).toBeVisible();
+  await expect(next.or(done)).toBeVisible();
+  for (let step = 0; step < 10 && !(await done.isVisible()); step += 1) {
+    await expect(next).toBeVisible();
     await next.click();
+  }
   await expect(done).toBeVisible();
   await done.click();
   expect(
