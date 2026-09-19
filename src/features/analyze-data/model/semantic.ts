@@ -137,6 +137,17 @@ function chartIssues(
         path,
         message: "donut charts require 2-6 complete segments.",
       });
+    if (valuesFor(source, dimension.id).some((value) => value === null))
+      issues.push({
+        path,
+        message: "donut total cannot include rows with a missing dimension.",
+      });
+    const measureId = chart.aggregation.field.fieldId;
+    if (valuesFor(source, measureId).some((value) => value === null))
+      issues.push({
+        path,
+        message: "donut total cannot include rows with a missing measure.",
+      });
     const points = calculateChart(source, chart);
     if (points.some((point) => point.value < 0))
       issues.push({ path, message: "donut values must be non-negative." });

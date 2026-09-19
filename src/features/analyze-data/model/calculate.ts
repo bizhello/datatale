@@ -6,6 +6,7 @@ import type {
 } from "@/entities/report";
 
 type Point = { label: string; value: number };
+type Group = { label: string; rows: Dataset["rows"] };
 export function aggregateRows(
   rows: Dataset["rows"],
   aggregation: Aggregation,
@@ -51,7 +52,8 @@ export function calculateChart(
     const label = String(raw);
     groups.set(label, [...(groups.get(label) ?? []), row]);
   }
-  const points = [...groups].map(([label, rows]) => ({
+  const grouped = [...groups].map(([label, rows]): Group => ({ label, rows }));
+  const points = grouped.map(({ label, rows }) => ({
     label,
     value: aggregateRows(rows, specification.aggregation),
   }));
@@ -59,21 +61,33 @@ export function calculateChart(
     return points
       .sort((a, b) => a.label.localeCompare(b.label))
       .slice(0, specification.pointLimit);
-  const ordered = points.sort((a, b) => b.value - a.value);
+  const ordered = grouped
+    .map(({ label, rows }) => ({
+      label,
+      rows,
+      value: aggregateRows(rows, specification.aggregation),
+    }))
+    .sort((a, b) => b.value - a.value);
   if (specification.kind === "bar" && specification.topN) {
     const selected = ordered.slice(0, specification.topN.count);
     const other = ordered.slice(specification.topN.count);
+    const result = selected.map(({ label, value }) => ({ label, value }));
     if (other.length)
-      selected.push({
+      result.push({
         label: "Other",
-        value: other.reduce((sum, point) => sum + point.value, 0),
+        value: aggregateRows(
+          other.flatMap((group) => group.rows),
+          specification.aggregation,
+        ),
       });
-    return selected;
+    return result;
   }
-  return ordered.slice(
-    0,
-    specification.kind === "bar"
-      ? specification.categoryLimit
-      : specification.segmentLimit,
-  );
+  return ordered
+    .slice(
+      0,
+      specification.kind === "bar"
+        ? specification.categoryLimit
+        : specification.segmentLimit,
+    )
+    .map(({ label, value }) => ({ label, value }));
 }
