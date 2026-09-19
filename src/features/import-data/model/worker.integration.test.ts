@@ -1,7 +1,10 @@
 import { strToU8, zipSync } from "fflate";
-import { describe, expect, it } from "vitest";
+import readXlsxFile from "read-excel-file/web-worker";
+import { describe, expect, it, vi } from "vitest";
 import { createMultiSheetXlsx } from "../../../../tests/fixtures/import/xlsx";
 import { preflightXlsx } from "./worker";
+
+vi.mock("read-excel-file/web-worker", () => ({ default: vi.fn() }));
 
 function workbookWithSheet(sheetXml: string) {
   return zipSync({ "xl/worksheets/sheet1.xml": strToU8(sheetXml) });
@@ -75,5 +78,46 @@ describe("XLSX preflight", () => {
         ),
       ),
     ).toBe(true);
+  });
+});
+
+describe("XLSX worker requests", () => {
+  it("reads each file independently during one worker lifetime", async () => {
+    vi.mocked(readXlsxFile).mockImplementation(async (file) =>
+      (file instanceof File ? file.name : "") === "first.xlsx"
+        ? [{ sheet: "First", data: [["First column"], ["First value"]] }]
+        : [{ sheet: "Second", data: [["Second column"], ["Second value"]] }],
+    );
+    const postMessage = vi
+      .spyOn(self, "postMessage")
+      .mockImplementation(() => undefined);
+    const onmessage = self.onmessage as unknown as (
+      event: MessageEvent,
+    ) => Promise<void>;
+    const request = (name: string) =>
+      onmessage(
+        new MessageEvent("message", {
+          data: {
+            id: name,
+            file: new File([createMultiSheetXlsx()], name),
+          },
+        }),
+      );
+
+    await request("first.xlsx");
+    await request("second.xlsx");
+
+    const secondResponse = postMessage.mock.calls[1]?.[0] as {
+      kind: string;
+      result: {
+        sheetNames?: string[];
+        source: { columns: Array<{ label: string }> };
+      };
+    };
+    expect(secondResponse.kind).toBe("success");
+    expect(secondResponse.result.sheetNames).toEqual(["Second"]);
+    expect(secondResponse.result.source.columns[0]?.label).toBe(
+      "Second column",
+    );
   });
 });
