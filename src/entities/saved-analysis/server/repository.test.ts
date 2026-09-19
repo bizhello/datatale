@@ -1,0 +1,210 @@
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
+import { MemorySavedAnalysisRepository } from "./memory-repository";
+
+const validators = {
+  source: z.unknown(),
+  report: z.unknown(),
+};
+
+const workspaceId = "00000000-0000-4000-8000-000000000001";
+const analysisId = "00000000-0000-4000-8000-000000000002";
+const now = new Date("2026-09-19T12:00:00.000Z");
+const report = {
+  version: 1 as const,
+  hero: [
+    {
+      text: "Observed",
+      factIds: ["fact"],
+      evidenceIds: ["evidence"],
+      kind: "observation" as const,
+    },
+  ],
+  metrics: [
+    { id: "fact", label: "Count", value: 1, evidenceIds: ["evidence"] },
+  ],
+  charts: [],
+  evidence: [
+    { id: "evidence", kind: "quote" as const, label: "Source", excerpt: "One" },
+  ],
+  recommendations: [],
+  noChartReason: "No chart is needed.",
+};
+
+function repository() {
+  const result = new MemorySavedAnalysisRepository(validators);
+  result.addWorkspace(workspaceId, new Date("2026-10-19T12:00:00.000Z"));
+  return result;
+}
+
+describe("saved analysis memory repository", () => {
+  it("round-trips text sources and enforces ownership and expiry", async () => {
+    const result = repository();
+    await expect(
+      result.create({
+        workspaceId,
+        analysisId,
+        source: {
+          version: 1,
+          id: "text-1",
+          source: { kind: "text" },
+          rawText: "One",
+          paragraphs: [{ index: 1, text: "One" }],
+        },
+        report,
+        now,
+      }),
+    ).resolves.toBeDefined();
+    await expect(
+      result.get("00000000-0000-4000-8000-000000000003", analysisId, now),
+    ).resolves.toBeUndefined();
+    await expect(
+      result.list("00000000-0000-4000-8000-000000000003", now),
+    ).resolves.toEqual([]);
+    await expect(
+      result.get(workspaceId, analysisId, new Date("2026-11-01T00:00:00.000Z")),
+    ).resolves.toBeUndefined();
+  });
+
+  it("keeps message order, makes retries idempotent, and applies a daily bound", async () => {
+    const result = repository();
+    await result.create({
+      workspaceId,
+      analysisId,
+      source: {
+        version: 1,
+        id: "text-1",
+        source: { kind: "text" },
+        rawText: "One",
+        paragraphs: [{ index: 1, text: "One" }],
+      },
+      report,
+      now,
+    });
+    const first = await result.appendMessage({
+      workspaceId,
+      analysisId,
+      dailyLimit: 2,
+      now,
+      message: { id: "m-1", role: "user", content: "Question" },
+    });
+    expect(
+      await result.appendMessage({
+        workspaceId,
+        analysisId,
+        dailyLimit: 2,
+        now,
+        message: { id: "m-1", role: "user", content: "Question" },
+      }),
+    ).toEqual(first);
+    for (let index = 2; index <= 10; index++) {
+      await result.appendMessage({
+        workspaceId,
+        analysisId,
+        dailyLimit: 10,
+        now,
+        message: {
+          id: `m-${index}`,
+          role: "user",
+          content: `Question ${index}`,
+        },
+      });
+      await result.appendMessage({
+        workspaceId,
+        analysisId,
+        dailyLimit: 10,
+        now,
+        message: {
+          id: `a-${index}`,
+          role: "assistant",
+          content: `Answer ${index}`,
+        },
+      });
+    }
+    await expect(
+      result.appendMessage({
+        workspaceId,
+        analysisId,
+        dailyLimit: 10,
+        now,
+        message: { id: "m-11", role: "user", content: "Again" },
+      }),
+    ).resolves.toBe("quota-exceeded");
+    await result.appendMessage({
+      workspaceId,
+      analysisId,
+      dailyLimit: 10,
+      now,
+      message: { id: "a-11", role: "assistant", content: "Answer 11" },
+    });
+    const history = await result.messages({ workspaceId, analysisId, now });
+    expect(history.slice(0, 2)).toMatchObject([{ id: "m-1" }, { id: "m-2" }]);
+    await expect(
+      result.messages({ workspaceId, analysisId, limit: 3, now }),
+    ).resolves.toMatchObject([{ id: "m-10" }, { id: "a-10" }, { id: "a-11" }]);
+    await expect(
+      result.appendMessage({
+        workspaceId,
+        analysisId,
+        dailyLimit: 10,
+        now,
+        message: { id: "m-1", role: "assistant", content: "Changed" },
+      }),
+    ).rejects.toThrow("different content");
+  });
+
+  it("does not overwrite an immutable payload on a retry", async () => {
+    const result = repository();
+    await result.create({
+      workspaceId,
+      analysisId,
+      source: {
+        version: 1,
+        id: "text-1",
+        source: { kind: "text" },
+        rawText: "One",
+        paragraphs: [{ index: 1, text: "One" }],
+      },
+      report,
+      now,
+    });
+    await expect(
+      result.create({
+        workspaceId,
+        analysisId,
+        source: {
+          paragraphs: [{ index: 1, text: "One" }],
+          rawText: "One",
+          source: { kind: "text" },
+          id: "text-1",
+          version: 1,
+        },
+        report: {
+          recommendations: [],
+          evidence: report.evidence,
+          charts: [],
+          metrics: report.metrics,
+          hero: report.hero,
+          noChartReason: "No chart is needed.",
+          version: 1,
+        },
+        now,
+      }),
+    ).resolves.toBeDefined();
+    await expect(
+      result.create({
+        workspaceId,
+        analysisId,
+        source: {
+          version: 1,
+          id: "text-1",
+          source: { kind: "text" },
+          rawText: "Two",
+          paragraphs: [{ index: 1, text: "Two" }],
+        },
+        report,
+        now,
+      }),
+    ).rejects.toThrow("immutable");
+  });
+});

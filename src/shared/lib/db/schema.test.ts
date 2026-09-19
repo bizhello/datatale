@@ -1,6 +1,12 @@
+import { readFile } from "node:fs/promises";
 import { getTableConfig } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
-import { analysisQuotaBuckets, analysisRuns } from "./schema";
+import {
+  analysisQuotaBuckets,
+  analysisRuns,
+  savedAnalyses,
+  savedAnalysisMessages,
+} from "./schema";
 
 describe("analysis Drizzle schema parity", () => {
   it("represents run ownership, state, uniqueness, and expiry index", () => {
@@ -29,6 +35,40 @@ describe("analysis Drizzle schema parity", () => {
     );
     expect(config.indexes.map((index) => index.config.name)).toContain(
       "analysis_quota_buckets_expiry_idx",
+    );
+  });
+
+  it("stores immutable analyses and ordered, idempotent messages with cascades", () => {
+    const analyses = getTableConfig(savedAnalyses);
+    const messages = getTableConfig(savedAnalysisMessages);
+    expect(analyses.foreignKeys[0]?.onDelete).toBe("cascade");
+    expect(analyses.checks.map((check) => check.name)).toContain(
+      "saved_analyses_source_kind_check",
+    );
+    expect(messages.foreignKeys[0]?.onDelete).toBe("cascade");
+    expect(
+      messages.primaryKeys[0]?.columns.map((column) => column.name),
+    ).toEqual(["analysis_id", "message_id"]);
+    expect(messages.indexes.map((index) => index.config.name)).toContain(
+      "saved_analysis_messages_analysis_sequence_idx",
+    );
+  });
+
+  it("keeps the durable storage migration portable and cascading", async () => {
+    const migration = await readFile(
+      "migrations/0003_saved_analysis.sql",
+      "utf8",
+    );
+    expect(migration).toContain(
+      "REFERENCES guest_workspaces(id) ON DELETE CASCADE",
+    );
+    expect(migration).toContain(
+      "REFERENCES saved_analyses(id) ON DELETE CASCADE",
+    );
+    expect(migration).toContain("GENERATED ALWAYS AS IDENTITY");
+    expect(migration).toContain("UNIQUE (analysis_id, message_id)");
+    expect(migration).toContain(
+      "saved_analysis_messages_analysis_sequence_idx",
     );
   });
 });

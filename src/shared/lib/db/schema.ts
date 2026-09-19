@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigserial,
   check,
   index,
   integer,
@@ -63,5 +64,59 @@ export const analysisQuotaBuckets = pgTable(
     primaryKey({ columns: [table.scope, table.bucketStart] }),
     check("analysis_quota_buckets_count_check", sql`${table.count} >= 0`),
     index("analysis_quota_buckets_expiry_idx").on(table.expiresAt),
+  ],
+);
+
+export const savedAnalyses = pgTable(
+  "saved_analyses",
+  {
+    id: uuid("id").primaryKey(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => guestWorkspaces.id, { onDelete: "cascade" }),
+    sourceKind: text("source_kind").notNull(),
+    source: jsonb("source").notNull(),
+    report: jsonb("report").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    lastAccessedAt: timestamp("last_accessed_at", {
+      withTimezone: true,
+    }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check(
+      "saved_analyses_source_kind_check",
+      sql`${table.sourceKind} IN ('dataset', 'text')`,
+    ),
+    index("saved_analyses_workspace_expiry_idx").on(
+      table.workspaceId,
+      table.expiresAt,
+    ),
+  ],
+);
+
+export const savedAnalysisMessages = pgTable(
+  "saved_analysis_messages",
+  {
+    sequence: bigserial("sequence", { mode: "number" }).notNull(),
+    analysisId: uuid("analysis_id")
+      .notNull()
+      .references(() => savedAnalyses.id, { onDelete: "cascade" }),
+    messageId: text("message_id").notNull(),
+    role: text("role").notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.analysisId, table.messageId] }),
+    unique("saved_analysis_messages_sequence_key").on(table.sequence),
+    check(
+      "saved_analysis_messages_role_check",
+      sql`${table.role} IN ('user', 'assistant')`,
+    ),
+    index("saved_analysis_messages_analysis_sequence_idx").on(
+      table.analysisId,
+      table.sequence,
+    ),
   ],
 );
