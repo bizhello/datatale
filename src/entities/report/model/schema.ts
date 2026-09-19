@@ -136,7 +136,37 @@ export const analysisProposalSchema = z
     metrics: z.array(metricSpecificationSchema).min(2).max(4),
     reason: nonblankString.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((proposal, context) => {
+    if (
+      proposal.outcome === "charts" &&
+      (proposal.charts.length < 2 || proposal.charts.length > 3)
+    )
+      context.addIssue({
+        code: "custom",
+        message: "Chart proposals require two or three charts.",
+        path: ["charts"],
+      });
+    if (proposal.outcome === "no-chart" && proposal.charts.length > 0)
+      context.addIssue({
+        code: "custom",
+        message: "No-chart proposals cannot include charts.",
+        path: ["charts"],
+      });
+    const ids = new Set<string>();
+    for (const [index, item] of [
+      ...proposal.metrics,
+      ...proposal.charts,
+    ].entries()) {
+      if (ids.has(item.id))
+        context.addIssue({
+          code: "custom",
+          message: "Metric and chart IDs must be unique.",
+          path: [index],
+        });
+      ids.add(item.id);
+    }
+  });
 
 export const reportEvidenceSchema = z
   .object({
