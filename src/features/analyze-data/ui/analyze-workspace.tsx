@@ -1,67 +1,51 @@
 "use client";
 import { Button, Skeleton } from "@heroui/react";
-import { useState } from "react";
 import type { Dataset, TextSource } from "@/entities/dataset";
-import { type FinalReport, ReportDashboard } from "@/entities/report";
+import { ReportDashboard } from "@/entities/report";
+import { analysisErrorMessages } from "../model/analysis-state";
+import { useAnalysis } from "../model/use-analysis";
 
 type AnalyzeWorkspaceProps = {
   source: Dataset | TextSource;
   onDelete: () => void;
 };
 export function AnalyzeWorkspace({ source, onDelete }: AnalyzeWorkspaceProps) {
-  const [status, setStatus] = useState<"idle" | "loading" | "error" | "ready">(
-    "idle",
-  );
-  const [report, setReport] = useState<FinalReport>();
-  const [error, setError] = useState("");
-  async function run() {
-    setStatus("loading");
-    setError("");
-    try {
-      const response = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source }),
-      });
-      const result: unknown = await response.json();
-      if (
-        !response.ok ||
-        !result ||
-        typeof result !== "object" ||
-        !("report" in result)
-      )
-        throw new Error(
-          "Анализ временно недоступен. Проверьте подключение и повторите попытку.",
-        );
-      setReport((result as { report: FinalReport }).report);
-      setStatus("ready");
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "Не удалось выполнить анализ.",
-      );
-      setStatus("error");
-    }
-  }
+  const { state, run, cancel, retry } = useAnalysis(source);
   return (
     <section className="analysis-workspace">
-      {status === "idle" && <Button onPress={run}>Запустить анализ</Button>}
-      {status === "loading" && (
+      {(state.status === "idle" || state.status === "cancelled") && (
+        <Button onPress={() => void run()}>
+          {state.status === "cancelled"
+            ? "Запустить снова"
+            : "Запустить анализ"}
+        </Button>
+      )}
+      {state.status === "analyzing" && (
         <div aria-live="polite" className="report-loading">
-          <p>Проверяем план и считаем показатели…</p>
-          <Skeleton className="report-skeleton" />
-          <Skeleton className="report-skeleton" />
+          <p>{state.stage}</p>
+          <div className="loading-metrics" aria-hidden="true">
+            <Skeleton className="metric-skeleton" />
+            <Skeleton className="metric-skeleton" />
+            <Skeleton className="metric-skeleton" />
+          </div>
+          <Skeleton className="hero-skeleton" />
+          <Skeleton className="chart-skeleton" />
+          <Button variant="secondary" onPress={cancel}>
+            Отменить анализ
+          </Button>
         </div>
       )}
-      {status === "error" && (
+      {state.status === "error" && (
         <div className="error-state" role="alert">
-          <p>{error}</p>
-          <Button onPress={run}>Повторить</Button>
+          <div>
+            <h2>Анализ не завершён</h2>
+            <p>{analysisErrorMessages[state.error]}</p>
+            <Button onPress={retry}>Повторить</Button>
+          </div>
         </div>
       )}
-      {status === "ready" && report && <ReportDashboard report={report} />}
-      <Button variant="tertiary" onPress={onDelete}>
+      {state.status === "ready" && <ReportDashboard report={state.report} />}
+      <Button className="delete-session" variant="tertiary" onPress={onDelete}>
         Удалить все данные этого сеанса
       </Button>
     </section>

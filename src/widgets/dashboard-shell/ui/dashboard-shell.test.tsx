@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { DashboardShell } from "./dashboard-shell";
 
 describe("Dashboard input shell", () => {
-  it("offers local source choices and has no fake analysis action", () => {
+  it("offers local source choices", () => {
     render(<DashboardShell />);
     expect(
       screen.getByText(/Файлы обрабатываются в этом браузере/),
@@ -13,7 +13,6 @@ describe("Dashboard input shell", () => {
         name: "Загрузить синтетический демо-набор",
       }),
     ).toBeVisible();
-    expect(screen.queryByText(/запустить анализ/i)).not.toBeInTheDocument();
   });
   it("accepts text and shows its exact source preview", () => {
     render(<DashboardShell />);
@@ -23,5 +22,13 @@ describe("Dashboard input shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Проверить текст" }));
     expect(screen.getByText("Текст готов к анализу")).toBeVisible();
     expect(screen.getByText("Первый абзац.")).toBeVisible();
+    expect(
+      screen.getByText(
+        /Полный проверенный источник будет передан AI-провайдеру/,
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Продолжить к анализу" }),
+    ).toBeVisible();
   });
 });

@@ -1,5 +1,5 @@
 "use client";
-import { Button, Modal } from "@heroui/react";
+import { Button, Modal, Tooltip } from "@heroui/react";
 import { Expand, X } from "lucide-react";
 import { useState } from "react";
 import type { FinalReport } from "../model/schema";
@@ -40,13 +40,16 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
                   <h3>{chart.title}</h3>
                   <p>{chart.rationale}</p>
                 </div>
-                <Button
-                  isIconOnly
-                  aria-label={`Развернуть ${chart.title}`}
-                  onPress={() => setExpanded(chart)}
-                >
-                  <Expand />
-                </Button>
+                <Tooltip delay={0}>
+                  <Button
+                    isIconOnly
+                    aria-label={`Развернуть ${chart.title}`}
+                    onPress={() => setExpanded(chart)}
+                  >
+                    <Expand aria-hidden="true" />
+                  </Button>
+                  <Tooltip.Content>Развернуть диаграмму</Tooltip.Content>
+                </Tooltip>
               </div>
               <ChartVisual chart={chart} />
               <table>
@@ -79,6 +82,29 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
           </p>
         ))}
       </section>
+      {report.recommendations.length > 0 && (
+        <section
+          className="recommendations"
+          aria-labelledby="recommendations-title"
+        >
+          <p className="eyebrow">СЛЕДУЮЩИЙ ШАГ</p>
+          <h3 id="recommendations-title">Рекомендации</h3>
+          {report.recommendations.map((item, index) => (
+            <article
+              key={`${item.text}-${item.factIds[0] ?? item.evidenceIds[0] ?? "grounded"}`}
+            >
+              <strong>
+                {index === 0
+                  ? "Наблюдение"
+                  : index === 1
+                    ? "Гипотеза"
+                    : "Действие"}
+              </strong>
+              <p className="recommendation-copy">{item.text}</p>
+            </article>
+          ))}
+        </section>
+      )}
       {expanded && (
         <Modal.Root
           isOpen
@@ -87,7 +113,7 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
           }}
         >
           <Modal.Backdrop>
-            <Modal.Container size="lg">
+            <Modal.Container className="chart-modal" size="lg">
               <Modal.Dialog>
                 <Modal.Header>
                   <Modal.Heading>{expanded.title}</Modal.Heading>
@@ -98,6 +124,26 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
                 <Modal.Body>
                   <ChartVisual chart={expanded} />
                   <p>{expanded.rationale}</p>
+                  <p>
+                    {expanded.unit
+                      ? `Единицы: ${expanded.unit}`
+                      : "Единицы: значение источника"}
+                  </p>
+                  <table className="chart-table">
+                    <caption>Данные диаграммы {expanded.title}</caption>
+                    <tbody>
+                      {expanded.points.map((point) => (
+                        <tr key={point.label}>
+                          <th>{point.label}</th>
+                          <td>
+                            {point.value.toLocaleString("ru-RU", {
+                              maximumFractionDigits: 2,
+                            })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </Modal.Body>
               </Modal.Dialog>
             </Modal.Container>

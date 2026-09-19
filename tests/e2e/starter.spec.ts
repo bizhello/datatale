@@ -3,6 +3,64 @@ import { expect, test } from "@playwright/test";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { createMultiSheetXlsx } from "../fixtures/import/xlsx";
 
+const dashboardReport = {
+  version: 1,
+  hero: [
+    {
+      text: "Выручка выросла в феврале, а каналы заметно различаются.",
+      factIds: ["revenue"],
+    },
+  ],
+  metrics: [
+    {
+      id: "revenue",
+      label: "Выручка",
+      value: 274000,
+      unit: "₽",
+      evidenceIds: ["rows"],
+    },
+  ],
+  charts: [
+    {
+      id: "bar",
+      kind: "bar",
+      title: "По регионам",
+      rationale: "Сравнение регионов",
+      points: [
+        { label: "Север", value: 120000 },
+        { label: "Юг", value: 154000 },
+      ],
+      evidenceIds: ["rows"],
+    },
+    {
+      id: "line",
+      kind: "line",
+      title: "По месяцам",
+      rationale: "Динамика",
+      points: [
+        { label: "Январь", value: 128000 },
+        { label: "Февраль", value: 146000 },
+      ],
+      evidenceIds: ["rows"],
+    },
+    {
+      id: "donut",
+      kind: "donut",
+      title: "По каналам",
+      rationale: "Доля каналов",
+      points: [
+        { label: "Онлайн", value: 174000 },
+        { label: "Офлайн", value: 100000 },
+      ],
+      evidenceIds: ["rows"],
+    },
+  ],
+  evidence: [{ id: "rows", kind: "row-range", label: "Все строки источника" }],
+  recommendations: [
+    { text: "Проверьте рост онлайн-канала.", factIds: ["revenue"] },
+  ],
+};
+
 function xlsxWithInvalidFirstSheet() {
   const archive = unzipSync(createMultiSheetXlsx());
   archive["xl/worksheets/sheet1.xml"] = strToU8(
@@ -25,6 +83,33 @@ test("accepts text locally and exposes an honest preview", async ({ page }) => {
   await expect(
     page.getByText("Полный проверенный источник будет передан AI-провайдеру."),
   ).toBeVisible();
+});
+
+test("renders a fixture dashboard and expands charts without another analysis request", async ({
+  page,
+}) => {
+  let requests = 0;
+  await page.route("**/api/analyze", async (route) => {
+    requests += 1;
+    await route.fulfill({ json: { report: dashboardReport } });
+  });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Загрузить синтетический демо-набор" })
+    .click();
+  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
+  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  await expect(
+    page.getByRole("heading", { name: /Выручка выросла/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Развернуть По регионам" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Развернуть По регионам" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  expect(requests).toBe(1);
 });
 
 test("uploads a CSV in the browser and labels its bounded preview", async ({

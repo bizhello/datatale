@@ -12,6 +12,12 @@
   --accent-soft: #e9eeff;
   --danger: #ae3049;
   --warning: #965f00;
+  --chart-primary: #365edb;
+  --chart-secondary: #7d62d9;
+  --chart-positive: #2b9a81;
+  --chart-warm: #d66c3e;
+  --chart-pink: #bc4f7d;
+  --chart-gold: #bf941b;
   color-scheme: light;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
 }
@@ -26,6 +32,12 @@
   --accent-soft: #243765;
   --danger: #ff9aad;
   --warning: #f7c86b;
+  --chart-primary: #91a8ff;
+  --chart-secondary: #b6a2ff;
+  --chart-positive: #6ed8b8;
+  --chart-warm: #ffad87;
+  --chart-pink: #ff9ac4;
+  --chart-gold: #f7c86b;
   color-scheme: dark;
 }
 * {
@@ -221,6 +233,12 @@ footer {
   align-items: center;
   flex-wrap: wrap;
 }
+.analysis-workspace {
+  align-items: stretch;
+}
+.delete-session {
+  align-self: flex-start;
+}
 .report-dashboard {
   margin-top: 36px;
   display: grid;
@@ -264,6 +282,10 @@ footer {
 .chart-card {
   min-width: 0;
 }
+.chart-card > div:nth-child(2) {
+  height: clamp(230px, 28vw, 320px);
+  margin: 10px 0 16px;
+}
 .chart-heading {
   display: flex;
   justify-content: space-between;
@@ -289,6 +311,75 @@ footer {
   padding: 5px;
   text-align: left;
   border-top: 1px solid var(--line);
+}
+.chart-card td {
+  font-variant-numeric: tabular-nums;
+}
+.evidence,
+.recommendations {
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 24px;
+  background: var(--surface);
+}
+.evidence h3,
+.recommendations h3 {
+  margin: 4px 0 14px;
+}
+.evidence p {
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+.recommendations {
+  display: grid;
+  gap: 10px;
+}
+.recommendations article {
+  border-left: 3px solid var(--accent);
+  padding: 4px 0 4px 14px;
+}
+.recommendations article strong {
+  color: var(--accent);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.recommendation-copy {
+  margin: 5px 0 0;
+  line-height: 1.55;
+}
+.loading-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.metric-skeleton {
+  height: 98px;
+  border-radius: 16px;
+}
+.hero-skeleton {
+  height: 110px;
+  border-radius: 18px;
+}
+.chart-skeleton {
+  height: 260px;
+  border-radius: 18px;
+}
+.chart-modal [data-slot="modal-dialog"] {
+  max-height: min(88dvh, 850px);
+}
+.chart-modal [data-slot="modal-body"] > div {
+  height: min(56dvh, 560px);
+}
+.chart-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.chart-table th,
+.chart-table td {
+  padding: 8px;
+  border-top: 1px solid var(--line);
+  text-align: left;
 }
 .report-skeleton {
   height: 130px;
@@ -518,6 +609,61 @@ footer {
 .analysis-note {
   margin: 20px 0 0;
   font-size: 0.84rem;
+}
+@media (max-width: 640px) {
+  .site-header {
+    min-height: 68px;
+  }
+  .local-badge {
+    display: none;
+  }
+  .brand {
+    font-size: 1.25rem;
+  }
+  .brand-icon {
+    width: 34px;
+    height: 34px;
+    margin-right: 7px;
+  }
+  .chart-grid,
+  .metric-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .chart-card > div:nth-child(2) {
+    height: 280px;
+  }
+  .chart-modal [data-slot="modal-container"] {
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    margin: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .chart-modal [data-slot="modal-dialog"] {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+  }
+  .chart-modal [data-slot="modal-body"] > div {
+    height: 46dvh;
+  }
+  .loading-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: this must override motion declarations for reduced-motion users. */
+    scroll-behavior: auto !important;
+    /* biome-ignore lint/complexity/noImportantStyles: this must override motion declarations for reduced-motion users. */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: this must override motion declarations for reduced-motion users. */
+    transition-duration: 0.01ms !important;
+  }
 }
 .skip-link {
   position: absolute;
