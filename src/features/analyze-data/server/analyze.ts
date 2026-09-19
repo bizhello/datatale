@@ -153,7 +153,7 @@ const providerNarrativeItemSchema = z
   .strict();
 export const providerNarrativeResponseSchema = z
   .object({
-    hero: z.array(providerNarrativeItemSchema).min(1).max(3),
+    hero: z.array(providerNarrativeItemSchema).min(2).max(3),
     recommendations: z
       .array(providerNarrativeItemSchema.extend({ kind: z.literal("action") }))
       .max(3),

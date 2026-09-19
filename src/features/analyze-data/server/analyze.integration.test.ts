@@ -89,6 +89,12 @@ const narrative = {
       evidenceIds: [],
       kind: "observation" as const,
     },
+    {
+      text: "Проверенный итог.",
+      factIds: ["orders"],
+      evidenceIds: [],
+      kind: "observation" as const,
+    },
   ],
   recommendations: [],
 };
@@ -96,6 +102,12 @@ const textNarrative = {
   hero: [
     {
       text: "Проверенный факт.",
+      factIds: ["revenue"],
+      evidenceIds: [],
+      kind: "observation" as const,
+    },
+    {
+      text: "Проверенный период.",
       factIds: ["revenue"],
       evidenceIds: [],
       kind: "observation" as const,
@@ -168,7 +180,9 @@ describe("analysis orchestration", () => {
       stage === "narrative"
         ? {
             ...narrative,
-            hero: [{ ...narrative.hero[0], factIds: ["invented"] }],
+            hero: narrative.hero.map((item, index) =>
+              index === 0 ? { ...item, factIds: ["invented"] } : item,
+            ),
           }
         : proposal;
     await expect(
@@ -251,6 +265,12 @@ describe("analysis orchestration", () => {
               hero: [
                 {
                   text: "В отчете есть точная цитата о количестве заявок.",
+                  factIds: [],
+                  evidenceIds: ["quote-tickets"],
+                  kind: "observation",
+                },
+                {
+                  text: "Цитата относится к первому абзацу.",
                   factIds: [],
                   evidenceIds: ["quote-tickets"],
                   kind: "observation",
@@ -396,6 +416,12 @@ describe("analysis orchestration", () => {
               hero: [
                 {
                   text: "Источник не содержит проверяемых числовых фактов.",
+                  factIds: [],
+                  evidenceIds: ["quote-source"],
+                  kind: "observation",
+                },
+                {
+                  text: "Вывод основан на точном фрагменте источника.",
                   factIds: [],
                   evidenceIds: ["quote-source"],
                   kind: "observation",

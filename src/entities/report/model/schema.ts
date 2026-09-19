@@ -279,7 +279,7 @@ export const narrativeResponseSchema = z
           })
           .strict(),
       )
-      .min(1)
+      .min(2)
       .max(3),
     recommendations: z
       .array(

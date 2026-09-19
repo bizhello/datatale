@@ -246,6 +246,12 @@ describe("provider-facing structured output", () => {
             evidenceIds: [],
             kind: "observation",
           },
+          {
+            text: "Confirmed.",
+            factIds: ["fact"],
+            evidenceIds: [],
+            kind: "observation",
+          },
         ],
         recommendations: [
           {
@@ -256,7 +262,9 @@ describe("provider-facing structured output", () => {
           },
         ],
       }),
-    ).toMatchObject({ hero: [{ text: "Observed." }] });
+    ).toMatchObject({
+      hero: [{ text: "Observed." }, { text: "Confirmed." }],
+    });
     expect(
       textExtractionFromProviderOutput({
         facts: [
@@ -273,5 +281,21 @@ describe("provider-facing structured output", () => {
         observations: [],
       }),
     ).toMatchObject({ facts: [{ id: "fact", value: 12 }] });
+  });
+
+  it("rejects a one-sentence hero before it can reach the dashboard", () => {
+    expect(() =>
+      narrativeFromProviderOutput({
+        hero: [
+          {
+            text: "Only one sentence.",
+            factIds: ["fact"],
+            evidenceIds: [],
+            kind: "observation",
+          },
+        ],
+        recommendations: [],
+      }),
+    ).toThrow();
   });
 });
