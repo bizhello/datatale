@@ -122,7 +122,7 @@ Implemented the guest access gate on the isolated `feat/access-gate` worktree. T
 
 The migration adds the code and invalid-attempt bucket branches plus the upgrade function definition; cleanup already removes expired buckets. The environment and deployment docs include the hash-generation command and fail-closed requirements. Focused access and quota tests passed, along with lint and strict typecheck; full check and browser E2E remain release checks.
 
-Migration review correction: both SQL files now use distinct PL/pgSQL bucket variables and retain the old 12-argument `claim_analysis_run` as a wrapper around the access-aware signature. A PostgreSQL 16 container applied both migrations successfully; direct new-signature, legacy-signature, and `claim_access_attempt` calls all returned successfully, and `pg_proc` reported both claim overloads.
+Migration review correction: both SQL files now use distinct PL/pgSQL bucket variables and retain the old 12-argument `claim_analysis_run` as a wrapper around the 14-argument access-aware signature. A PostgreSQL 16 container applied both migrations successfully; direct 14-argument new-signature, legacy-signature, and `claim_access_attempt` calls all returned successfully, and `pg_proc` reported both claim overloads.
 
 ## 2026-09-19 — AI Dashboard candidate (DT-01/04/05/06/07)
 
