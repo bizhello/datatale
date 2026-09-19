@@ -85,6 +85,10 @@ test("accepts text locally and exposes an honest preview", async ({ page }) => {
   await expect(
     page.getByText("Полный проверенный источник будет передан AI-провайдеру."),
   ).toBeVisible();
+  await expect(page.getByText(/отчёт и чат хранятся.*7 дней/)).toBeVisible();
+  await expect(page.getByText(/Сам полный источник не хранится/)).toHaveCount(
+    0,
+  );
 });
 
 test("renders a fixture dashboard and expands charts without another analysis request", async ({
