@@ -82,8 +82,14 @@ function resultMessage(
   return { text: result.message, kind: "unsupported" };
 }
 
-export function useAskData(send: AskDataSend) {
-  const [state, setState] = useState(initialState);
+export function useAskData(
+  send: AskDataSend,
+  initialMessages: AskDataMessage[] = [],
+) {
+  const [state, setState] = useState(() => ({
+    ...initialState,
+    messages: initialMessages,
+  }));
   const requestRef = useRef<{ controller: AbortController; id: number } | null>(
     null,
   );

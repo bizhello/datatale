@@ -9,13 +9,15 @@ import {
   analysisErrorMessages,
   type QuotaScope,
 } from "../model/analysis-state";
-import { useAnalysis } from "../model/use-analysis";
+import { type RestoredAnalysis, useAnalysis } from "../model/use-analysis";
 import { AnalysisProgress } from "./analysis-progress";
 import { InviteAccessModal } from "./invite-access-modal";
 
 type AnalyzeWorkspaceProps = {
   source: Dataset | TextSource;
   onDelete: () => void;
+  restoredAnalysis?: RestoredAnalysis;
+  onAnalysisReady?: () => void;
   renderReport?: (
     analysisId: string,
     report: FinalReport,
@@ -26,12 +28,17 @@ export function AnalyzeWorkspace({
   source,
   onDelete,
   renderReport,
+  restoredAnalysis,
+  onAnalysisReady,
 }: AnalyzeWorkspaceProps) {
-  const { state, run, cancel, retry } = useAnalysis(source);
+  const { state, run, cancel, retry } = useAnalysis(source, restoredAnalysis);
   const [deleteState, setDeleteState] = useState<"idle" | "deleting" | "error">(
     "idle",
   );
   const [accessOpen, setAccessOpen] = useState(false);
+  useEffect(() => {
+    if (state.status === "ready") onAnalysisReady?.();
+  }, [onAnalysisReady, state.status]);
   useEffect(() => {
     if (
       state.status === "error" &&
@@ -53,7 +60,11 @@ export function AnalyzeWorkspace({
     }
   };
   return (
-    <section className="analysis-workspace" id="onboarding-analysis-flow">
+    <section
+      className="analysis-workspace"
+      id="onboarding-analysis-flow"
+      tabIndex={-1}
+    >
       {(state.status === "idle" || state.status === "cancelled") && (
         <Button onPress={() => void run()}>
           {state.status === "cancelled"

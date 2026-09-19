@@ -30,6 +30,18 @@ type AnalyzeResponse = {
   scope?: unknown;
 };
 
+export type RestoredAnalysis = Readonly<{
+  analysisId: string;
+  expiresAt: string;
+  report: import("@/entities/report").FinalReport;
+}>;
+
+function initialState(restored?: RestoredAnalysis) {
+  return restored
+    ? ({ status: "ready", ...restored } as const)
+    : initialAnalysisState;
+}
+
 type RetryMode = "same" | "new" | "none";
 
 export function responseError(
@@ -73,8 +85,11 @@ function idempotencyKey() {
   return crypto.randomUUID();
 }
 
-export function useAnalysis(source: Dataset | TextSource) {
-  const [state, dispatch] = useReducer(analysisReducer, initialAnalysisState);
+export function useAnalysis(
+  source: Dataset | TextSource,
+  restored?: RestoredAnalysis,
+) {
+  const [state, dispatch] = useReducer(analysisReducer, restored, initialState);
   const nextRequestId = useRef(0);
   const controller = useRef<AbortController | undefined>(undefined);
   const progressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(

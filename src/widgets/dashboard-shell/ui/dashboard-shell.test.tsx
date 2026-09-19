@@ -19,6 +19,22 @@ describe("Dashboard input shell", () => {
     );
   });
 
+  it("reads history on mount without bootstrapping or analyzing", async () => {
+    const fetch = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        expect(String(input)).toBe("/api/saved-analysis");
+        expect(init?.method).toBe("GET");
+        return Response.json({ code: "expired" }, { status: 401 });
+      },
+    );
+    vi.stubGlobal("fetch", fetch);
+    render(<DashboardShell />);
+    await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    expect(fetch.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
+      false,
+    );
+  });
+
   it("exposes all theme modes as keyboard reachable controls", () => {
     render(<DashboardShell />);
     expect(screen.getByRole("radio", { name: "Светлая тема" })).toBeVisible();

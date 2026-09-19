@@ -25,6 +25,7 @@ HeroUI v3 has no mandatory HeroUIProvider. A next-themes ThemeProvider has a sep
 | Chart details | Pointer and keyboard | Tap/select; important values do not depend on hover |
 | Evidence | Table or adjacent panel | Dedicated section/sheet; scrolling contained within table |
 | Chat | Below analysis | Below analysis; composer/last message remain visible above keyboard and safe area |
+| Saved reports | Compact owner-scoped picker above input | Full-width keyboard/touch picker with loading, failure, and retry states |
 
 Check 360/390/768/1280/1440 CSS px, a 320px smoke, landscape and 200% zoom. The document must not overflow horizontally. Long filenames, Russian labels and large numbers must not break the layout. Resize the chart container, not just its outer card. Verify the mobile keyboard separately; desktop resizing is not enough.
 

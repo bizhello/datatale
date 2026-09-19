@@ -8,6 +8,7 @@ import {
   SAVED_ANALYSIS_TTL_MS,
   type SavedAnalysis,
   type SavedAnalysisMessage,
+  type SavedAnalysisSummary,
   type SavedAnalysisValidators,
   type SavedMessageInput,
   savedAnalysisMessageSchema,
@@ -121,6 +122,23 @@ export class MemorySavedAnalysisRepository implements SavedAnalysisRepository {
           a.createdAt.getTime() - b.createdAt.getTime() ||
           a.id.localeCompare(b.id),
       );
+  }
+
+  async listSummaries(workspaceId: string, now = new Date()) {
+    return [...(await this.list(workspaceId, now))].map(
+      (analysis) =>
+        ({
+          id: analysis.id,
+          sourceKind:
+            typeof analysis.source === "object" &&
+            analysis.source !== null &&
+            "rawText" in analysis.source
+              ? "text"
+              : "dataset",
+          createdAt: analysis.createdAt,
+          expiresAt: analysis.expiresAt,
+        }) satisfies SavedAnalysisSummary,
+    );
   }
   async cleanup(now = new Date()) {
     let removed = 0;

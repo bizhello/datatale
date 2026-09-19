@@ -312,7 +312,135 @@ footer {
   color: var(--muted);
 }
 .import-workspace {
+  position: relative;
+  isolation: isolate;
   padding: clamp(44px, 8vw, 92px) 0;
+}
+.import-workspace::before,
+.import-workspace::after {
+  position: absolute;
+  z-index: -1;
+  width: clamp(15rem, 32vw, 26rem);
+  height: clamp(15rem, 32vw, 26rem);
+  border-radius: 50%;
+  background: var(--accent-soft);
+  content: "";
+  filter: blur(42px);
+  opacity: 0.52;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+}
+.import-workspace::before {
+  top: 0;
+  right: -8rem;
+  animation: liquid-drift 4.8s ease-in-out 1 alternate forwards;
+}
+.import-workspace::after {
+  top: 14rem;
+  left: -12rem;
+  opacity: 0.3;
+  animation: liquid-drift 4.8s ease-in-out 1 alternate-reverse forwards;
+}
+.import-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+  align-items: end;
+  gap: clamp(24px, 6vw, 84px);
+}
+.import-hero-grid-single {
+  grid-template-columns: 1fr;
+}
+.liquid-result-preview {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
+  border-radius: 22px;
+  padding: clamp(20px, 3vw, 28px);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  box-shadow: 0 18px 50px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.liquid-preview-glow {
+  position: absolute;
+  z-index: -1;
+  top: -4rem;
+  right: -3rem;
+  width: 11rem;
+  height: 11rem;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  filter: blur(22px);
+  opacity: 0.75;
+  pointer-events: none;
+}
+.liquid-preview-heading,
+.liquid-preview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.liquid-preview-heading {
+  color: var(--accent);
+}
+.liquid-preview-insight {
+  max-width: 23rem;
+  margin: 22px 0 28px;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+}
+.liquid-preview-footer > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+.liquid-preview-footer span,
+.liquid-preview-note {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+.liquid-preview-footer strong {
+  font-size: 1.32rem;
+  letter-spacing: -0.035em;
+}
+.liquid-mini-chart {
+  display: flex;
+  align-items: end;
+  gap: 4px;
+  height: 42px;
+  color: var(--accent);
+}
+.liquid-mini-chart i {
+  display: block;
+  width: 7px;
+  border-radius: 4px 4px 2px 2px;
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.liquid-mini-chart i:nth-child(1) {
+  height: 14px;
+}
+.liquid-mini-chart i:nth-child(2) {
+  height: 22px;
+}
+.liquid-mini-chart i:nth-child(3) {
+  height: 19px;
+}
+.liquid-mini-chart i:nth-child(4) {
+  height: 32px;
+  background: var(--accent);
+}
+.liquid-preview-note {
+  margin: 20px 0 0;
+}
+@keyframes liquid-drift {
+  from {
+    transform: translate3d(-1.5rem, -0.5rem, 0) scale(0.96);
+  }
+  to {
+    transform: translate3d(1.5rem, 1rem, 0) scale(1.04);
+  }
 }
 .section-heading {
   max-width: 720px;
@@ -331,6 +459,32 @@ footer {
   margin: 0;
   color: var(--muted);
   line-height: 1.65;
+}
+.history-picker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  padding-top: 20px;
+}
+.history-picker-error {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-bottom: 10px;
+}
+.history-picker-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.history-picker > * {
+  width: min(100%, 320px);
 }
 .input-grid {
   display: grid;
@@ -964,7 +1118,9 @@ footer span:last-child {
 }
 @media (prefers-reduced-motion: reduce) {
   .spin,
-  .preview {
+  .preview,
+  .import-workspace::before,
+  .import-workspace::after {
     animation: none;
   }
   .dropzone,
@@ -980,6 +1136,12 @@ footer span:last-child {
   }
 }
 @media (max-width: 700px) {
+  .history-picker {
+    justify-content: stretch;
+  }
+  .history-picker-error {
+    justify-content: space-between;
+  }
   .site-header {
     min-height: 70px;
   }
@@ -989,6 +1151,10 @@ footer span:last-child {
   .input-grid {
     grid-template-columns: 1fr;
     margin-top: 30px;
+  }
+  .import-hero-grid {
+    grid-template-columns: 1fr;
+    gap: 28px;
   }
   .dropzone,
   .text-input {

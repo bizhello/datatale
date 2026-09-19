@@ -10,10 +10,12 @@ import {
   SAVED_ANALYSIS_TTL_MS,
   type SavedAnalysis,
   type SavedAnalysisMessage,
+  type SavedAnalysisSummary,
   type SavedAnalysisValidators,
   type SavedMessageInput,
   savedAnalysisMessageSchema,
   savedAnalysisSchema,
+  savedAnalysisSummarySchema,
   savedMessageInputSchema,
   sourceKind,
 } from "../model/schema";
@@ -34,6 +36,10 @@ export type SavedAnalysisRepository = Readonly<{
     now?: Date,
   ): Promise<SavedAnalysis | undefined>;
   list(workspaceId: string, now?: Date): Promise<ReadonlyArray<SavedAnalysis>>;
+  listSummaries(
+    workspaceId: string,
+    now?: Date,
+  ): Promise<ReadonlyArray<SavedAnalysisSummary>>;
   cleanup(now?: Date): Promise<number>;
   appendMessage(input: {
     workspaceId: string;
@@ -66,9 +72,28 @@ function parseAnalysis(row: unknown): SavedAnalysis | undefined {
   return result.success ? result.data : undefined;
 }
 
-function parseMessage(row: unknown): SavedAnalysisMessage | undefined {
+function parseMessage(
+  row: unknown,
+  validators: SavedAnalysisValidators,
+): SavedAnalysisMessage | undefined {
   const result = savedAnalysisMessageSchema.safeParse(row);
-  return result.success ? result.data : undefined;
+  if (!result.success) return undefined;
+  if (result.data.role === "assistant" && result.data.result === undefined)
+    return undefined;
+  if (result.data.role === "user" && result.data.result !== undefined)
+    return undefined;
+  if (result.data.result === undefined) return result.data;
+  if (!validators.messageResult) return undefined;
+  let parsedResult: unknown;
+  try {
+    parsedResult = validators.messageResult.parse(result.data.result);
+  } catch {
+    return undefined;
+  }
+  return savedAnalysisMessageSchema.parse({
+    ...result.data,
+    result: parsedResult,
+  });
 }
 
 function assertId(value: string, label: string) {
@@ -163,6 +188,22 @@ export class SqlSavedAnalysisRepository implements SavedAnalysisRepository {
     });
   }
 
+  async listSummaries(workspaceId: string, now = new Date()) {
+    assertId(workspaceId, "Workspace ID");
+    const rows = await this.client()`
+      SELECT a.id, a.source_kind AS "sourceKind", a.created_at AS "createdAt", a.expires_at AS "expiresAt"
+      FROM saved_analyses a JOIN guest_workspaces w ON w.id = a.workspace_id
+      WHERE a.workspace_id = ${workspaceId} AND w.revoked_at IS NULL AND w.expires_at > ${now} AND a.expires_at > ${now}
+      ORDER BY a.created_at ASC, a.id ASC
+    `;
+    return rows.map((row) => {
+      const parsed = savedAnalysisSummarySchema.safeParse(row);
+      if (!parsed.success)
+        throw new Error("Saved analysis summary failed canonical validation.");
+      return parsed.data;
+    });
+  }
+
   async appendMessage(input: {
     workspaceId: string;
     analysisId: string;
@@ -230,14 +271,17 @@ export class SqlSavedAnalysisRepository implements SavedAnalysisRepository {
     if (row.quotaExceeded) return "quota-exceeded" as const;
     if (row.messageConflict)
       throw new Error("Message ID already exists with different content.");
-    const parsed = parseMessage({
-      id: row.message_id,
-      analysisId: row.analysis_id,
-      role: row.role,
-      content: row.content,
-      result: row.result,
-      createdAt: row.created_at,
-    });
+    const parsed = parseMessage(
+      {
+        id: row.message_id,
+        analysisId: row.analysis_id,
+        role: row.role,
+        content: row.content,
+        result: row.result,
+        createdAt: row.created_at,
+      },
+      this.validators,
+    );
     return parsed;
   }
 
@@ -263,9 +307,13 @@ export class SqlSavedAnalysisRepository implements SavedAnalysisRepository {
       ORDER BY m.sequence DESC LIMIT ${limit}
     `;
     return rows
-      .flatMap((row) => {
-        const parsed = parseMessage(row);
-        return parsed ? [parsed] : [];
+      .map((row) => {
+        const parsed = parseMessage(row, this.validators);
+        if (!parsed)
+          throw new Error(
+            "Saved analysis message failed canonical validation.",
+          );
+        return parsed;
       })
       .reverse();
   }

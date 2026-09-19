@@ -1,7 +1,7 @@
 "use client";
 import { Chip } from "@heroui/react";
 import { BarChart3, BookOpen } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import { ReportDashboard } from "@/entities/report/ui";
 import { AnalyzeWorkspace } from "@/features/analyze-data";
@@ -9,6 +9,8 @@ import { ImportWorkspace } from "@/features/import-data";
 import { OnboardingTour } from "@/features/onboarding";
 import { AskDataPanel, createAskDataSend } from "@/features/query-report";
 import { ThemeControl } from "@/shared/ui/theme-control";
+import { useHistory } from "../model/use-history";
+import { HistoryPicker } from "./history-picker";
 import { OnboardingDemo } from "./onboarding-demo";
 
 export function DashboardShell() {
@@ -16,7 +18,46 @@ export function DashboardShell() {
   const [source, setSource] = useState<Dataset | TextSource>();
   const [workspaceVersion, setWorkspaceVersion] = useState(0);
   const [onboardingActive, setOnboardingActive] = useState(false);
+  const handleAccessLost = useCallback(() => {
+    setSource(undefined);
+    setWorkspaceVersion((version) => version + 1);
+  }, []);
+  const {
+    analyses: history,
+    selected: selectedHistory,
+    loading: historyLoading,
+    error: historyError,
+    opening: openingHistory,
+    openError: historyOpenError,
+    retryId: historyRetryId,
+    load: loadHistory,
+    open: openHistory,
+    sourceReady,
+    deleteAll: clearHistory,
+  } = useHistory({ onAccessLost: handleAccessLost });
+  const refreshHistory = useCallback(() => void loadHistory(), [loadHistory]);
+  const handleSourceReady = useCallback(
+    (next: Dataset | TextSource) => {
+      sourceReady();
+      setSource(next);
+    },
+    [sourceReady],
+  );
   useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    if (!selectedHistory) return;
+    setSource(selectedHistory.source);
+    const focus = () =>
+      document.getElementById("onboarding-analysis-flow")?.focus();
+    if (typeof requestAnimationFrame === "function")
+      requestAnimationFrame(focus);
+    else setTimeout(focus, 0);
+  }, [selectedHistory]);
+  const handleDelete = useCallback(() => {
+    clearHistory();
+    setSource(undefined);
+    setWorkspaceVersion((version) => version + 1);
+  }, [clearHistory]);
   return (
     <div className="page-shell" data-hydrated={mounted ? "true" : undefined}>
       <a href="#main" className="skip-link">
@@ -37,7 +78,20 @@ export function DashboardShell() {
         </div>
       </header>
       <main id="main">
-        <ImportWorkspace key={workspaceVersion} onReady={setSource} />
+        <HistoryPicker
+          analyses={history}
+          error={historyError}
+          loading={historyLoading}
+          opening={openingHistory}
+          openError={historyOpenError}
+          loaded={Boolean(selectedHistory)}
+          onOpen={(id) => void openHistory(id)}
+          onRetry={() => {
+            if (historyRetryId) void openHistory(historyRetryId);
+          }}
+          onRetryList={() => void loadHistory()}
+        />
+        <ImportWorkspace key={workspaceVersion} onReady={handleSourceReady} />
         {source && (
           <div
             aria-hidden={onboardingActive || undefined}
@@ -46,18 +100,25 @@ export function DashboardShell() {
             }
           >
             <AnalyzeWorkspace
-              key={source.id}
+              key={`${source.id}:${selectedHistory?.analysisId ?? "new"}`}
               source={source}
+              {...(selectedHistory
+                ? { restoredAnalysis: selectedHistory }
+                : {})}
+              onAnalysisReady={refreshHistory}
               renderReport={(analysisId, report, expiresAt) => (
                 <>
                   <ReportDashboard report={report} expiresAt={expiresAt} />
-                  <AskDataPanel send={createAskDataSend(analysisId)} />
+                  <AskDataPanel
+                    key={analysisId}
+                    {...(selectedHistory
+                      ? { initialMessages: selectedHistory.messages }
+                      : {})}
+                    send={createAskDataSend(analysisId)}
+                  />
                 </>
               )}
-              onDelete={() => {
-                setSource(undefined);
-                setWorkspaceVersion((version) => version + 1);
-              }}
+              onDelete={handleDelete}
             />
           </div>
         )}

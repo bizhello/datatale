@@ -11,7 +11,8 @@
 5. Read a 2–3 sentence hero insight, meaningful metrics, 2–3 interactive charts on suitable data, and recommendations with supporting facts.
 6. Open evidence: rows/paragraphs, formula, units and coverage. A sample is never represented as the entire dataset.
 7. Ask questions below the dashboard. Missing information produces the exact assignment refusal; unsupported operations and provider failures get different explanations.
-8. Delete all data in the current guest workspace and clear the local session.
+8. Reopen a saved report and its chat from the current guest workspace without rerunning analysis.
+9. Delete all data in the current guest workspace and clear the local session.
 
 The product UI remains Russian unless explicitly changed. Engineering artifacts are English. User-facing source quotations, filenames and the required refusal may retain their original language.
 
@@ -38,6 +39,7 @@ Preview a labeled sample while showing full accepted row/column counts. Empty ce
 - The idempotency receipt expires after 15 minutes. Saved reports, accepted datasets and associated chat expire seven days after analysis creation. Viewing or chatting does not extend that deadline.
 - Expired data is immediately inaccessible. Scheduled cleanup removes it from the primary database, with a target daily interval. Provider/backup retention is separate.
 - Cookie loss, another browser or private mode can end access early. There is no IP-based recovery or cross-device synchronization.
+- History lists only active reports owned by the sealed guest workspace. Reopening restores the validated source, report, and completed chat transcript without extending expiry or spending analysis/chat quota.
 - Cookie deletion alone is not server-data deletion. A dedicated delete-all operation removes content, revokes the workspace, and clears cookie/client caches.
 - Show the expiry date and explain source transmission to the model provider before submission. Do not claim data never leaves the browser.
 
@@ -71,4 +73,4 @@ Text with no measurable quantities gets an honest chart limitation. This edge ca
 
 ## Scope priority
 
-Required and delivered: all four assignment features, responsive polished UI, themes/branding, error handling, reliable answers, evidence drill-down, and the guided tour. Future enhancements are guest history/reopen and blueprint reuse. Do not add template CRUD, exports, public sharing, background jobs, or extra chart types without a separate product decision.
+Required and delivered: all four assignment features, responsive polished UI, themes/branding, error handling, reliable answers, evidence drill-down, the guided tour, and owner-scoped guest report history/reopen. Blueprint reuse remains a future enhancement. Do not add template CRUD, exports, public sharing, background jobs, or extra chart types without a separate product decision.
