@@ -24,7 +24,7 @@ test("accepts text locally and exposes an honest preview", async ({ page }) => {
   await expect(page.getByText("Текст готов к анализу")).toBeVisible();
   await expect(
     page.getByText(
-      "Источник проверен. Анализ и сохранение отчёта появятся в следующем этапе.",
+      "Полный проверенный источник будет передан AI-провайдеру.",
     ),
   ).toBeVisible();
 });
