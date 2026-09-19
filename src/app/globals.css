@@ -117,13 +117,32 @@ footer {
 }
 
 .onboarding-welcome {
+  position: fixed;
+  inset: 1rem 1rem auto;
+  z-index: 1000;
   border: 1px solid var(--line);
   border-radius: 1rem;
   background: var(--surface);
   box-shadow: 0 0.75rem 2.5rem rgb(23 32 51 / 12%);
-  margin: 1rem auto;
+  margin: 0 auto;
   max-width: 38rem;
   padding: 1.25rem;
+}
+
+.onboarding-workspace-hidden {
+  pointer-events: none;
+  position: absolute;
+  visibility: hidden;
+}
+
+.onboarding-welcome .onboarding-start {
+  background: #2447b8;
+  color: #fff;
+}
+
+.dark .onboarding-welcome .onboarding-start {
+  background: #a9baff;
+  color: #111a35;
 }
 
 .onboarding-welcome h2 {

@@ -144,14 +144,17 @@ test("renders a fixture dashboard and expands charts without another analysis re
     name: "Развернуть По регионам",
   });
   await expandButton.click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog").last();
   await expect(dialog).toBeVisible();
   await expect(
     dialog.getByRole("heading", { name: "Основание графика" }),
   ).toBeVisible();
   await expect(dialog.getByText("Все строки источника")).toBeVisible();
+  const chartDialog = page.getByRole("dialog").filter({
+    hasText: "Основание графика",
+  });
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await expect(chartDialog).not.toBeVisible();
   await expect(expandButton).toBeFocused();
   expect(requests).toEqual(["guest", "analyze"]);
 });

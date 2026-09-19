@@ -84,8 +84,8 @@ export function OnboardingDemo() {
       aria-label="Демо-результат анализа"
       className="onboarding-demo-workspace onboarding-demo-analysis"
     >
-      <ReportDashboard report={demoReport} />
-      <AskDataPanel send={demoAsk} />
+      <ReportDashboard onboardingDemo report={demoReport} />
+      <AskDataPanel onboardingDemo send={demoAsk} />
     </section>
   );
 }

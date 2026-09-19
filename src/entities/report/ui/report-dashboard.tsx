@@ -5,8 +5,11 @@ import { useState } from "react";
 import type { FinalReport } from "../model/schema";
 import { ChartVisual } from "./chart-visual";
 
-type ReportDashboardProps = { report: FinalReport };
-export function ReportDashboard({ report }: ReportDashboardProps) {
+type ReportDashboardProps = { report: FinalReport; onboardingDemo?: boolean };
+export function ReportDashboard({
+  report,
+  onboardingDemo = false,
+}: ReportDashboardProps) {
   const [expanded, setExpanded] = useState<
     FinalReport["charts"][number] | undefined
   >();
@@ -44,7 +47,7 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
                   <Button
                     isIconOnly
                     aria-label={`Развернуть ${chart.title}`}
-                    {...(chart.id === report.charts[0]?.id
+                    {...(!onboardingDemo && chart.id === report.charts[0]?.id
                       ? { id: "onboarding-chart-expand" }
                       : {})}
                     onPress={() => setExpanded(chart)}

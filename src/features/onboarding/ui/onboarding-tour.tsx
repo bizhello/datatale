@@ -109,6 +109,7 @@ export function OnboardingTour({
   const driverRef = useRef<ReturnType<typeof driver> | undefined>(undefined);
   const actionRef = useRef<TourAction | undefined>(undefined);
   const focusRef = useRef<HTMLElement | undefined>(undefined);
+  const teardownRef = useRef<() => void>(() => undefined);
   const replayRef = useRef<HTMLButtonElement>(null);
   const welcomeStartRef = useRef<HTMLButtonElement>(null);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
@@ -136,9 +137,19 @@ export function OnboardingTour({
       return;
     }
     actionRef.current = undefined;
+    let ended = false;
+    const teardown = () => {
+      if (ended) return;
+      ended = true;
+      driverRef.current = undefined;
+      onSessionChange(false);
+      restoreFocus();
+    };
+    teardownRef.current = teardown;
     const skip = () => {
       finish("skipped");
-      driverRef.current?.destroy();
+      instance.destroy();
+      teardown();
     };
     const instance = driver({
       animate: !prefersReducedMotion(),
@@ -158,14 +169,13 @@ export function OnboardingTour({
       onDestroyStarted: (_element, _step, options) => {
         if (!actionRef.current) finish("skipped");
         options.driver.destroy();
+        teardown();
       },
-      onDestroyed: () => {
-        onSessionChange(false);
-        restoreFocus();
-      },
+      onDestroyed: teardown,
       onDoneClick: (_element, _step, options) => {
         finish("completed");
         options.driver.destroy();
+        teardown();
       },
     });
     driverRef.current = instance;
@@ -184,7 +194,17 @@ export function OnboardingTour({
   useEffect(() => {
     if (hydrated && !readOnboardingPreference()) setWelcomeOpen(true);
   }, [hydrated]);
-  useEffect(() => () => driverRef.current?.destroy(), []);
+  useEffect(() => {
+    if (welcomeOpen) welcomeStartRef.current?.focus();
+  }, [welcomeOpen]);
+  useEffect(
+    () => () => {
+      const activeDriver = driverRef.current;
+      teardownRef.current();
+      activeDriver?.destroy();
+    },
+    [],
+  );
 
   const begin = (trigger: HTMLElement | null) => {
     focusRef.current = trigger ?? replayRef.current ?? undefined;
@@ -222,6 +242,7 @@ export function OnboardingTour({
           </p>
           <div className="onboarding-welcome-actions">
             <Button
+              className="onboarding-start"
               ref={welcomeStartRef}
               onPress={() => begin(welcomeStartRef.current)}
             >

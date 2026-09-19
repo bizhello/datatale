@@ -3,10 +3,12 @@ import { expect, test } from "@playwright/test";
 const preferenceKey = "datatale:onboarding:v1";
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(
-    (key) => window.localStorage.removeItem(key),
-    preferenceKey,
-  );
+  await page.addInitScript((key) => {
+    if (!window.sessionStorage.getItem("onboarding-test-initialized")) {
+      window.localStorage.removeItem(key);
+      window.sessionStorage.setItem("onboarding-test-initialized", "true");
+    }
+  }, preferenceKey);
 });
 
 test("shows the welcome, mounts stable demo targets, and restores focus after skip", async ({
@@ -22,7 +24,7 @@ test("shows the welcome, mounts stable demo targets, and restores focus after sk
   await page.getByRole("button", { name: "Начать знакомство" }).click();
   await expect(page.locator(".onboarding-demo-workspace")).toBeVisible();
   await expect(
-    page.locator(".onboarding-demo-workspace .chart-heading button"),
+    page.locator(".onboarding-demo-workspace .chart-heading button").first(),
   ).toBeVisible();
   await expect(
     page.locator(".onboarding-demo-workspace [data-onboarding-ask]"),
@@ -30,8 +32,8 @@ test("shows the welcome, mounts stable demo targets, and restores focus after sk
   await page.getByRole("button", { name: "Пропустить" }).last().click();
   await expect(page.locator(".onboarding-demo-workspace")).toHaveCount(0);
   await expect(replay).toBeFocused();
-  await expect(
-    page.evaluate((key) => localStorage.getItem(key), preferenceKey),
+  expect(
+    await page.evaluate((key) => localStorage.getItem(key), preferenceKey),
   ).toBe("skipped");
 });
 
@@ -49,8 +51,8 @@ test("Escape dismisses the tour as skipped and does not call analysis APIs", asy
   await page.keyboard.press("Escape");
   await expect(page.locator(".onboarding-demo-workspace")).toHaveCount(0);
   expect(analysisRequests).toHaveLength(0);
-  await expect(
-    page.evaluate((key) => localStorage.getItem(key), preferenceKey),
+  expect(
+    await page.evaluate((key) => localStorage.getItem(key), preferenceKey),
   ).toBe("skipped");
 });
 
@@ -90,4 +92,82 @@ test("continues when localStorage is unavailable", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "Открыть знакомство с DataTale" }),
   ).toBeVisible();
+});
+
+test("Done completes onboarding and suppresses the welcome after reload", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Начать знакомство" }).click();
+  const next = page.locator(".driver-popover-next-btn");
+  const done = page.locator(".driver-popover-done-btn");
+  for (let step = 0; step < 10 && !(await done.isVisible()); step += 1)
+    await next.click();
+  await expect(done).toBeVisible();
+  await done.click();
+  expect(
+    await page.evaluate((key) => localStorage.getItem(key), preferenceKey),
+  ).toBe("completed");
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Добро пожаловать в DataTale" }),
+  ).toHaveCount(0);
+});
+
+test("replay restores a populated source and report after dismissal", async ({
+  page,
+}) => {
+  await page.route("**/api/guest", async (route) => {
+    await route.fulfill({ json: { expiresAt: "2026-10-19T00:00:00.000Z" } });
+  });
+  await page.route("**/api/analyze", async (route) => {
+    await route.fulfill({
+      json: {
+        analysisId: "00000000-0000-4000-8000-000000000009",
+        report: {
+          version: 1,
+          hero: [
+            {
+              text: "Стабильный отчёт",
+              factIds: ["revenue"],
+              evidenceIds: ["rows"],
+              kind: "observation",
+            },
+          ],
+          metrics: [
+            {
+              id: "revenue",
+              label: "Выручка",
+              value: 10,
+              evidenceIds: ["rows"],
+            },
+          ],
+          charts: [],
+          noChartReason: "Недостаточно категорий для диаграммы.",
+          evidence: [{ id: "rows", kind: "row-range", label: "Все строки" }],
+          recommendations: [],
+        },
+      },
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Пропустить" }).click();
+  await page
+    .getByRole("button", { name: "Загрузить синтетический демо-набор" })
+    .click();
+  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
+  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Стабильный отчёт" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Открыть знакомство с DataTale" })
+    .click();
+  await expect(page.locator(".onboarding-demo-workspace")).toBeVisible();
+  await page.getByRole("button", { name: "Пропустить" }).last().click();
+  await expect(page.locator(".onboarding-demo-workspace")).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Стабильный отчёт" }),
+  ).toBeVisible();
+  await expect(page.getByText("Таблица готова к анализу")).toBeVisible();
 });

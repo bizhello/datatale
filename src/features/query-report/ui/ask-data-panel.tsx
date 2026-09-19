@@ -18,7 +18,7 @@ import styles from "./ask-data.module.css";
 import { MessageBubble } from "./message-bubble";
 import { SuggestedQuestions } from "./suggested-questions";
 
-export type AskDataPanelProps = { send: AskDataSend };
+export type AskDataPanelProps = { send: AskDataSend; onboardingDemo?: boolean };
 
 const suggestions = [
   "Какие главные выводы?",
@@ -26,7 +26,10 @@ const suggestions = [
   "Какие показатели стоит проверить?",
 ] as const;
 
-export function AskDataPanel({ send }: AskDataPanelProps) {
+export function AskDataPanel({
+  send,
+  onboardingDemo = false,
+}: AskDataPanelProps) {
   const {
     messages,
     question,
@@ -77,7 +80,7 @@ export function AskDataPanel({ send }: AskDataPanelProps) {
     <Surface
       data-onboarding-ask="true"
       className={styles.panel ?? ""}
-      id="onboarding-ask-data"
+      {...(!onboardingDemo ? { id: "onboarding-ask-data" } : {})}
       variant="default"
     >
       <header className={styles.header}>

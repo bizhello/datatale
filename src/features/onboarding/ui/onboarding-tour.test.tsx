@@ -18,6 +18,11 @@ type FakeConfig = {
     step: unknown,
     options: { driver: FakeDriver },
   ) => void;
+  onDestroyStarted?: (
+    element: Element | undefined,
+    step: unknown,
+    options: { driver: FakeDriver },
+  ) => void;
 };
 const driverState = vi.hoisted(() => ({
   config: undefined as FakeConfig | undefined,
@@ -99,5 +104,22 @@ describe("OnboardingTour", () => {
     onCloseClick(undefined, undefined, { driver: instance });
     expect(readOnboardingPreference()).toBe("skipped");
     expect(replay).toHaveFocus();
+  });
+
+  it("tears down safely when escape arrives during the first highlight", async () => {
+    const onSessionChange = vi.fn();
+    render(
+      <>
+        <OnboardingTour hydrated onSessionChange={onSessionChange} />
+        {targets()}
+      </>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Начать знакомство" }));
+    await waitFor(() => expect(driverState.instance?.drive).toHaveBeenCalled());
+    const instance = driverState.instance;
+    const onDestroyStarted = driverState.config?.onDestroyStarted;
+    if (!instance || !onDestroyStarted) throw new Error("Driver did not start");
+    onDestroyStarted(undefined, undefined, { driver: instance });
+    expect(onSessionChange).toHaveBeenLastCalledWith(false);
   });
 });

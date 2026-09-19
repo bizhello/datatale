@@ -39,20 +39,27 @@ export function DashboardShell() {
       <main id="main">
         <ImportWorkspace key={workspaceVersion} onReady={setSource} />
         {source && (
-          <AnalyzeWorkspace
-            key={source.id}
-            source={source}
-            renderReport={(analysisId, report) => (
-              <>
-                <ReportDashboard report={report} />
-                <AskDataPanel send={createAskDataSend(analysisId)} />
-              </>
-            )}
-            onDelete={() => {
-              setSource(undefined);
-              setWorkspaceVersion((version) => version + 1);
-            }}
-          />
+          <div
+            aria-hidden={onboardingActive || undefined}
+            className={
+              onboardingActive ? "onboarding-workspace-hidden" : undefined
+            }
+          >
+            <AnalyzeWorkspace
+              key={source.id}
+              source={source}
+              renderReport={(analysisId, report) => (
+                <>
+                  <ReportDashboard report={report} />
+                  <AskDataPanel send={createAskDataSend(analysisId)} />
+                </>
+              )}
+              onDelete={() => {
+                setSource(undefined);
+                setWorkspaceVersion((version) => version + 1);
+              }}
+            />
+          </div>
         )}
         {onboardingActive && <OnboardingDemo />}
       </main>
