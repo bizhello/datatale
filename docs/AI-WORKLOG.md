@@ -6,7 +6,7 @@
 
 **Production evidence:** production commit `fd464cb` reached Ready and `datatale.bizhov.ru` returned HTTPS 200 with the repository favicon. A post-merge table analysis returned HTTP 200 with three hero statements, three metrics, and three charts; missing-data chat returned HTTP 200 with the exact `В этом отчете нет такой информации` result. Earlier text inference produced checked quotation evidence and the honest no-chart state. Desktop Chromium and mobile WebKit onboarding smoke verified an inert welcome, deterministic local demo, Escape/replay, unique document IDs, restoration after replay, and zero `/api/analyze` calls.
 
-**Database and deployment:** the advisory-locked migration runner applied `0001`–`0004` to production Neon. The next production build logged `Applied 0 migrations` before `next build`, proving the automatic `production + main` guard and idempotent ledger path. Vercel skips branch and pull-request builds; historical and canceled previews were removed, leaving only main production.
+**Database and deployment:** the advisory-locked migration runner applied `0001`–`0004` to production Neon. The next production build logged `Applied 0 migrations` before `next build`, proving the automatic `production + main` guard and idempotent ledger path. Vercel skips branch and pull-request builds; historical and canceled preview deployments were removed, leaving no preview deployments.
 
 **AI orchestration corrections:**
 

@@ -7,7 +7,7 @@
 Verified on 2026-09-19:
 
 - Vercel project `datatale` deploys `bizhello/datatale` from `main`. Production commit `fd464cb` is Ready; [datatale.bizhov.ru](https://datatale.bizhov.ru) and [datatale.vercel.app](https://datatale.vercel.app) return HTTPS 200.
-- `vercel.json` allows Git builds only for `main`. Pull-request and branch builds are reported as ignored; historical and canceled previews were removed, leaving only main production.
+- `vercel.json` allows Git builds only for `main`. Pull-request and branch builds are reported as ignored; historical and canceled preview deployments were removed, leaving no preview deployments.
 - `bun run build:vercel` runs `bun run db:migrate` before `next build` only when `VERCEL_ENV=production` and `VERCEL_GIT_COMMIT_REF=main`. A production deployment logged `Applied 0 migrations` before a successful build, confirming the automatic guarded path on an already-current schema.
 - Production Neon `datatale-db` is connected in `iad1`; migrations `0001_ai_dashboard.sql` through `0004_chat_inference_leases.sql` are applied.
 - Cloudflare is authoritative for DNS. The DNS-only `datatale` CNAME points to Vercel; apex, mail, nameservers, and unrelated records are unchanged.
@@ -52,7 +52,7 @@ The Vercel wrapper is deliberately stricter than the command itself: only a prod
 
 ## Retention and cleanup
 
-Guest workspaces expire after 30 days of inactivity; analysis receipts after 15 minutes; saved canonical sources, reports, and chats seven days after analysis creation; inference leases after 90 seconds; quota buckets no later than 48 hours. Viewing and chatting do not extend saved-analysis expiry. Original workbook binaries, raw IP addresses, invite codes, prompts, and secrets are not stored by the application.
+Guest workspaces expire after 30 days of inactivity; analysis receipts after 15 minutes; analysis-run leases after 90 seconds; chat inference leases after 60 seconds; saved canonical sources, reports, and chats seven days after analysis creation; quota buckets no later than 48 hours. Viewing and chatting do not extend saved-analysis expiry. Original workbook binaries, raw IP addresses, invite codes, prompts, and secrets are not stored by the application.
 
 Vercel calls `/api/cron/cleanup` daily at 03:00 UTC. The route requires `Authorization: Bearer $CRON_SECRET` and removes expired receipts and saved analyses with cascaded messages independently of provider availability. Primary deletion does not make claims about provider or backup retention.
 
