@@ -231,7 +231,7 @@ export const reportNarrativeItemSchema = z
 export const finalReportSchema = z
   .object({
     version: z.literal(1),
-    hero: z.array(reportNarrativeItemSchema).min(1).max(3),
+    hero: z.array(reportNarrativeItemSchema).min(2).max(3),
     metrics: z.array(reportFactSchema).max(4),
     charts: z.array(reportChartSchema).max(3),
     evidence: z.array(reportEvidenceSchema).min(1).max(7),

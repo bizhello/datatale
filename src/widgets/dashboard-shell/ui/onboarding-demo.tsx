@@ -17,6 +17,12 @@ const demoReport = {
       evidenceIds: ["rows"],
       kind: "observation",
     },
+    {
+      text: "Выручка подтверждена всеми строками демо-источника.",
+      factIds: ["revenue"],
+      evidenceIds: ["rows"],
+      kind: "observation",
+    },
   ],
   metrics: [
     {

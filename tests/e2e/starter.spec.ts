@@ -18,6 +18,10 @@ const dashboardReport = {
       text: "Выручка выросла в феврале, а каналы заметно различаются.",
       factIds: ["revenue"],
     },
+    {
+      text: "Показатели подтверждены всеми строками источника.",
+      factIds: ["revenue"],
+    },
   ],
   metrics: [
     {

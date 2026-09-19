@@ -167,6 +167,12 @@ test("replay restores a populated source and report after dismissal", async ({
               evidenceIds: ["rows"],
               kind: "observation",
             },
+            {
+              text: "Стабильный отчёт подтверждён источником.",
+              factIds: ["revenue"],
+              evidenceIds: ["rows"],
+              kind: "observation",
+            },
           ],
           metrics: [
             {

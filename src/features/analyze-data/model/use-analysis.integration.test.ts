@@ -29,6 +29,12 @@ const report: FinalReport = {
       evidenceIds: [],
       kind: "observation",
     },
+    {
+      text: "The checked count is confirmed.",
+      factIds: ["count"],
+      evidenceIds: [],
+      kind: "observation",
+    },
   ],
   metrics: [
     {

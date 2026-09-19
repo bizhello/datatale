@@ -9,6 +9,12 @@ const report: FinalReport = {
   version: 1,
   hero: [
     { text: "Observed.", factIds: ["f"], evidenceIds: [], kind: "observation" },
+    {
+      text: "Confirmed.",
+      factIds: ["f"],
+      evidenceIds: [],
+      kind: "observation",
+    },
   ],
   metrics: [{ id: "f", label: "Fact", value: 2, evidenceIds: ["e"] }],
   charts: [],

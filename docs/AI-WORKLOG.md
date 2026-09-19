@@ -12,7 +12,7 @@
 
 - The dashboard reviewer rejected green candidates for incorrect top-N aggregation, incomplete donut totals, signed-quote handling, substring unit/period matching, unbounded fallbacks, missing chart evidence, duplicate paid-chat calls, and unsafe retry/storage boundaries. Each finding received a focused regression before the integrated candidate was approved.
 - A live text request exposed model metadata drift: an exact source quote used a paraphrased unit or period and caused `invalid-report`. PR #14 preserves the exact quote as evidence while excluding the unsupported numeric fact.
-- A production audit reproduced a one-sentence hero despite the assignment's 2–3 sentence requirement. PR #16 aligns the prompt and generation schemas to require two or three separately grounded concise statements while keeping persisted reports backward-compatible.
+- A production audit reproduced a one-sentence hero despite the assignment's 2–3 sentence requirement. The canonical report contract now rejects one-item heroes at generation, persistence, replay, and UI boundaries; incompatible stored payloads are removed during the production cleanup step.
 - Onboarding review found duplicate document IDs during replay, insufficient light-theme Skip contrast, and a welcome surface that did not block outside interaction. PR #17 moved the welcome to a true modal, used instance-safe IDs, corrected contrast, and added populated-replay and accessibility regressions.
 - CI caught the earlier mobile WebKit hydration race in text entry; the durable readiness marker and cross-browser regression remain part of the final 66-scenario suite.
 

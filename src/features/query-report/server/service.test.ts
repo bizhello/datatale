@@ -39,6 +39,12 @@ const report: FinalReport = {
       evidenceIds: ["rows-all"],
       kind: "observation",
     },
+    {
+      text: "Revenue is confirmed by all rows.",
+      factIds: ["revenue"],
+      evidenceIds: ["rows-all"],
+      kind: "observation",
+    },
   ],
   metrics: [
     {

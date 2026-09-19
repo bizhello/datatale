@@ -29,6 +29,12 @@ const report: FinalReport = {
       evidenceIds: [],
       kind: "observation",
     },
+    {
+      text: "The checked result is confirmed.",
+      factIds: ["maximum"],
+      evidenceIds: [],
+      kind: "observation",
+    },
   ],
   metrics: [
     {
@@ -227,6 +233,22 @@ describe("POST /api/analyze handler", () => {
     expect((await handler(request())).status).toBe(200);
     expect(events).toEqual(["provider-started", "provider-call"]);
     expect(analyze).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an incompatible one-item report on replay", async () => {
+    const handler = createAnalyzeHandler(
+      dependencies({
+        gate: () => ({
+          claim: async () => ({
+            kind: "replay",
+            report: { ...report, hero: [report.hero[0]] },
+          }),
+        }),
+      }),
+    );
+    const response = await handler(request());
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ code: "invalid-report" });
   });
 
   it("persists the immutable source/report under the retry-safe analysis id", async () => {

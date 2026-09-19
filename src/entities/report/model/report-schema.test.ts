@@ -9,7 +9,10 @@ import {
 describe("final report contract", () => {
   const base = {
     version: 1 as const,
-    hero: [{ text: "Grounded", factIds: ["f"] }],
+    hero: [
+      { text: "Grounded.", factIds: ["f"] },
+      { text: "Confirmed.", factIds: ["f"] },
+    ],
     metrics: [{ id: "f", label: "Metric", value: 1, evidenceIds: ["e"] }],
     charts: [],
     evidence: [{ id: "e", kind: "row-range" as const, label: "All rows" }],
@@ -75,6 +78,7 @@ describe("final report contract", () => {
             text: "x".repeat(REPORT_NARRATIVE_MAX_LENGTH + 1),
             factIds: ["f"],
           },
+          { text: "Confirmed.", factIds: ["f"] },
         ],
       }).success,
     ).toBe(false);
@@ -118,5 +122,15 @@ describe("final report contract", () => {
     };
 
     expect(finalReportSchema.safeParse(report).success).toBe(false);
+  });
+
+  it("rejects one-item hero payloads at the canonical boundary", () => {
+    expect(
+      finalReportSchema.safeParse({
+        ...base,
+        hero: [{ text: "Only one.", factIds: ["f"] }],
+        noChartReason: "No visual relationship is supported.",
+      }).success,
+    ).toBe(false);
   });
 });
