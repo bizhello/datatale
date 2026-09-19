@@ -12,9 +12,12 @@ const migration = (filename: string, sql: string): Migration => ({
 });
 
 function fakeClient(rows: Array<{ filename: string; checksum: string }> = []) {
-  const query = vi.fn(async (sql: string) => ({
-    rows: sql.startsWith("SELECT filename") ? rows : [],
-  }));
+  const query = vi.fn(async (sql: string) => {
+    if (sql.startsWith("SELECT filename")) return { rows };
+    if (sql.includes("AS has_objects"))
+      return { rows: [{ has_objects: false }] };
+    return { rows: [] };
+  });
   return { query, release: vi.fn() };
 }
 
@@ -44,6 +47,7 @@ describe("database migration runner", () => {
         "CREATE TABLE IF NOT EXISTS _datatale_migrations",
       ),
       "SELECT filename, checksum FROM _datatale_migrations ORDER BY filename",
+      expect.stringContaining("AS has_objects"),
       "CREATE TABLE first (id int)",
       expect.stringContaining("INSERT INTO _datatale_migrations"),
       "CREATE TABLE second (id int)",
@@ -63,6 +67,57 @@ describe("database migration runner", () => {
       ]),
     ).rejects.toThrow("Migration checksum drift: 0001_first.sql");
     expect(client.query).toHaveBeenLastCalledWith("ROLLBACK");
+    expect(client.query).not.toHaveBeenCalledWith(
+      "CREATE TABLE first (id int)",
+    );
+  });
+
+  it("rejects ledger entries without a matching migration file", async () => {
+    const client = fakeClient([
+      { filename: "0000_removed.sql", checksum: "checksum" },
+    ]);
+
+    await expect(applyMigrations(client as never, [])).rejects.toThrow(
+      "Migration ledger contains an unknown file: 0000_removed.sql",
+    );
+    expect(client.query).toHaveBeenLastCalledWith("ROLLBACK");
+  });
+
+  it("rejects a non-empty schema when bootstrapping an empty ledger", async () => {
+    const client = fakeClient();
+    client.query.mockImplementation(async (sql: string) => {
+      if (sql.startsWith("SELECT filename")) return { rows: [] };
+      if (sql.includes("AS has_objects"))
+        return { rows: [{ has_objects: true }] };
+      return { rows: [] };
+    });
+
+    await expect(
+      applyMigrations(client as never, [
+        migration("0001_first.sql", "CREATE TABLE first (id int)"),
+      ]),
+    ).rejects.toThrow(
+      "Migration ledger is empty but the database schema is not empty",
+    );
+    expect(client.query).toHaveBeenLastCalledWith("ROLLBACK");
+    expect(client.query).not.toHaveBeenCalledWith(
+      "CREATE TABLE first (id int)",
+    );
+  });
+
+  it("rejects a ledger gap before applying a newer migration", async () => {
+    const client = fakeClient([
+      { filename: "0002_second.sql", checksum: "checksum-0002_second.sql" },
+    ]);
+
+    await expect(
+      applyMigrations(client as never, [
+        migration("0001_first.sql", "CREATE TABLE first (id int)"),
+        migration("0002_second.sql", "CREATE TABLE second (id int)"),
+      ]),
+    ).rejects.toThrow(
+      "Migration ledger is missing an earlier file before 0002_second.sql",
+    );
     expect(client.query).not.toHaveBeenCalledWith(
       "CREATE TABLE first (id int)",
     );

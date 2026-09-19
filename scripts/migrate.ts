@@ -22,6 +22,10 @@ type MigrationRow = {
   checksum: string;
 };
 
+type SchemaStateRow = {
+  has_objects: boolean;
+};
+
 export async function readMigrations(
   directory = migrationsDirectory,
 ): Promise<Migration[]> {
@@ -69,6 +73,61 @@ export async function applyMigrations(
     const applied = new Map(
       result.rows.map((row) => [row.filename, row.checksum]),
     );
+    const migrationNames = new Set(migrations.map(({ filename }) => filename));
+    const unexplained = result.rows.find(
+      (row) => !migrationNames.has(row.filename),
+    );
+    if (unexplained) {
+      throw new Error(
+        `Migration ledger contains an unknown file: ${unexplained.filename}`,
+      );
+    }
+
+    let missingEarlier = false;
+    for (const migration of migrations) {
+      if (applied.has(migration.filename)) {
+        if (missingEarlier) {
+          throw new Error(
+            `Migration ledger is missing an earlier file before ${migration.filename}`,
+          );
+        }
+      } else {
+        missingEarlier = true;
+      }
+    }
+
+    if (result.rows.length === 0 && migrations.length > 0) {
+      const schemaState = await client.query<SchemaStateRow>(
+        `SELECT EXISTS (
+            SELECT 1
+            FROM pg_class AS c
+            JOIN pg_namespace AS n ON n.oid = c.relnamespace
+            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+              AND n.nspname NOT LIKE 'pg_%'
+              AND c.relname <> '${migrationLedger}'
+              AND c.relkind IN ('r', 'v', 'm', 'S', 'f', 'p')
+            UNION ALL
+            SELECT 1
+            FROM pg_proc AS p
+            JOIN pg_namespace AS n ON n.oid = p.pronamespace
+            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+              AND n.nspname NOT LIKE 'pg_%'
+            UNION ALL
+            SELECT 1
+            FROM pg_type AS t
+            JOIN pg_namespace AS n ON n.oid = t.typnamespace
+            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+              AND n.nspname NOT LIKE 'pg_%'
+              AND t.typtype IN ('e', 'd')
+          ) AS has_objects`,
+      );
+      if (schemaState.rows[0]?.has_objects) {
+        throw new Error(
+          "Migration ledger is empty but the database schema is not empty; verify the database or create a reviewed baseline before migrating",
+        );
+      }
+    }
+
     const appliedNow: string[] = [];
 
     for (const migration of migrations) {
