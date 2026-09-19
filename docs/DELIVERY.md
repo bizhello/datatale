@@ -6,7 +6,7 @@ DataTale's production MVP delivers the complete assignment journey: CSV/XLSX/tex
 
 All Must Have features, the optional functional tour, owner-scoped history/reopen, guided analysis transition, and quota-flow polish are deployed from production code release `4be7bba`. Migrations `0001`–`0005` remain current. The guarded production build runs the migration ledger before Next.js; the PR #25 rollout reached Ready. Branch and pull-request Vercel deployments remain disabled.
 
-The release gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 291 Vitest tests, and 72 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Production returns HTTPS 200 and renders the new input cards and empty-workspace explanation. A history read without a sealed guest cookie returns private, uncached `401 {"code":"expired"}` without creating a cookie. Earlier production probes verified a three-statement table report and the exact insufficient-data chat refusal.
+The release gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 292 Vitest tests, and 72 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Production returns HTTPS 200 and renders the new input cards and empty-workspace explanation. A history read without a sealed guest cookie returns private, uncached `401 {"code":"expired"}` without creating a cookie. Earlier production probes verified a three-statement table report and the exact insufficient-data chat refusal.
 
 ## Delivered work
 
@@ -51,6 +51,6 @@ GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI
 
 ## Remaining delivery artifact
 
-The repository and live service are ready for evaluation. The 3–5 minute recording script and checklist are in [PITCH.md](PITCH.md). Recording and uploading the Loom/Vimeo pitch remains user-owned; no recording URL is claimed in this repository. The recording should show the live journey, representative prompts, one reviewer-found mistake, and its verification.
+The repository and live service are ready for evaluation. The checked [demo dataset](demo-data.csv), [reproduction guide](DEMO.md), and 3–5 minute [recording script](PITCH.md) cover the live journey, representative prompts, one reviewer-found mistake, and its verification. Recording and uploading the Loom/Vimeo pitch remains user-owned; no recording URL is claimed in this repository.
 
 Blueprint reuse remains outside the submitted MVP and has no active assignment.
