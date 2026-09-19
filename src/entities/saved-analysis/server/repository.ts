@@ -72,9 +72,28 @@ function parseAnalysis(row: unknown): SavedAnalysis | undefined {
   return result.success ? result.data : undefined;
 }
 
-function parseMessage(row: unknown): SavedAnalysisMessage | undefined {
+function parseMessage(
+  row: unknown,
+  validators: SavedAnalysisValidators,
+): SavedAnalysisMessage | undefined {
   const result = savedAnalysisMessageSchema.safeParse(row);
-  return result.success ? result.data : undefined;
+  if (!result.success) return undefined;
+  if (result.data.role === "assistant" && result.data.result === undefined)
+    return undefined;
+  if (result.data.role === "user" && result.data.result !== undefined)
+    return undefined;
+  if (result.data.result === undefined) return result.data;
+  if (!validators.messageResult) return undefined;
+  let parsedResult: unknown;
+  try {
+    parsedResult = validators.messageResult.parse(result.data.result);
+  } catch {
+    return undefined;
+  }
+  return savedAnalysisMessageSchema.parse({
+    ...result.data,
+    result: parsedResult,
+  });
 }
 
 function assertId(value: string, label: string) {
@@ -177,9 +196,11 @@ export class SqlSavedAnalysisRepository implements SavedAnalysisRepository {
       WHERE a.workspace_id = ${workspaceId} AND w.revoked_at IS NULL AND w.expires_at > ${now} AND a.expires_at > ${now}
       ORDER BY a.created_at ASC, a.id ASC
     `;
-    return rows.flatMap((row) => {
+    return rows.map((row) => {
       const parsed = savedAnalysisSummarySchema.safeParse(row);
-      return parsed.success ? [parsed.data] : [];
+      if (!parsed.success)
+        throw new Error("Saved analysis summary failed canonical validation.");
+      return parsed.data;
     });
   }
 
@@ -250,14 +271,17 @@ export class SqlSavedAnalysisRepository implements SavedAnalysisRepository {
     if (row.quotaExceeded) return "quota-exceeded" as const;
     if (row.messageConflict)
       throw new Error("Message ID already exists with different content.");
-    const parsed = parseMessage({
-      id: row.message_id,
-      analysisId: row.analysis_id,
-      role: row.role,
-      content: row.content,
-      result: row.result,
-      createdAt: row.created_at,
-    });
+    const parsed = parseMessage(
+      {
+        id: row.message_id,
+        analysisId: row.analysis_id,
+        role: row.role,
+        content: row.content,
+        result: row.result,
+        createdAt: row.created_at,
+      },
+      this.validators,
+    );
     return parsed;
   }
 
@@ -283,9 +307,13 @@ export class SqlSavedAnalysisRepository implements SavedAnalysisRepository {
       ORDER BY m.sequence DESC LIMIT ${limit}
     `;
     return rows
-      .flatMap((row) => {
-        const parsed = parseMessage(row);
-        return parsed ? [parsed] : [];
+      .map((row) => {
+        const parsed = parseMessage(row, this.validators);
+        if (!parsed)
+          throw new Error(
+            "Saved analysis message failed canonical validation.",
+          );
+        return parsed;
       })
       .reverse();
   }

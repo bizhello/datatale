@@ -8,8 +8,10 @@ type HistoryPickerProps = {
   error: boolean;
   opening: boolean;
   openError: boolean;
+  loaded: boolean;
   onOpen: (id: string) => void;
   onRetry: () => void;
+  onRetryList: () => void;
 };
 
 export function HistoryPicker({
@@ -18,8 +20,10 @@ export function HistoryPicker({
   error,
   opening,
   openError,
+  loaded,
   onOpen,
   onRetry,
+  onRetryList,
 }: HistoryPickerProps) {
   if (loading)
     return (
@@ -31,11 +35,17 @@ export function HistoryPicker({
     return (
       <div aria-live="polite" className="history-picker">
         <span>История отчётов временно недоступна.</span>
+        <Button size="sm" variant="secondary" onPress={onRetryList}>
+          Повторить
+        </Button>
       </div>
     );
   if (!analyses.length) return null;
   return (
     <div className="history-picker">
+      <p aria-live="polite" className="history-picker-live">
+        {opening ? "Открываем отчёт…" : loaded ? "Отчёт открыт." : ""}
+      </p>
       {openError ? (
         <div className="history-picker-error" role="alert">
           <span>Не удалось открыть отчёт.</span>
@@ -77,6 +87,14 @@ export function HistoryPicker({
 }
 
 function label(analysis: HistorySummary) {
-  const date = new Date(analysis.createdAt).toLocaleDateString("ru-RU");
-  return `${analysis.sourceKind === "dataset" ? "Таблица" : "Текстовый отчёт"} · ${date}`;
+  const date = new Date(analysis.createdAt).toLocaleString("ru-RU", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  return `${analysis.sourceKind === "dataset" ? "Таблица" : "Текстовый отчёт"} · ${date} · ${analysis.id.slice(-6)}`;
 }
+
+export const historyLabel = label;

@@ -462,8 +462,26 @@ footer {
 }
 .history-picker {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   justify-content: flex-end;
   padding-top: 20px;
+}
+.history-picker-error {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-bottom: 10px;
+}
+.history-picker-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 .history-picker > * {
   width: min(100%, 320px);
@@ -1120,6 +1138,9 @@ footer span:last-child {
 @media (max-width: 700px) {
   .history-picker {
     justify-content: stretch;
+  }
+  .history-picker-error {
+    justify-content: space-between;
   }
   .site-header {
     min-height: 70px;

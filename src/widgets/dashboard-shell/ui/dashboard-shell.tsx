@@ -9,13 +9,7 @@ import { ImportWorkspace } from "@/features/import-data";
 import { OnboardingTour } from "@/features/onboarding";
 import { AskDataPanel, createAskDataSend } from "@/features/query-report";
 import { ThemeControl } from "@/shared/ui/theme-control";
-import {
-  type HistoryDetail,
-  type HistorySummary,
-  historyDetailSchema,
-  historyListSchema,
-  restoreMessages,
-} from "../model/history";
+import { useHistory } from "../model/use-history";
 import { HistoryPicker } from "./history-picker";
 import { OnboardingDemo } from "./onboarding-demo";
 
@@ -24,64 +18,42 @@ export function DashboardShell() {
   const [source, setSource] = useState<Dataset | TextSource>();
   const [workspaceVersion, setWorkspaceVersion] = useState(0);
   const [onboardingActive, setOnboardingActive] = useState(false);
-  const [history, setHistory] = useState<HistorySummary[]>([]);
-  const [selectedHistory, setSelectedHistory] = useState<HistoryDetail>();
-  const [historyLoading, setHistoryLoading] = useState(true);
-  const [historyError, setHistoryError] = useState(false);
-  const [openingHistoryId, setOpeningHistoryId] = useState<string>();
-  const [historyRetryId, setHistoryRetryId] = useState<string>();
-  const [historyOpenError, setHistoryOpenError] = useState(false);
-  const loadHistory = useCallback(async () => {
-    setHistoryLoading(true);
-    try {
-      const response = await fetch("/api/saved-analysis", { method: "GET" });
-      if (response.status === 401) {
-        setHistory([]);
-        setHistoryError(false);
-        return;
-      }
-      if (!response.ok) throw new Error("History unavailable");
-      const value = (await response.json()) as { analyses?: unknown };
-      const parsed = historyListSchema.safeParse(value.analyses);
-      if (!parsed.success) throw new Error("Invalid history");
-      setHistory(parsed.data);
-      setHistoryError(false);
-    } catch {
-      setHistoryError(true);
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, []);
+  const {
+    analyses: history,
+    selected: selectedHistory,
+    loading: historyLoading,
+    error: historyError,
+    opening: openingHistory,
+    openError: historyOpenError,
+    retryId: historyRetryId,
+    load: loadHistory,
+    open: openHistory,
+    sourceReady,
+    deleteAll: clearHistory,
+  } = useHistory();
   const refreshHistory = useCallback(() => void loadHistory(), [loadHistory]);
-  const handleSourceReady = useCallback((next: Dataset | TextSource) => {
-    setSelectedHistory(undefined);
-    setSource(next);
-  }, []);
-  useEffect(() => void loadHistory(), [loadHistory]);
-  const openHistory = async (id: string) => {
-    setOpeningHistoryId(id);
-    setHistoryRetryId(id);
-    setHistoryOpenError(false);
-    try {
-      const response = await fetch(`/api/saved-analysis/${id}`, {
-        method: "GET",
-      });
-      if (!response.ok) throw new Error("History item unavailable");
-      const parsed = historyDetailSchema.safeParse(await response.json());
-      if (!parsed.success) throw new Error("Invalid history item");
-      setSelectedHistory({
-        ...parsed.data,
-        messages: restoreMessages(parsed.data.messages),
-      });
-      setSource(parsed.data.source);
-    } catch {
-      setHistoryOpenError(true);
-      await loadHistory();
-    } finally {
-      setOpeningHistoryId(undefined);
-    }
-  };
+  const handleSourceReady = useCallback(
+    (next: Dataset | TextSource) => {
+      sourceReady();
+      setSource(next);
+    },
+    [sourceReady],
+  );
   useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    if (!selectedHistory) return;
+    setSource(selectedHistory.source);
+    const focus = () =>
+      document.getElementById("onboarding-analysis-flow")?.focus();
+    if (typeof requestAnimationFrame === "function")
+      requestAnimationFrame(focus);
+    else setTimeout(focus, 0);
+  }, [selectedHistory]);
+  const handleDelete = useCallback(() => {
+    clearHistory();
+    setSource(undefined);
+    setWorkspaceVersion((version) => version + 1);
+  }, [clearHistory]);
   return (
     <div className="page-shell" data-hydrated={mounted ? "true" : undefined}>
       <a href="#main" className="skip-link">
@@ -106,12 +78,14 @@ export function DashboardShell() {
           analyses={history}
           error={historyError}
           loading={historyLoading}
-          opening={openingHistoryId !== undefined}
+          opening={openingHistory}
           openError={historyOpenError}
+          loaded={Boolean(selectedHistory)}
           onOpen={(id) => void openHistory(id)}
           onRetry={() => {
             if (historyRetryId) void openHistory(historyRetryId);
           }}
+          onRetryList={() => void loadHistory()}
         />
         <ImportWorkspace key={workspaceVersion} onReady={handleSourceReady} />
         {source && (
@@ -140,13 +114,7 @@ export function DashboardShell() {
                   />
                 </>
               )}
-              onDelete={() => {
-                setSelectedHistory(undefined);
-                setHistory([]);
-                setSource(undefined);
-                setWorkspaceVersion((version) => version + 1);
-                void loadHistory();
-              }}
+              onDelete={handleDelete}
             />
           </div>
         )}
