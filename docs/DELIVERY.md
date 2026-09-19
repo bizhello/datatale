@@ -4,9 +4,11 @@ DataTale's production MVP delivers the complete assignment journey: CSV/XLSX/tex
 
 ## Current state
 
-All Must Have features and the optional first-visit tour are deployed. Production commit `5a10043` is Ready with migrations `0001`–`0005`. The guarded production build applied `0005_strict_report_hero.sql` before Next.js, removed reports written under the previous contract, and enabled the current hero and calculation-provenance constraints. Branch and pull-request Vercel deployments are disabled; the PR #19 preview was canceled by the ignored build step.
+All Must Have features and the optional first-visit tour are deployed. Production commit `ba0f2b5` contains code release `5a10043` and migrations `0001`–`0005`. The guarded production build applied `0005_strict_report_hero.sql` before Next.js, removed reports written under the previous contract, and enabled the current hero and calculation-provenance constraints. Branch and pull-request Vercel deployments are disabled; the PR #19 preview was canceled by the ignored build step.
 
 The release gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 244 Vitest tests, and 66 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Earlier production probes verified a three-statement table report and the exact insufficient-data chat refusal. The post-PR #19 homepage returns HTTPS 200; the analysis endpoint reached the production quota gate, while the shared smoke IP had already exhausted its anonymous daily allowance.
+
+The next product-wave candidate adds owner-scoped guest report history/reopen and a restrained liquid result preview. Its integrated gate passes 272 Vitest tests and 69 Playwright scenarios; two independent re-reviews approved the final code candidate after lifecycle, storage-validation, isolation, accessibility, and mobile corrections.
 
 ## Delivered work
 
@@ -38,12 +40,12 @@ GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI
 
 | Task | Owner | Base | Worktree | Scope | State |
 | --- | --- | --- | --- | --- | --- |
-| Guest history/reopen v1 | history executor | `ba0f2b5` | `datatale-worktrees/history-reopen` | Saved-analysis read API, owner isolation, report/chat hydration, tests | in progress |
-| Liquid editorial first viewport | visual executor | `ba0f2b5` | `datatale-worktrees/liquid-hero` | Existing empty workspace presentation, responsive/reduced-motion tests | in progress |
-| Product-wave integration | conductor | `ba0f2b5` | `datatale-worktrees/next-product-wave` | Shared docs, AGENTS, integration, review, release | in progress |
+| Guest history/reopen v1 | history executor | `ba0f2b5` | `datatale-worktrees/history-reopen` | Saved-analysis read API, owner isolation, report/chat hydration, tests | code complete and approved at `9ec0d9d` |
+| Liquid editorial first viewport | visual executor | `ba0f2b5` | `datatale-worktrees/liquid-hero` | Existing empty workspace presentation, responsive/reduced-motion tests | code complete and approved at `3bb94cb` |
+| Product-wave integration | conductor | `ba0f2b5` | `datatale-worktrees/next-product-wave` | Shared docs, integration, review, release | release candidate ready |
 
 ## Remaining delivery artifact
 
 The repository and live service are ready for evaluation. Record the requested 3–5 minute Loom/Vimeo pitch separately, showing the live journey, representative prompts, one reviewer-found mistake, and its verification.
 
-Future product enhancements such as report history/reopen and blueprint reuse are outside the submitted MVP and have no active assignment.
+Blueprint reuse remains outside the submitted MVP and has no active assignment.

@@ -18,6 +18,14 @@
 
 These corrections are the pitch evidence: AI accelerated implementation, but independent review, direct runtime probes, strict schemas, deterministic calculations, and production smoke checks decided what shipped.
 
+## 2026-09-19 — guest history and liquid preview product wave
+
+The wave adds an owner-scoped saved-report picker that reopens the validated source, report, and completed chat transcript without creating a workspace or spending AI/chat quota. The first empty workspace also shows one explicitly labeled synthetic result preview with finite motion and a reduced-motion fallback; it disappears when working input, loading, or error content needs the space.
+
+Independent review rejected the first green candidate because a late detail response could restore private data after deletion or source replacement, malformed SQL rows were silently omitted, same-day labels were ambiguous, and loading/error states were incomplete for assistive technology and mobile. The corrected history hook owns abort controllers and request generations, handles React Strict Mode, preserves report A when report B fails, clears reopened private state on list/detail 401, and does not erase local input for the expected initial no-workspace 401. SQL list/message boundaries now fail closed, and two-owner route evidence proves foreign list exclusion, known-ID 404, and no foreign message read.
+
+The integrated gate passes Biome, Steiger, strict TypeScript, 272 Vitest tests, the Turbopack production build, and 69 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Review approved exact final code candidate `9ec0d9d`; deployment evidence is recorded separately after the main-branch rollout.
+
 ## 2026-09-19 — estimated analysis loading progress
 
 The server still exposes no stage completion, so loading now uses an explicitly approximate determinate HeroUI v3.2.6 `ProgressBar` based on provisional live Spiro baselines: 22 seconds for tables and 20 seconds for text. A pure deterministic irregular checkpoint schedule advances to 95 and holds there until a validated response; only then does it show 100 for 320ms as an authorized completion feedback beat, not as measured server progress, before rendering the report. Session/request setup remains the only observable client boundary; later plan, calculation, and narrative stages remain named context. Errors, cancellation, source replacement, and stale responses never show 100. Fake-timer tests cover exact steps, early responses, the normal cap, late waits, monotonicity, completion delay, cancellation, abort-listener cleanup, and timer cleanup; component and browser checks cover approximate labeling, quiet numeric updates, and reduced motion.
