@@ -75,4 +75,43 @@ describe("query report API adapter", () => {
       createAskDataSend(analysisId)(turn, new AbortController().signal),
     ).rejects.toMatchObject({ retryable: false });
   });
+
+  it("preserves actionable chat error codes", async () => {
+    for (const [code, status] of [
+      ["expired", 401],
+      ["not-found", 404],
+      ["quota", 429],
+    ] as const) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json({ code }, { status })),
+      );
+      await expect(
+        createAskDataSend(analysisId)(turn, new AbortController().signal),
+      ).rejects.toMatchObject({ code, retryable: false });
+    }
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ code: "in-flight" }, { status: 409 })),
+    );
+    await expect(
+      createAskDataSend(analysisId)(turn, new AbortController().signal),
+    ).rejects.toMatchObject({ code: "in-flight", retryable: true });
+  });
+
+  it("keeps provider and availability failures retryable", async () => {
+    for (const [code, status] of [
+      ["provider", 502],
+      ["unavailable", 503],
+    ] as const) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json({ code }, { status })),
+      );
+      await expect(
+        createAskDataSend(analysisId)(turn, new AbortController().signal),
+      ).rejects.toMatchObject({ code, retryable: true });
+    }
+  });
 });

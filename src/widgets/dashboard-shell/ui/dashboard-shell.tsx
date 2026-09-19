@@ -48,9 +48,9 @@ export function DashboardShell() {
             <AnalyzeWorkspace
               key={source.id}
               source={source}
-              renderReport={(analysisId, report) => (
+              renderReport={(analysisId, report, expiresAt) => (
                 <>
-                  <ReportDashboard report={report} />
+                  <ReportDashboard report={report} expiresAt={expiresAt} />
                   <AskDataPanel send={createAskDataSend(analysisId)} />
                 </>
               )}

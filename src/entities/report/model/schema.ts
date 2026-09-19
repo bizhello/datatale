@@ -189,12 +189,51 @@ export const reportEvidenceSchema = z
       .optional(),
   })
   .strict();
+const reportNumericCalculationSchema = z
+  .object({
+    kind: z.enum(["sum", "average", "min", "max"]),
+    fieldId: fieldReferenceString,
+    fieldLabel: labelString,
+  })
+  .strict();
+const reportCountCalculationSchema = z
+  .object({ kind: z.literal("count") })
+  .strict();
+const reportDirectSourceCalculationSchema = z
+  .object({ kind: z.literal("direct-source") })
+  .strict();
+export const reportCalculationSchema = z.discriminatedUnion("kind", [
+  reportCountCalculationSchema,
+  reportNumericCalculationSchema,
+  reportDirectSourceCalculationSchema,
+]);
+const reportChartCountCalculationSchema = z
+  .object({
+    kind: z.literal("count"),
+    dimensionFieldId: fieldReferenceString,
+    dimensionLabel: labelString,
+  })
+  .strict();
+const reportChartNumericCalculationSchema = z
+  .object({
+    kind: z.enum(["sum", "average", "min", "max"]),
+    fieldId: fieldReferenceString,
+    fieldLabel: labelString,
+    dimensionFieldId: fieldReferenceString,
+    dimensionLabel: labelString,
+  })
+  .strict();
+export const reportChartCalculationSchema = z.discriminatedUnion("kind", [
+  reportChartCountCalculationSchema,
+  reportChartNumericCalculationSchema,
+]);
 export const reportFactSchema = z
   .object({
     id: identifierString,
     label: labelString,
     value: z.number().finite(),
     unit: unitString.optional(),
+    calculation: reportCalculationSchema,
     evidenceIds: z.array(identifierString).min(1).max(7),
   })
   .strict();
@@ -204,6 +243,7 @@ export const reportChartSchema = z
     kind: z.enum([BAR_CHART_KIND, LINE_CHART_KIND, DONUT_CHART_KIND]),
     title: titleString,
     rationale: rationaleString,
+    aggregation: reportChartCalculationSchema,
     unit: unitString.optional(),
     points: z
       .array(
@@ -231,7 +271,7 @@ export const reportNarrativeItemSchema = z
 export const finalReportSchema = z
   .object({
     version: z.literal(1),
-    hero: z.array(reportNarrativeItemSchema).min(1).max(3),
+    hero: z.array(reportNarrativeItemSchema).min(2).max(3),
     metrics: z.array(reportFactSchema).max(4),
     charts: z.array(reportChartSchema).max(3),
     evidence: z.array(reportEvidenceSchema).min(1).max(7),
@@ -345,6 +385,10 @@ export type AnalysisPlan = z.infer<typeof analysisPlanSchema>;
 export type MetricSpecification = z.infer<typeof metricSpecificationSchema>;
 export type AnalysisProposal = z.infer<typeof analysisProposalSchema>;
 export type FinalReport = z.infer<typeof finalReportSchema>;
+export type ReportCalculation = z.infer<typeof reportCalculationSchema>;
+export type ReportChartCalculation = z.infer<
+  typeof reportChartCalculationSchema
+>;
 export type TextExtractionResponse = z.infer<
   typeof textExtractionResponseSchema
 >;

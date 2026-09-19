@@ -39,7 +39,17 @@ describe("analysis calculations", () => {
         label: "Total",
         aggregation: { kind: "sum", field: { fieldId: "revenue" } },
       }),
-    ).toEqual({ id: "total", label: "Total", value: 60, unit: "RUB" });
+    ).toEqual({
+      id: "total",
+      label: "Total",
+      value: 60,
+      unit: "RUB",
+      calculation: {
+        kind: "sum",
+        fieldId: "revenue",
+        fieldLabel: "Revenue",
+      },
+    });
     expect(
       profileSource(source).fields.find((field) => field.id === "region"),
     ).toMatchObject({ distinct: 2, missing: 0 });

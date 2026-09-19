@@ -54,7 +54,7 @@ type AnalyzeHandlerDependencies = Readonly<{
     workspaceId: string;
     source: CanonicalSource;
     report: FinalReport;
-  }): Promise<boolean>;
+  }): Promise<{ expiresAt: Date } | undefined>;
 }>;
 
 const idempotencyKeySchema = z.string().uuid();
@@ -210,19 +210,21 @@ export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
       if (!storedReport.success)
         return privateJson({ code: "invalid-report" }, 502);
       try {
-        if (
-          !(await dependencies.saveAnalysis({
-            analysisId: key,
-            workspaceId: workspace.id,
-            source,
-            report: storedReport.data,
-          }))
-        )
-          return privateJson({ code: "unavailable" }, 503);
+        const saved = await dependencies.saveAnalysis({
+          analysisId: key,
+          workspaceId: workspace.id,
+          source,
+          report: storedReport.data,
+        });
+        if (!saved) return privateJson({ code: "unavailable" }, 503);
+        return privateJson({
+          analysisId: key,
+          report: storedReport.data,
+          expiresAt: saved.expiresAt.toISOString(),
+        });
       } catch {
         return privateJson({ code: "unavailable" }, 503);
       }
-      return privateJson({ analysisId: key, report: storedReport.data });
     }
     if (outcome.kind !== "claimed") return gateResponse(outcome);
 
@@ -259,16 +261,18 @@ export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
 
     try {
       if (await gate.succeed(workspace.id, receiptId, report)) {
-        if (
-          !(await dependencies.saveAnalysis({
-            analysisId: key,
-            workspaceId: workspace.id,
-            source,
-            report,
-          }))
-        )
-          return privateJson({ code: "unavailable" }, 503);
-        return privateJson({ analysisId: key, report });
+        const saved = await dependencies.saveAnalysis({
+          analysisId: key,
+          workspaceId: workspace.id,
+          source,
+          report,
+        });
+        if (!saved) return privateJson({ code: "unavailable" }, 503);
+        return privateJson({
+          analysisId: key,
+          report,
+          expiresAt: saved.expiresAt.toISOString(),
+        });
       }
     } catch {
       return privateJson({ code: "unavailable" }, 503);

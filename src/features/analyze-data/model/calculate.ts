@@ -3,10 +3,55 @@ import type {
   Aggregation,
   ChartSpecification,
   MetricSpecification,
+  ReportCalculation,
+  ReportChartCalculation,
 } from "@/entities/report";
 
 type Point = { label: string; value: number };
 type Group = { label: string; rows: Dataset["rows"] };
+export function reportCalculation(
+  source: Dataset,
+  aggregation: Aggregation,
+): ReportCalculation {
+  if (aggregation.kind === "count") return { kind: "count" };
+  const field = source.columns.find(
+    (column) => column.id === aggregation.field.fieldId,
+  );
+  if (!field) throw new Error("Calculation references an unknown field.");
+  return {
+    kind: aggregation.kind,
+    fieldId: field.id,
+    fieldLabel: field.label,
+  };
+}
+export function reportChartCalculation(
+  source: Dataset,
+  aggregation: Aggregation,
+  dimensionFieldId: string,
+): ReportChartCalculation {
+  const dimension = source.columns.find(
+    (column) => column.id === dimensionFieldId,
+  );
+  if (!dimension)
+    throw new Error("Calculation references an unknown dimension.");
+  if (aggregation.kind === "count")
+    return {
+      kind: "count",
+      dimensionFieldId: dimension.id,
+      dimensionLabel: dimension.label,
+    };
+  const field = source.columns.find(
+    (column) => column.id === aggregation.field.fieldId,
+  );
+  if (!field) throw new Error("Calculation references an unknown field.");
+  return {
+    kind: aggregation.kind,
+    fieldId: field.id,
+    fieldLabel: field.label,
+    dimensionFieldId: dimension.id,
+    dimensionLabel: dimension.label,
+  };
+}
 export function aggregateRows(
   rows: Dataset["rows"],
   aggregation: Aggregation,
@@ -38,6 +83,7 @@ export function calculateMetric(
     id: specification.id,
     label: specification.label,
     value: aggregateRows(source.rows, specification.aggregation),
+    calculation: reportCalculation(source, specification.aggregation),
     ...(unit ? { unit } : {}),
   };
 }

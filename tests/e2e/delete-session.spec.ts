@@ -12,6 +12,14 @@ const report = {
     {
       text: "Проверенный отчёт остаётся видимым до успешного удаления.",
       factIds: ["count"],
+      evidenceIds: ["rows"],
+      kind: "observation",
+    },
+    {
+      text: "Проверка строк подтверждена источником.",
+      factIds: ["count"],
+      evidenceIds: ["rows"],
+      kind: "observation",
     },
   ],
   metrics: [
@@ -19,11 +27,19 @@ const report = {
       id: "count",
       label: "Строки",
       value: 3,
+      calculation: { kind: "count" },
       evidenceIds: ["rows"],
     },
   ],
   charts: [],
-  evidence: [{ id: "rows", kind: "row-range", label: "Все строки" }],
+  evidence: [
+    {
+      id: "rows",
+      kind: "row-range",
+      label: "Все строки",
+      coverage: { included: 3, total: 3 },
+    },
+  ],
   recommendations: [],
   noChartReason: "Для проверки удаления график не требуется.",
 };
@@ -90,6 +106,7 @@ test("failed delete-all keeps the report visible and exposes an actionable retry
     await route.fulfill({
       json: {
         analysisId: "6ccce6e7-f6c2-4b81-bdbc-a67520f9f80a",
+        expiresAt: "2026-09-26T12:00:00.000Z",
         report,
       },
     });

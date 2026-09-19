@@ -24,6 +24,7 @@ import {
 
 type AnalyzeResponse = {
   analysisId?: unknown;
+  expiresAt?: unknown;
   report?: unknown;
   code?: unknown;
   scope?: unknown;
@@ -196,7 +197,8 @@ export function useAnalysis(source: Dataset | TextSource) {
         }
         const parsed = finalReportSchema.safeParse(value.report);
         const analysisId = z.string().uuid().safeParse(value.analysisId);
-        if (!parsed.success || !analysisId.success) {
+        const expiresAt = z.string().datetime().safeParse(value.expiresAt);
+        if (!parsed.success || !analysisId.success || !expiresAt.success) {
           clearOwnedTimers();
           dispatch({
             type: "error",
@@ -212,6 +214,7 @@ export function useAnalysis(source: Dataset | TextSource) {
           type: "complete",
           requestId,
           analysisId: analysisId.data,
+          expiresAt: expiresAt.data,
           report: parsed.data,
         });
         await new Promise<void>((resolve) => {
@@ -242,6 +245,7 @@ export function useAnalysis(source: Dataset | TextSource) {
           type: "ready",
           requestId,
           analysisId: analysisId.data,
+          expiresAt: expiresAt.data,
           report: parsed.data,
         });
       } catch (_error) {

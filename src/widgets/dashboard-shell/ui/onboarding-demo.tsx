@@ -17,6 +17,12 @@ const demoReport = {
       evidenceIds: ["rows"],
       kind: "observation",
     },
+    {
+      text: "Выручка подтверждена всеми строками демо-источника.",
+      factIds: ["revenue"],
+      evidenceIds: ["rows"],
+      kind: "observation",
+    },
   ],
   metrics: [
     {
@@ -24,6 +30,7 @@ const demoReport = {
       label: "Выручка",
       value: 274000,
       unit: "₽",
+      calculation: { kind: "sum", fieldId: "revenue", fieldLabel: "Выручка" },
       evidenceIds: ["rows"],
     },
   ],
@@ -33,6 +40,13 @@ const demoReport = {
       kind: "bar",
       title: "По регионам",
       rationale: "Сравнение регионов",
+      aggregation: {
+        kind: "sum",
+        fieldId: "revenue",
+        fieldLabel: "Выручка",
+        dimensionFieldId: "region",
+        dimensionLabel: "Регион",
+      },
       points: [
         { label: "Север", value: 120000 },
         { label: "Юг", value: 154000 },
@@ -44,6 +58,13 @@ const demoReport = {
       kind: "line",
       title: "По месяцам",
       rationale: "Динамика выручки",
+      aggregation: {
+        kind: "sum",
+        fieldId: "revenue",
+        fieldLabel: "Выручка",
+        dimensionFieldId: "month",
+        dimensionLabel: "Месяц",
+      },
       points: [
         { label: "Январь", value: 128000 },
         { label: "Февраль", value: 146000 },

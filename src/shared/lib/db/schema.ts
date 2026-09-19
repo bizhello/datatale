@@ -48,6 +48,14 @@ export const analysisRuns = pgTable(
       "analysis_runs_state_check",
       sql`${table.state} IN ('claimed', 'provider_started', 'succeeded', 'failed')`,
     ),
+    check(
+      "analysis_runs_report_hero_count_check",
+      sql`${table.report} IS NULL OR (jsonb_typeof(${table.report} -> 'hero') IS NOT DISTINCT FROM 'array' AND jsonb_array_length(${table.report} -> 'hero') BETWEEN 2 AND 3)`,
+    ),
+    check(
+      "analysis_runs_report_provenance_check",
+      sql`${table.report} IS NULL OR CASE WHEN jsonb_typeof(${table.report} -> 'metrics') = 'array' AND jsonb_typeof(${table.report} -> 'charts') = 'array' THEN jsonb_array_length(${table.report} -> 'metrics') = jsonb_array_length(jsonb_path_query_array(${table.report}, '$.metrics[*] ? (@.calculation.type() == "object" && (@.calculation.kind == "count" || @.calculation.kind == "direct-source" || ((@.calculation.kind == "sum" || @.calculation.kind == "average" || @.calculation.kind == "min" || @.calculation.kind == "max") && @.calculation.fieldId.type() == "string" && @.calculation.fieldLabel.type() == "string")))')) AND jsonb_array_length(${table.report} -> 'charts') = jsonb_array_length(jsonb_path_query_array(${table.report}, '$.charts[*] ? (@.aggregation.type() == "object" && @.aggregation.dimensionFieldId.type() == "string" && @.aggregation.dimensionLabel.type() == "string" && (@.aggregation.kind == "count" || ((@.aggregation.kind == "sum" || @.aggregation.kind == "average" || @.aggregation.kind == "min" || @.aggregation.kind == "max") && @.aggregation.fieldId.type() == "string" && @.aggregation.fieldLabel.type() == "string")))')) ELSE false END`,
+    ),
     index("analysis_runs_expiry_idx").on(table.expiresAt),
   ],
 );
@@ -87,6 +95,14 @@ export const savedAnalyses = pgTable(
     check(
       "saved_analyses_source_kind_check",
       sql`${table.sourceKind} IN ('dataset', 'text')`,
+    ),
+    check(
+      "saved_analyses_report_hero_count_check",
+      sql`jsonb_typeof(${table.report} -> 'hero') IS NOT DISTINCT FROM 'array' AND jsonb_array_length(${table.report} -> 'hero') BETWEEN 2 AND 3`,
+    ),
+    check(
+      "saved_analyses_report_provenance_check",
+      sql`CASE WHEN jsonb_typeof(${table.report} -> 'metrics') = 'array' AND jsonb_typeof(${table.report} -> 'charts') = 'array' THEN jsonb_array_length(${table.report} -> 'metrics') = jsonb_array_length(jsonb_path_query_array(${table.report}, '$.metrics[*] ? (@.calculation.type() == "object" && (@.calculation.kind == "count" || @.calculation.kind == "direct-source" || ((@.calculation.kind == "sum" || @.calculation.kind == "average" || @.calculation.kind == "min" || @.calculation.kind == "max") && @.calculation.fieldId.type() == "string" && @.calculation.fieldLabel.type() == "string")))')) AND jsonb_array_length(${table.report} -> 'charts') = jsonb_array_length(jsonb_path_query_array(${table.report}, '$.charts[*] ? (@.aggregation.type() == "object" && @.aggregation.dimensionFieldId.type() == "string" && @.aggregation.dimensionLabel.type() == "string" && (@.aggregation.kind == "count" || ((@.aggregation.kind == "sum" || @.aggregation.kind == "average" || @.aggregation.kind == "min" || @.aggregation.kind == "max") && @.aggregation.fieldId.type() == "string" && @.aggregation.fieldLabel.type() == "string")))')) ELSE false END`,
     ),
     index("saved_analyses_workspace_expiry_idx").on(
       table.workspaceId,

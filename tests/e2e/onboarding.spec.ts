@@ -158,11 +158,18 @@ test("replay restores a populated source and report after dismissal", async ({
     await route.fulfill({
       json: {
         analysisId: "00000000-0000-4000-8000-000000000009",
+        expiresAt: "2026-09-26T12:00:00.000Z",
         report: {
           version: 1,
           hero: [
             {
               text: "Стабильный отчёт",
+              factIds: ["revenue"],
+              evidenceIds: ["rows"],
+              kind: "observation",
+            },
+            {
+              text: "Стабильный отчёт подтверждён источником.",
               factIds: ["revenue"],
               evidenceIds: ["rows"],
               kind: "observation",
@@ -173,12 +180,20 @@ test("replay restores a populated source and report after dismissal", async ({
               id: "revenue",
               label: "Выручка",
               value: 10,
+              calculation: { kind: "count" },
               evidenceIds: ["rows"],
             },
           ],
           charts: [],
           noChartReason: "Недостаточно категорий для диаграммы.",
-          evidence: [{ id: "rows", kind: "row-range", label: "Все строки" }],
+          evidence: [
+            {
+              id: "rows",
+              kind: "row-range",
+              label: "Все строки",
+              coverage: { included: 12, total: 12 },
+            },
+          ],
           recommendations: [],
         },
       },

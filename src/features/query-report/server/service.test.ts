@@ -39,6 +39,12 @@ const report: FinalReport = {
       evidenceIds: ["rows-all"],
       kind: "observation",
     },
+    {
+      text: "Revenue is confirmed by all rows.",
+      factIds: ["revenue"],
+      evidenceIds: ["rows-all"],
+      kind: "observation",
+    },
   ],
   metrics: [
     {
@@ -46,6 +52,7 @@ const report: FinalReport = {
       label: "Revenue",
       value: 200,
       unit: "RUB",
+      calculation: { kind: "sum", fieldId: "revenue", fieldLabel: "Revenue" },
       evidenceIds: ["rows-all"],
     },
   ],
@@ -209,6 +216,7 @@ describe("grounded chat service", () => {
           label: "Revenue",
           value: 12,
           unit: "RUB",
+          calculation: { kind: "direct-source" },
           evidenceIds: ["quote-fact"],
         },
       ],

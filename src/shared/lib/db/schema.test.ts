@@ -20,6 +20,12 @@ describe("analysis Drizzle schema parity", () => {
     expect(config.checks.map((check) => check.name)).toContain(
       "analysis_runs_state_check",
     );
+    expect(config.checks.map((check) => check.name)).toContain(
+      "analysis_runs_report_hero_count_check",
+    );
+    expect(config.checks.map((check) => check.name)).toContain(
+      "analysis_runs_report_provenance_check",
+    );
     expect(config.indexes.map((index) => index.config.name)).toContain(
       "analysis_runs_expiry_idx",
     );
@@ -45,6 +51,12 @@ describe("analysis Drizzle schema parity", () => {
     expect(analyses.foreignKeys[0]?.onDelete).toBe("cascade");
     expect(analyses.checks.map((check) => check.name)).toContain(
       "saved_analyses_source_kind_check",
+    );
+    expect(analyses.checks.map((check) => check.name)).toContain(
+      "saved_analyses_report_hero_count_check",
+    );
+    expect(analyses.checks.map((check) => check.name)).toContain(
+      "saved_analyses_report_provenance_check",
     );
     expect(analyses.indexes.map((index) => index.config.name)).toContain(
       "saved_analyses_expiry_idx",
@@ -92,5 +104,26 @@ describe("analysis Drizzle schema parity", () => {
     );
     expect(migration).toContain("PRIMARY KEY (analysis_id, message_id)");
     expect(migration).toContain("ON DELETE CASCADE");
+  });
+
+  it("removes legacy reports before enforcing the canonical report contract", async () => {
+    const migration = await readFile(
+      "migrations/0005_strict_report_hero.sql",
+      "utf8",
+    );
+    expect(migration).toMatch(
+      /^DELETE FROM saved_analyses;\n\nDELETE FROM analysis_runs\nWHERE report IS NOT NULL;/,
+    );
+    expect(migration).toContain("saved_analyses_report_hero_count_check");
+    expect(migration).toContain("analysis_runs_report_hero_count_check");
+    expect(migration).toContain("saved_analyses_report_provenance_check");
+    expect(migration).toContain("analysis_runs_report_provenance_check");
+    expect(migration).toContain(
+      "jsonb_array_length(report -> 'hero') BETWEEN 2 AND 3",
+    );
+    expect(migration).toContain('@.calculation.kind == "direct-source"');
+    expect(migration).toContain("@.calculation.fieldId.type()");
+    expect(migration).toContain("@.aggregation.dimensionFieldId.type()");
+    expect(migration).toContain("@.aggregation.fieldId.type()");
   });
 });

@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { MemorySavedAnalysisRepository } from "./memory-repository";
 
+const reportStorageBoundary = z
+  .object({ hero: z.array(z.unknown()).min(2).max(3) })
+  .passthrough();
+
 const validators = {
   source: z.unknown(),
-  report: z.unknown(),
+  report: reportStorageBoundary,
 };
 
 const workspaceId = "00000000-0000-4000-8000-000000000001";
@@ -19,9 +23,21 @@ const report = {
       evidenceIds: ["evidence"],
       kind: "observation" as const,
     },
+    {
+      text: "Confirmed",
+      factIds: ["fact"],
+      evidenceIds: ["evidence"],
+      kind: "observation" as const,
+    },
   ],
   metrics: [
-    { id: "fact", label: "Count", value: 1, evidenceIds: ["evidence"] },
+    {
+      id: "fact",
+      label: "Count",
+      value: 1,
+      calculation: { kind: "count" },
+      evidenceIds: ["evidence"],
+    },
   ],
   charts: [],
   evidence: [
@@ -38,6 +54,19 @@ function repository() {
 }
 
 describe("saved analysis memory repository", () => {
+  it("rejects an incompatible one-item hero at the persistence boundary", async () => {
+    const result = repository();
+    await expect(
+      result.create({
+        workspaceId,
+        analysisId,
+        source: { rawText: "One" },
+        report: { ...report, hero: [report.hero[0]] },
+        now,
+      }),
+    ).rejects.toThrow();
+  });
+
   it("round-trips text sources and enforces ownership and expiry", async () => {
     const result = repository();
     await expect(

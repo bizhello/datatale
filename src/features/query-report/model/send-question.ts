@@ -10,8 +10,11 @@ type ErrorPayload = { code?: unknown };
 function requestError(response: Response, payload: ErrorPayload) {
   const code = typeof payload.code === "string" ? payload.code : "unknown";
   const retryable =
-    response.status >= 500 && code !== "timeout" && code !== "invalid-answer";
-  return new AskDataClientError(code, { retryable });
+    (response.status >= 500 &&
+      code !== "timeout" &&
+      code !== "invalid-answer") ||
+    code === "in-flight";
+  return new AskDataClientError(code, { code, retryable });
 }
 
 export function createAskDataSend(analysisId: string): AskDataSend {
@@ -26,7 +29,10 @@ export function createAskDataSend(analysisId: string): AskDataSend {
     if (!response.ok) throw requestError(response, payload as ErrorPayload);
     const result = chatResultSchema.safeParse(payload);
     if (!result.success)
-      throw new AskDataClientError("invalid-answer", { retryable: false });
+      throw new AskDataClientError("invalid-answer", {
+        code: "invalid-answer",
+        retryable: false,
+      });
     if (result.data.outcome === "answered")
       return {
         status: "answered",
