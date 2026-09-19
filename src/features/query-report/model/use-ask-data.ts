@@ -43,6 +43,18 @@ function createId() {
 }
 
 function errorMessage(error: unknown) {
+  if (error instanceof AskDataClientError && error.code === "expired") {
+    return "Срок действия гостевого сеанса истёк. Запустите новый анализ.";
+  }
+  if (error instanceof AskDataClientError && error.code === "not-found") {
+    return "Этот отчёт больше недоступен. Запустите новый анализ.";
+  }
+  if (error instanceof AskDataClientError && error.code === "quota") {
+    return "Лимит вопросов к отчёту на сегодня исчерпан.";
+  }
+  if (error instanceof AskDataClientError && error.code === "in-flight") {
+    return "Этот вопрос уже обрабатывается. Повторите попытку через несколько секунд.";
+  }
   if (error instanceof AskDataClientError && !error.retryable) {
     return "Не удалось получить ответ. Попробуйте сформулировать вопрос иначе.";
   }

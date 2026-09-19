@@ -111,6 +111,21 @@ describe("AskDataPanel", () => {
     expect(screen.queryByRole("button", { name: /Повторить/ })).toBeNull();
   });
 
+  it("explains when the guest session has expired", async () => {
+    const send = vi.fn(async () => {
+      throw new AskDataClientError("expired", {
+        code: "expired",
+        retryable: false,
+      });
+    });
+    render(<AskDataPanel send={send} />);
+    enterQuestion("Какой итог?");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Срок действия гостевого сеанса истёк",
+    );
+    expect(screen.queryByRole("button", { name: /Повторить/ })).toBeNull();
+  });
+
   it("cancels a pending request and ignores its late result", async () => {
     const request = deferred<AskDataResult>();
     const nextRequest = deferred<AskDataResult>();

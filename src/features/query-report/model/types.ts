@@ -27,10 +27,15 @@ export type AskDataMessage = {
 
 export class AskDataClientError extends Error {
   readonly retryable: boolean;
+  readonly code: string | undefined;
 
-  constructor(message: string, options: { retryable?: boolean } = {}) {
+  constructor(
+    message: string,
+    options: { code?: string; retryable?: boolean } = {},
+  ) {
     super(message);
     this.name = "AskDataClientError";
     this.retryable = options.retryable ?? true;
+    this.code = options.code;
   }
 }

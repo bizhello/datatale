@@ -75,4 +75,19 @@ describe("query report API adapter", () => {
       createAskDataSend(analysisId)(turn, new AbortController().signal),
     ).rejects.toMatchObject({ retryable: false });
   });
+
+  it("preserves actionable session and report errors", async () => {
+    for (const [code, status] of [
+      ["expired", 401],
+      ["not-found", 404],
+    ] as const) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json({ code }, { status })),
+      );
+      await expect(
+        createAskDataSend(analysisId)(turn, new AbortController().signal),
+      ).rejects.toMatchObject({ code, retryable: false });
+    }
+  });
 });
