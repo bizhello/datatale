@@ -375,6 +375,17 @@ footer {
   width: 100%;
   border-collapse: collapse;
 }
+.chart-modal-evidence h3 {
+  margin-bottom: 8px;
+}
+.chart-modal-evidence ul {
+  margin: 0;
+  padding-left: 20px;
+}
+.chart-modal-evidence li {
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
 .chart-table th,
 .chart-table td {
   padding: 8px;

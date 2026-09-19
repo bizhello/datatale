@@ -127,6 +127,25 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
                       ? `Единицы: ${expanded.unit}`
                       : "Единицы: значение источника"}
                   </p>
+                  <section
+                    className="chart-modal-evidence"
+                    aria-labelledby="chart-modal-evidence-title"
+                  >
+                    <h3 id="chart-modal-evidence-title">Основание графика</h3>
+                    <ul>
+                      {expanded.evidenceIds.map((evidenceId) => {
+                        const evidence = report.evidence.find(
+                          (item) => item.id === evidenceId,
+                        );
+                        return evidence ? (
+                          <li key={evidence.id}>
+                            <strong>{evidence.label}</strong>
+                            {evidence.excerpt ? `: ${evidence.excerpt}` : ""}
+                          </li>
+                        ) : null;
+                      })}
+                    </ul>
+                  </section>
                   <table className="chart-table">
                     <caption>Данные диаграммы {expanded.title}</caption>
                     <tbody>

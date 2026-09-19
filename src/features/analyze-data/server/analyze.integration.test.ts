@@ -298,4 +298,66 @@ describe("analysis orchestration", () => {
         }),
       ).rejects.toMatchObject({ code: "invalid-model-output" });
   });
+
+  it("rejects unit and period substrings that are not complete source phrases", async () => {
+    const text: TextSource = {
+      version: 1,
+      id: "text",
+      source: { kind: "text" },
+      rawText: "Revenue was 12 RUB in January.",
+      paragraphs: [{ index: 1, text: "Revenue was 12 RUB in January." }],
+    };
+    const baseFact = {
+      id: "revenue",
+      label: "Revenue",
+      value: 12,
+      unit: "RUB",
+      period: "January",
+      paragraphIndex: 1,
+      quote: "Revenue was 12 RUB in January.",
+    };
+
+    for (const alteredFact of [
+      { ...baseFact, unit: "B" },
+      { ...baseFact, period: "Jan" },
+    ])
+      await expect(
+        analyzeSource(text, {
+          callModel: async ({ stage }) =>
+            stage === "text-extraction"
+              ? { facts: [alteredFact], observations: [] }
+              : textNarrative,
+        }),
+      ).rejects.toMatchObject({ code: "invalid-model-output" });
+  });
+
+  it("uses a bounded exact excerpt when long text yields no extraction", async () => {
+    const paragraph = `Проверенный текст без чисел. ${"Описание ".repeat(180)}`;
+    const text: TextSource = {
+      version: 1,
+      id: "long-text",
+      source: { kind: "text" },
+      rawText: paragraph,
+      paragraphs: [{ index: 1, text: paragraph }],
+    };
+    const report = await analyzeSource(text, {
+      callModel: async ({ stage }) =>
+        stage === "text-extraction"
+          ? { facts: [], observations: [] }
+          : {
+              hero: [
+                {
+                  text: "Источник не содержит проверяемых числовых фактов.",
+                  factIds: [],
+                  evidenceIds: ["quote-source"],
+                  kind: "observation",
+                },
+              ],
+              recommendations: [],
+            },
+    });
+
+    expect(report.evidence[0]?.excerpt).toBe(paragraph.slice(0, 1_000));
+    expect(paragraph.startsWith(report.evidence[0]?.excerpt ?? "")).toBe(true);
+  });
 });

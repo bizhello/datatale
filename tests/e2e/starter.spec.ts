@@ -131,11 +131,19 @@ test("renders a fixture dashboard and expands charts without another analysis re
   }
   await expect(page.getByText("Действие", { exact: true })).toBeVisible();
   await expect(page.getByText("Наблюдение", { exact: true })).toHaveCount(0);
+  await expect(
+    chartCards.first().locator(".recharts-legend-wrapper"),
+  ).toBeVisible();
   const expandButton = page.getByRole("button", {
     name: "Развернуть По регионам",
   });
   await expandButton.click();
-  await expect(page.getByRole("dialog")).toBeVisible();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByRole("heading", { name: "Основание графика" }),
+  ).toBeVisible();
+  await expect(dialog.getByText("Все строки источника")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await expect(expandButton).toBeFocused();

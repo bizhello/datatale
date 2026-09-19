@@ -9,6 +9,7 @@ import {
   type FinalReport,
   finalReportSchema,
   narrativeResponseSchema,
+  REPORT_QUOTE_MAX_LENGTH,
   textExtractionResponseSchema,
 } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
@@ -188,6 +189,29 @@ function quoteHasValue(quote: string, value: number): boolean {
   }
   return false;
 }
+
+const semanticCharacter = /^[\p{L}\p{N}_]$/u;
+function quoteHasExactPhrase(quote: string, phrase: string): boolean {
+  const [first] = Array.from(phrase);
+  const last = Array.from(phrase).at(-1);
+  let start = quote.indexOf(phrase);
+  while (start !== -1) {
+    const before = quote[start - 1] ?? "";
+    const after = quote[start + phrase.length] ?? "";
+    const leftIsBounded =
+      !first?.match(semanticCharacter) || !before.match(semanticCharacter);
+    const rightIsBounded =
+      !last?.match(semanticCharacter) || !after.match(semanticCharacter);
+    if (leftIsBounded && rightIsBounded) return true;
+    start = quote.indexOf(phrase, start + 1);
+  }
+  return false;
+}
+
+function boundedExactExcerpt(text: string) {
+  const excerpt = text.slice(0, REPORT_QUOTE_MAX_LENGTH);
+  return /[\uD800-\uDBFF]$/.test(excerpt) ? excerpt.slice(0, -1) : excerpt;
+}
 async function analyzeText(
   source: TextSource,
   callModel: ModelCall,
@@ -220,8 +244,8 @@ async function analyzeText(
       !paragraph?.text.includes(fact.quote) ||
       usedQuotes.has(fact.quote) ||
       !quoteHasValue(fact.quote, fact.value) ||
-      (fact.unit && !fact.quote.includes(fact.unit)) ||
-      (fact.period && !fact.quote.includes(fact.period))
+      !quoteHasExactPhrase(fact.quote, fact.unit) ||
+      !quoteHasExactPhrase(fact.quote, fact.period)
     )
       throw new AnalysisError(
         "invalid-model-output",
@@ -274,7 +298,7 @@ async function analyzeText(
       id: "quote-source",
       kind: "quote",
       label: `Paragraph ${paragraph.index}`,
-      excerpt: paragraph.text,
+      excerpt: boundedExactExcerpt(paragraph.text),
     });
   }
   const factIds = new Set(facts.map((fact) => fact.id));

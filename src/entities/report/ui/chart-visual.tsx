@@ -3,6 +3,7 @@ import {
   Bar,
   BarChart,
   Cell,
+  Legend,
   Line,
   LineChart,
   Pie,
@@ -46,6 +47,7 @@ export function ChartVisual({ chart }: ChartVisualProps) {
           <Tooltip
             formatter={(value) => Number(value).toLocaleString("ru-RU")}
           />
+          <Legend />
         </PieChart>
       </ResponsiveContainer>
     );
@@ -58,9 +60,11 @@ export function ChartVisual({ chart }: ChartVisualProps) {
           <Tooltip
             formatter={(value) => Number(value).toLocaleString("ru-RU")}
           />
+          <Legend />
           <Line
             type="monotone"
             dataKey="value"
+            name="Значение"
             stroke="var(--chart-primary)"
             strokeWidth={2}
           />
@@ -73,7 +77,8 @@ export function ChartVisual({ chart }: ChartVisualProps) {
         <XAxis dataKey="label" tick={{ fill: "var(--muted)" }} />
         <YAxis tick={{ fill: "var(--muted)" }} />
         <Tooltip formatter={(value) => Number(value).toLocaleString("ru-RU")} />
-        <Bar dataKey="value" fill="var(--chart-primary)" />
+        <Legend />
+        <Bar dataKey="value" name="Значение" fill="var(--chart-primary)" />
       </BarChart>
     </ResponsiveContainer>
   );
