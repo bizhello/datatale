@@ -103,13 +103,7 @@ export class MemorySavedAnalysisRepository implements SavedAnalysisRepository {
       analysis.expiresAt <= now
     )
       return undefined;
-    const result = {
-      ...analysis,
-      lastAccessedAt: now,
-      expiresAt: new Date(now.getTime() + SAVED_ANALYSIS_TTL_MS),
-    };
-    this.analyses.set(analysisId, result);
-    return result;
+    return analysis;
   }
   async list(workspaceId: string, now = new Date()) {
     return [...this.analyses.values()]
@@ -125,6 +119,16 @@ export class MemorySavedAnalysisRepository implements SavedAnalysisRepository {
           a.id.localeCompare(b.id),
       );
   }
+  async cleanup(now = new Date()) {
+    let removed = 0;
+    for (const [id, analysis] of this.analyses)
+      if (analysis.expiresAt <= now) {
+        this.analyses.delete(id);
+        this.messagesByAnalysis.delete(id);
+        removed++;
+      }
+    return removed;
+  }
   async appendMessage(input: {
     workspaceId: string;
     analysisId: string;
@@ -133,6 +137,8 @@ export class MemorySavedAnalysisRepository implements SavedAnalysisRepository {
     now?: Date;
   }) {
     const message = savedMessageInputSchema.parse(input.message);
+    if (message.result !== undefined && !this.validators.messageResult)
+      throw new Error("Assistant result validator is required.");
     const now = input.now ?? new Date();
     const analysis = this.analyses.get(input.analysisId);
     if (
@@ -147,7 +153,8 @@ export class MemorySavedAnalysisRepository implements SavedAnalysisRepository {
     if (existing) {
       if (
         existing.role !== message.role ||
-        existing.content !== message.content
+        existing.content !== message.content ||
+        stableJson(existing.result) !== stableJson(message.result)
       )
         throw new Error("Message ID already exists with different content.");
       return existing;
@@ -161,6 +168,10 @@ export class MemorySavedAnalysisRepository implements SavedAnalysisRepository {
       analysisId: input.analysisId,
       role: message.role,
       content: message.content,
+      result:
+        message.result === undefined
+          ? undefined
+          : this.validators.messageResult?.parse(message.result),
       createdAt: now,
     });
     history.push(result);

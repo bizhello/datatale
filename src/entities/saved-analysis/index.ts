@@ -5,6 +5,7 @@ export type {
   SavedAnalysisValidators,
   SavedMessageInput,
   StorageSchema,
+  ValidatedChatResult,
 } from "./model/schema";
 export {
   SAVED_ANALYSIS_HISTORY_MAX_MESSAGES,
@@ -16,6 +17,3 @@ export {
   savedAnalysisSchema,
   savedMessageInputSchema,
 } from "./model/schema";
-export { MemorySavedAnalysisRepository } from "./server/memory-repository";
-export type { SavedAnalysisRepository } from "./server/repository";
-export { SqlSavedAnalysisRepository } from "./server/repository";

@@ -32,11 +32,13 @@ export type SavedAnalysisRepository = Readonly<{
     now?: Date,
   ): Promise<SavedAnalysis | undefined>;
   list(workspaceId: string, now?: Date): Promise<ReadonlyArray<SavedAnalysis>>;
+  cleanup(now?: Date): Promise<number>;
   appendMessage(input: {
     workspaceId: string;
     analysisId: string;
     message: SavedMessageInput;
     dailyLimit: number;
+    result?: unknown;
     now?: Date;
   }): Promise<SavedAnalysisMessage | "quota-exceeded" | undefined>;
   messages(input: {
@@ -122,13 +124,18 @@ export class SqlSavedAnalysisRepository implements SavedAnalysisRepository {
 
   async get(workspaceId: string, analysisId: string, now = new Date()) {
     const rows = await this.client()`
-      UPDATE saved_analyses a SET last_accessed_at = ${now}, expires_at = ${new Date(now.getTime() + SAVED_ANALYSIS_TTL_MS)}
-      FROM guest_workspaces w
+      SELECT a.id, a.workspace_id AS "workspaceId", a.source, a.report, a.created_at AS "createdAt", a.last_accessed_at AS "lastAccessedAt", a.expires_at AS "expiresAt"
+      FROM saved_analyses a JOIN guest_workspaces w ON w.id = a.workspace_id
       WHERE a.id = ${analysisId} AND a.workspace_id = ${workspaceId} AND w.id = a.workspace_id
         AND w.revoked_at IS NULL AND w.expires_at > ${now} AND a.expires_at > ${now}
-      RETURNING a.id, a.workspace_id AS "workspaceId", a.source, a.report, a.created_at AS "createdAt", a.last_accessed_at AS "lastAccessedAt", a.expires_at AS "expiresAt"
     `;
     return parseAnalysis(rows[0]);
+  }
+
+  async cleanup(now = new Date()) {
+    const rows =
+      await this.client()`DELETE FROM saved_analyses WHERE expires_at <= ${now} RETURNING id`;
+    return rows.length;
   }
 
   async list(workspaceId: string, now = new Date()) {
@@ -152,6 +159,12 @@ export class SqlSavedAnalysisRepository implements SavedAnalysisRepository {
     now?: Date;
   }) {
     const message = savedMessageInputSchema.parse(input.message);
+    const result =
+      message.result === undefined
+        ? undefined
+        : this.validators.messageResult?.parse(message.result);
+    if (message.result !== undefined && result === undefined)
+      throw new Error("Assistant result validator is required.");
     if (!Number.isInteger(input.dailyLimit) || input.dailyLimit < 1)
       throw new Error("Chat daily limit must be positive.");
     const now = input.now ?? new Date();
@@ -165,31 +178,28 @@ export class SqlSavedAnalysisRepository implements SavedAnalysisRepository {
           AND w.revoked_at IS NULL AND w.expires_at > ${now} AND a.expires_at > ${now}
         FOR UPDATE
       ), existing AS (
-        SELECT m.sequence, m.analysis_id, m.message_id, m.role, m.content, m.created_at
+        SELECT m.sequence, m.analysis_id, m.message_id, m.role, m.content, m.result, m.created_at
         FROM saved_analysis_messages m JOIN active a ON a.id = m.analysis_id
         WHERE m.message_id = ${message.id}
-      ), bucket_insert AS (
-        INSERT INTO analysis_quota_buckets (scope, bucket_start, count, expires_at)
-        SELECT 'chat:' || ${input.workspaceId}, ${bucket}, 0, ${new Date(now.getTime() + 48 * 60 * 60_000)}
-        WHERE EXISTS (SELECT 1 FROM active) AND NOT EXISTS (SELECT 1 FROM existing) AND ${message.role} = 'user'
-        ON CONFLICT (scope, bucket_start) DO NOTHING
       ), charged AS (
-        UPDATE analysis_quota_buckets b SET count = b.count + 1, expires_at = ${new Date(now.getTime() + 48 * 60 * 60_000)}
-        WHERE b.scope = 'chat:' || ${input.workspaceId} AND b.bucket_start = ${bucket} AND b.count < ${input.dailyLimit}
-          AND NOT EXISTS (SELECT 1 FROM existing) AND ${message.role} = 'user'
-        RETURNING b.scope
+        INSERT INTO analysis_quota_buckets (scope, bucket_start, count, expires_at)
+        SELECT 'chat:' || ${input.workspaceId}, ${bucket}, 1, ${new Date(now.getTime() + 48 * 60 * 60_000)}
+        WHERE EXISTS (SELECT 1 FROM active) AND NOT EXISTS (SELECT 1 FROM existing) AND ${message.role} = 'user'
+        ON CONFLICT (scope, bucket_start) DO UPDATE SET count = analysis_quota_buckets.count + 1
+        WHERE analysis_quota_buckets.count < ${input.dailyLimit}
+        RETURNING scope
       ), inserted AS (
-        INSERT INTO saved_analysis_messages (analysis_id, message_id, role, content, created_at)
-        SELECT ${input.analysisId}, ${message.id}, ${message.role}, ${message.content}, ${now}
+        INSERT INTO saved_analysis_messages (analysis_id, message_id, role, content, result, created_at)
+        SELECT ${input.analysisId}, ${message.id}, ${message.role}, ${message.content}, ${result === undefined ? null : JSON.stringify(result)}::jsonb, ${now}
         WHERE EXISTS (SELECT 1 FROM active) AND NOT EXISTS (SELECT 1 FROM existing)
           AND (${message.role} = 'assistant' OR EXISTS (SELECT 1 FROM charged))
-        RETURNING sequence, analysis_id, message_id, role, content, created_at
+        RETURNING sequence, analysis_id, message_id, role, content, result, created_at
       )
-      SELECT sequence, analysis_id, message_id, role, content, created_at, false AS "quotaExceeded", false AS "messageConflict" FROM inserted
+      SELECT sequence, analysis_id, message_id, role, content, result, created_at, false AS "quotaExceeded", false AS "messageConflict" FROM inserted
       UNION ALL
-      SELECT sequence, analysis_id, message_id, role, content, created_at, false AS "quotaExceeded", (role <> ${message.role} OR content <> ${message.content}) AS "messageConflict" FROM existing
+      SELECT sequence, analysis_id, message_id, role, content, result, created_at, false AS "quotaExceeded", (role <> ${message.role} OR content <> ${message.content} OR result IS DISTINCT FROM ${result === undefined ? null : JSON.stringify(result)}::jsonb) AS "messageConflict" FROM existing
       UNION ALL
-      SELECT NULL::bigint, NULL::uuid, NULL::text, NULL::text, NULL::text, NULL::timestamptz, true AS "quotaExceeded", false AS "messageConflict"
+      SELECT NULL::bigint, NULL::uuid, NULL::text, NULL::text, NULL::text, NULL::jsonb, NULL::timestamptz, true AS "quotaExceeded", false AS "messageConflict"
       WHERE EXISTS (SELECT 1 FROM active) AND NOT EXISTS (SELECT 1 FROM existing) AND NOT EXISTS (SELECT 1 FROM inserted)
     `;
     const row = rows[0] as
@@ -199,6 +209,7 @@ export class SqlSavedAnalysisRepository implements SavedAnalysisRepository {
           analysis_id?: string;
           role?: string;
           content?: string;
+          result?: unknown;
           created_at?: Date;
           messageConflict?: boolean;
         }
@@ -212,6 +223,7 @@ export class SqlSavedAnalysisRepository implements SavedAnalysisRepository {
       analysisId: row.analysis_id,
       role: row.role,
       content: row.content,
+      result: row.result,
       createdAt: row.created_at,
     });
     return parsed;
@@ -232,7 +244,7 @@ export class SqlSavedAnalysisRepository implements SavedAnalysisRepository {
     );
     const now = input.now ?? new Date();
     const rows = await this.client()`
-      SELECT m.message_id AS id, m.analysis_id AS "analysisId", m.role, m.content, m.created_at AS "createdAt"
+      SELECT m.message_id AS id, m.analysis_id AS "analysisId", m.role, m.content, m.result, m.created_at AS "createdAt"
       FROM saved_analysis_messages m JOIN saved_analyses a ON a.id = m.analysis_id JOIN guest_workspaces w ON w.id = a.workspace_id
       WHERE m.analysis_id = ${input.analysisId} AND a.workspace_id = ${input.workspaceId}
         AND w.revoked_at IS NULL AND w.expires_at > ${now} AND a.expires_at > ${now}

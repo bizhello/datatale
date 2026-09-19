@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS saved_analyses (
 );
 CREATE INDEX IF NOT EXISTS saved_analyses_workspace_expiry_idx
   ON saved_analyses (workspace_id, expires_at);
+CREATE INDEX IF NOT EXISTS saved_analyses_expiry_idx
+  ON saved_analyses (expires_at);
 
 CREATE TABLE IF NOT EXISTS saved_analysis_messages (
   sequence bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -17,6 +19,7 @@ CREATE TABLE IF NOT EXISTS saved_analysis_messages (
   message_id text NOT NULL,
   role text NOT NULL CHECK (role IN ('user', 'assistant')),
   content text NOT NULL,
+  result jsonb,
   created_at timestamptz NOT NULL,
   UNIQUE (sequence),
   UNIQUE (analysis_id, message_id)

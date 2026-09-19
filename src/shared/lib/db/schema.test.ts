@@ -70,5 +70,6 @@ describe("analysis Drizzle schema parity", () => {
     expect(migration).toContain(
       "saved_analysis_messages_analysis_sequence_idx",
     );
+    expect(migration).toContain("saved_analyses_expiry_idx");
   });
 });

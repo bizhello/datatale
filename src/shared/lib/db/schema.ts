@@ -105,6 +105,7 @@ export const savedAnalysisMessages = pgTable(
     messageId: text("message_id").notNull(),
     role: text("role").notNull(),
     content: text("content").notNull(),
+    result: jsonb("result"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   },
   (table) => [

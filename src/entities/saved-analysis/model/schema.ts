@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { inputLimits } from "@/shared/config";
 
-export const SAVED_ANALYSIS_TTL_MS = 30 * 24 * 60 * 60_000;
+export const SAVED_ANALYSIS_TTL_MS = 7 * 24 * 60 * 60_000;
 export const SAVED_ANALYSIS_SOURCE_MAX_BYTES = inputLimits.canonicalSourceBytes;
 export const SAVED_ANALYSIS_MESSAGE_MAX_LENGTH = 12_000;
 export const SAVED_ANALYSIS_MESSAGE_ID_MAX_LENGTH = 160;
@@ -14,6 +14,7 @@ export type SavedAnalysisValidators<
 > = Readonly<{
   source: StorageSchema<Source>;
   report: StorageSchema<Report>;
+  messageResult?: StorageSchema<unknown>;
 }>;
 export const savedMessageInputSchema = z
   .object({
@@ -26,6 +27,7 @@ export const savedMessageInputSchema = z
       .refine((value) => value.trim().length > 0, {
         message: "Message must contain a non-whitespace character.",
       }),
+    result: z.unknown().optional(),
   })
   .strict();
 
@@ -47,6 +49,7 @@ export const savedAnalysisMessageSchema = z
     analysisId: z.string().uuid(),
     role: z.enum(["user", "assistant"]),
     content: z.string().min(1),
+    result: z.unknown().optional(),
     createdAt: z.date(),
   })
   .strict();
@@ -55,6 +58,7 @@ export type AcceptedSource = unknown;
 export type SavedMessageInput = z.infer<typeof savedMessageInputSchema>;
 export type SavedAnalysis = z.infer<typeof savedAnalysisSchema>;
 export type SavedAnalysisMessage = z.infer<typeof savedAnalysisMessageSchema>;
+export type ValidatedChatResult = Readonly<Record<string, unknown>>;
 
 export function sourceKind(source: unknown): "dataset" | "text" {
   return typeof source === "object" && source !== null && "rawText" in source

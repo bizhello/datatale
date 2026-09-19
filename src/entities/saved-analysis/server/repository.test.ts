@@ -153,6 +153,43 @@ describe("saved analysis memory repository", () => {
     ).rejects.toThrow("different content");
   });
 
+  it("keeps creation expiry fixed and cleans expired history", async () => {
+    const result = repository();
+    const created = await result.create({
+      workspaceId,
+      analysisId,
+      source: {
+        version: 1,
+        id: "text-1",
+        source: { kind: "text" },
+        rawText: "One",
+        paragraphs: [{ index: 1, text: "One" }],
+      },
+      report,
+      now,
+    });
+    expect(created?.expiresAt).toEqual(new Date("2026-09-26T12:00:00.000Z"));
+    await result.get(
+      workspaceId,
+      analysisId,
+      new Date("2026-09-20T12:00:00.000Z"),
+    );
+    expect((await result.get(workspaceId, analysisId, now))?.expiresAt).toEqual(
+      created?.expiresAt,
+    );
+    await result.appendMessage({
+      workspaceId,
+      analysisId,
+      dailyLimit: 10,
+      now,
+      message: { id: "m-1", role: "user", content: "Question" },
+    });
+    expect(await result.cleanup(new Date("2026-09-27T00:00:00.000Z"))).toBe(1);
+    await expect(
+      result.messages({ workspaceId, analysisId, now }),
+    ).resolves.toEqual([]);
+  });
+
   it("does not overwrite an immutable payload on a retry", async () => {
     const result = repository();
     await result.create({
