@@ -51,7 +51,9 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
                   <Tooltip.Content>Развернуть диаграмму</Tooltip.Content>
                 </Tooltip>
               </div>
-              <ChartVisual chart={chart} />
+              <div className="chart-visual">
+                <ChartVisual chart={chart} />
+              </div>
               <table>
                 <caption className="sr-only">
                   Табличное представление {chart.title}
@@ -89,17 +91,11 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
         >
           <p className="eyebrow">СЛЕДУЮЩИЙ ШАГ</p>
           <h3 id="recommendations-title">Рекомендации</h3>
-          {report.recommendations.map((item, index) => (
+          {report.recommendations.map((item) => (
             <article
               key={`${item.text}-${item.factIds[0] ?? item.evidenceIds[0] ?? "grounded"}`}
             >
-              <strong>
-                {index === 0
-                  ? "Наблюдение"
-                  : index === 1
-                    ? "Гипотеза"
-                    : "Действие"}
-              </strong>
+              <strong>Действие</strong>
               <p className="recommendation-copy">{item.text}</p>
             </article>
           ))}
@@ -122,7 +118,9 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
                   </Modal.CloseTrigger>
                 </Modal.Header>
                 <Modal.Body>
-                  <ChartVisual chart={expanded} />
+                  <div className="chart-modal-visual">
+                    <ChartVisual chart={expanded} />
+                  </div>
                   <p>{expanded.rationale}</p>
                   <p>
                     {expanded.unit

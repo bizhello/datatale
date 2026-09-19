@@ -112,6 +112,25 @@ test("renders a fixture dashboard and expands charts without another analysis re
   await expect(
     page.getByRole("button", { name: "Развернуть По регионам" }),
   ).toBeVisible();
+  const chartCards = page.locator(".chart-card");
+  const evidence = page.locator(".evidence");
+  const evidenceBox = await evidence.boundingBox();
+  if (!evidenceBox) throw new Error("Evidence bounds are unavailable.");
+  for (let index = 0; index < (await chartCards.count()); index += 1) {
+    const card = chartCards.nth(index);
+    const [cardBox, tableBox] = await Promise.all([
+      card.boundingBox(),
+      card.locator("table").boundingBox(),
+    ]);
+    if (!cardBox || !tableBox)
+      throw new Error(`Chart ${index + 1} bounds are unavailable.`);
+    expect(tableBox.y + tableBox.height).toBeLessThanOrEqual(
+      cardBox.y + cardBox.height + 1,
+    );
+    expect(cardBox.y + cardBox.height).toBeLessThanOrEqual(evidenceBox.y + 1);
+  }
+  await expect(page.getByText("Действие", { exact: true })).toBeVisible();
+  await expect(page.getByText("Наблюдение", { exact: true })).toHaveCount(0);
   const expandButton = page.getByRole("button", {
     name: "Развернуть По регионам",
   });

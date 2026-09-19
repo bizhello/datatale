@@ -282,7 +282,7 @@ footer {
 .chart-card {
   min-width: 0;
 }
-.chart-card > div:nth-child(2) {
+.chart-visual {
   height: clamp(230px, 28vw, 320px);
   margin: 10px 0 16px;
 }
@@ -368,7 +368,7 @@ footer {
 .chart-modal [data-slot="modal-dialog"] {
   max-height: min(88dvh, 850px);
 }
-.chart-modal [data-slot="modal-body"] > div {
+.chart-modal-visual {
   height: min(56dvh, 560px);
 }
 .chart-table {
@@ -629,7 +629,7 @@ footer {
   .metric-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-  .chart-card > div:nth-child(2) {
+  .chart-visual {
     height: 280px;
   }
   .chart-modal [data-slot="modal-container"] {
@@ -646,7 +646,7 @@ footer {
     max-height: none;
     border-radius: 0;
   }
-  .chart-modal [data-slot="modal-body"] > div {
+  .chart-modal-visual {
     height: 46dvh;
   }
   .loading-metrics {
