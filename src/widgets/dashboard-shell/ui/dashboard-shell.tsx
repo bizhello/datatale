@@ -3,11 +3,14 @@ import { Chip, ToggleButton, ToggleButtonGroup, Tooltip } from "@heroui/react";
 import { BarChart3, BookOpen, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { AnalyzeWorkspace } from "@/features/analyze-data";
 import { ImportWorkspace } from "@/features/import-data";
+import type { Dataset, TextSource } from "@/entities/dataset";
 
 export function DashboardShell() {
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [source, setSource] = useState<Dataset | TextSource>();
   useEffect(() => setMounted(true), []);
   const selectedMode =
     mounted && (theme === "light" || theme === "dark" || theme === "system")
@@ -79,12 +82,18 @@ export function DashboardShell() {
         </div>
       </header>
       <main id="main">
-        <ImportWorkspace />
+        <ImportWorkspace onReady={setSource} />
+        {source && (
+          <AnalyzeWorkspace
+            source={source}
+            onDelete={() => setSource(undefined)}
+          />
+        )}
       </main>
       <footer>
         <span>DataTale / From data to a point of view</span>
         <span>
-          <BarChart3 size={14} aria-hidden="true" /> Данные остаются в браузере
+          <BarChart3 size={14} aria-hidden="true" /> Проверенный источник
         </span>
       </footer>
     </div>
