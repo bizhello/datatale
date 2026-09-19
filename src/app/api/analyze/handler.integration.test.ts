@@ -133,6 +133,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     validCodeFingerprint: () => true,
     gate: () => new TestGate(),
     analyze,
+    saveAnalysis: vi.fn(async () => true),
     ...overrides,
   };
 }
@@ -226,6 +227,41 @@ describe("POST /api/analyze handler", () => {
     expect((await handler(request())).status).toBe(200);
     expect(events).toEqual(["provider-started", "provider-call"]);
     expect(analyze).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists the immutable source/report under the retry-safe analysis id", async () => {
+    const saveAnalysis = vi.fn(async () => true);
+    const gate = new TestGate();
+    const handler = createAnalyzeHandler(
+      dependencies({ gate: () => gate, saveAnalysis }),
+    );
+
+    const first = await handler(request());
+    expect(first.status).toBe(200);
+    await expect(first.json()).resolves.toMatchObject({
+      analysisId: key,
+      report,
+    });
+    expect(saveAnalysis).toHaveBeenCalledWith({
+      analysisId: key,
+      workspaceId: workspace.id,
+      source,
+      report,
+    });
+
+    const replay = await handler(request());
+    expect(replay.status).toBe(200);
+    await expect(replay.json()).resolves.toMatchObject({ analysisId: key });
+    expect(saveAnalysis).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails closed when a completed report cannot be stored", async () => {
+    const handler = createAnalyzeHandler(
+      dependencies({ saveAnalysis: async () => false }),
+    );
+    const response = await handler(request());
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ code: "unavailable" });
   });
 
   it("hashes only the first forwarded address before claiming", async () => {

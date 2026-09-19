@@ -49,6 +49,12 @@ type AnalyzeHandlerDependencies = Readonly<{
   validCodeFingerprint?(fingerprint: string): boolean;
   gate(): AnalyzeGate;
   analyze(source: CanonicalSource): Promise<FinalReport>;
+  saveAnalysis(input: {
+    analysisId: string;
+    workspaceId: string;
+    source: CanonicalSource;
+    report: FinalReport;
+  }): Promise<boolean>;
 }>;
 
 const idempotencyKeySchema = z.string().uuid();
@@ -106,15 +112,12 @@ function requestIp(request: Request) {
 }
 
 function gateResponse(
-  outcome: Exclude<RunGateOutcome<FinalReport>, { kind: "claimed" }>,
+  outcome: Exclude<
+    RunGateOutcome<FinalReport>,
+    { kind: "claimed" } | { kind: "replay" }
+  >,
 ) {
   switch (outcome.kind) {
-    case "replay": {
-      const report = finalReportSchema.safeParse(outcome.report);
-      return report.success
-        ? privateJson({ report: report.data })
-        : privateJson({ code: "invalid-report" }, 502);
-    }
     case "quota":
       return privateJson({ code: "quota", scope: outcome.scope }, 429);
     case "conflict":
@@ -202,6 +205,25 @@ export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
     } catch {
       return privateJson({ code: "unavailable" }, 503);
     }
+    if (outcome.kind === "replay") {
+      const storedReport = finalReportSchema.safeParse(outcome.report);
+      if (!storedReport.success)
+        return privateJson({ code: "invalid-report" }, 502);
+      try {
+        if (
+          !(await dependencies.saveAnalysis({
+            analysisId: key,
+            workspaceId: workspace.id,
+            source,
+            report: storedReport.data,
+          }))
+        )
+          return privateJson({ code: "unavailable" }, 503);
+      } catch {
+        return privateJson({ code: "unavailable" }, 503);
+      }
+      return privateJson({ analysisId: key, report: storedReport.data });
+    }
     if (outcome.kind !== "claimed") return gateResponse(outcome);
 
     const { receiptId } = outcome;
@@ -236,9 +258,21 @@ export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
     }
 
     try {
-      if (await gate.succeed(workspace.id, receiptId, report))
-        return privateJson({ report });
-    } catch {}
+      if (await gate.succeed(workspace.id, receiptId, report)) {
+        if (
+          !(await dependencies.saveAnalysis({
+            analysisId: key,
+            workspaceId: workspace.id,
+            source,
+            report,
+          }))
+        )
+          return privateJson({ code: "unavailable" }, 503);
+        return privateJson({ analysisId: key, report });
+      }
+    } catch {
+      return privateJson({ code: "unavailable" }, 503);
+    }
     try {
       await gate.fail(workspace.id, receiptId, true, "indeterminate");
     } catch {}

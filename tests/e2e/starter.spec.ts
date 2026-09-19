@@ -1,5 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+
+const analysisId = "00000000-0000-4000-8000-000000000009";
+
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { createMultiSheetXlsx } from "../fixtures/import/xlsx";
 
@@ -98,7 +101,7 @@ test("renders a fixture dashboard and expands charts without another analysis re
   });
   await page.route("**/api/analyze", async (route) => {
     requests.push("analyze");
-    await route.fulfill({ json: { report: dashboardReport } });
+    await route.fulfill({ json: { analysisId, report: dashboardReport } });
   });
   await page.goto("/");
   await page
@@ -165,7 +168,7 @@ test("shows an approximate analysis estimate while the server request is pending
   });
   await page.route("**/api/analyze", async (route) => {
     await analysisPending;
-    await route.fulfill({ json: { report: dashboardReport } });
+    await route.fulfill({ json: { analysisId, report: dashboardReport } });
   });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
@@ -240,7 +243,7 @@ test("unlocks workspace quota with invite retry and preserves the source", async
       });
       return;
     }
-    await route.fulfill({ json: { report: dashboardReport } });
+    await route.fulfill({ json: { analysisId, report: dashboardReport } });
   });
   await page.route("**/api/access", async (route) => {
     const body = route.request().postDataJSON() as { code?: string };

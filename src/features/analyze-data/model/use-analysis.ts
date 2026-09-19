@@ -7,6 +7,7 @@ import {
   useReducer,
   useRef,
 } from "react";
+import { z } from "zod";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import { finalReportSchema } from "@/entities/report";
 import {
@@ -21,7 +22,12 @@ import {
   type QuotaScope,
 } from "./analysis-state";
 
-type AnalyzeResponse = { report?: unknown; code?: unknown; scope?: unknown };
+type AnalyzeResponse = {
+  analysisId?: unknown;
+  report?: unknown;
+  code?: unknown;
+  scope?: unknown;
+};
 
 type RetryMode = "same" | "new" | "none";
 
@@ -189,7 +195,8 @@ export function useAnalysis(source: Dataset | TextSource) {
           return;
         }
         const parsed = finalReportSchema.safeParse(value.report);
-        if (!parsed.success) {
+        const analysisId = z.string().uuid().safeParse(value.analysisId);
+        if (!parsed.success || !analysisId.success) {
           clearOwnedTimers();
           dispatch({
             type: "error",
@@ -201,7 +208,12 @@ export function useAnalysis(source: Dataset | TextSource) {
         }
         if (!ownsRequest()) return;
         clearOwnedTimers();
-        dispatch({ type: "complete", requestId, report: parsed.data });
+        dispatch({
+          type: "complete",
+          requestId,
+          analysisId: analysisId.data,
+          report: parsed.data,
+        });
         await new Promise<void>((resolve) => {
           let settled = false;
           const finish = () => {
@@ -226,7 +238,12 @@ export function useAnalysis(source: Dataset | TextSource) {
           dispatch({ type: "cancel", requestId });
           return;
         }
-        dispatch({ type: "ready", requestId, report: parsed.data });
+        dispatch({
+          type: "ready",
+          requestId,
+          analysisId: analysisId.data,
+          report: parsed.data,
+        });
       } catch (_error) {
         if (!ownsRequest()) return;
         clearOwnedTimers();

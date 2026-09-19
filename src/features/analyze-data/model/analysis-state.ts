@@ -30,11 +30,12 @@ export type AnalysisState =
   | {
       status: "completing";
       requestId: number;
+      analysisId: string;
       report: FinalReport;
       phase: AnalysisPhase;
       progress: 100;
     }
-  | { status: "ready"; report: FinalReport }
+  | { status: "ready"; analysisId: string; report: FinalReport }
   | { status: "cancelled" }
   | {
       status: "error";
@@ -48,8 +49,18 @@ export type AnalysisAction =
   | { type: "start"; requestId: number; idempotencyKey: string }
   | { type: "session-setup-complete"; requestId: number }
   | { type: "progress"; requestId: number; value: number }
-  | { type: "complete"; requestId: number; report: FinalReport }
-  | { type: "ready"; requestId: number; report: FinalReport }
+  | {
+      type: "complete";
+      requestId: number;
+      analysisId: string;
+      report: FinalReport;
+    }
+  | {
+      type: "ready";
+      requestId: number;
+      analysisId: string;
+      report: FinalReport;
+    }
   | {
       type: "error";
       requestId: number;
@@ -92,6 +103,7 @@ export function analysisReducer(
     return {
       status: "completing",
       requestId: action.requestId,
+      analysisId: action.analysisId,
       report: action.report,
       phase: state.phase,
       progress: 100,
@@ -99,10 +111,18 @@ export function analysisReducer(
   if (state.status === "completing" && action.type === "cancel")
     return { status: "cancelled" };
   if (state.status === "completing" && action.type === "ready")
-    return { status: "ready", report: action.report };
+    return {
+      status: "ready",
+      analysisId: action.analysisId,
+      report: action.report,
+    };
   if (state.status !== "analyzing") return state;
   if (action.type === "ready")
-    return { status: "ready", report: action.report };
+    return {
+      status: "ready",
+      analysisId: action.analysisId,
+      report: action.report,
+    };
   if (action.type === "cancel") return { status: "cancelled" };
   if (action.type !== "error") return state;
   return {

@@ -4,6 +4,8 @@ import type { Dataset } from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
 import { useAnalysis } from "./use-analysis";
 
+const analysisId = "00000000-0000-4000-8000-000000000009";
+
 const key = "00000000-0000-4000-8000-000000000002";
 const source: Dataset = {
   version: 1,
@@ -87,7 +89,7 @@ describe("useAnalysis HTTP lifecycle", () => {
       });
       act(() => vi.advanceTimersByTime(10_000));
       expect(result.current.state).toMatchObject({ progress: 95 });
-      resolveAnalysis?.(Response.json({ report }));
+      resolveAnalysis?.(Response.json({ analysisId, report }));
       await act(async () => {
         await Promise.resolve();
         await Promise.resolve();
@@ -137,7 +139,7 @@ describe("useAnalysis HTTP lifecycle", () => {
         await Promise.resolve();
         await Promise.resolve();
       });
-      resolveAnalysis?.(Response.json({ report }));
+      resolveAnalysis?.(Response.json({ analysisId, report }));
       await act(async () => {
         await Promise.resolve();
         await Promise.resolve();
@@ -228,11 +230,11 @@ describe("useAnalysis HTTP lifecycle", () => {
         status: "analyzing",
         progress: 5,
       });
-      resolveA?.(Response.json({ report }));
+      resolveA?.(Response.json({ analysisId, report }));
       await act(async () => runA);
       act(() => vi.advanceTimersByTime(990));
       expect(result.current.state).toMatchObject({ progress: 11 });
-      resolveB?.(Response.json({ report }));
+      resolveB?.(Response.json({ analysisId, report }));
       await act(async () => {
         await Promise.resolve();
         await Promise.resolve();
@@ -251,7 +253,7 @@ describe("useAnalysis HTTP lifecycle", () => {
     const fetch = vi
       .fn()
       .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
-      .mockResolvedValueOnce(Response.json({ report }));
+      .mockResolvedValueOnce(Response.json({ analysisId, report }));
     vi.stubGlobal("fetch", fetch);
     const { result } = renderHook(() => useAnalysis(source));
     await act(async () => result.current.run());
@@ -315,7 +317,7 @@ describe("useAnalysis HTTP lifecycle", () => {
     const fetch = vi
       .fn()
       .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
-      .mockResolvedValueOnce(Response.json({ report }));
+      .mockResolvedValueOnce(Response.json({ analysisId, report }));
     vi.stubGlobal("fetch", fetch);
     const replacement = { ...source, id: "replacement-source" };
     const { result, rerender } = renderHook(
