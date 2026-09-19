@@ -215,3 +215,11 @@ Independent review approved exact candidate `e1011df`. [PR #24](https://github.c
 A production walkthrough found that the dark-theme invite input blended into its modal and that dismissing the automatically opened quota modal left no way to reopen it. The workspace/IP quota state now retains an explicit invite action, while code/global exhaustion remains terminal. HeroUI secondary and danger variants replace one-off styling; the invite input has a browser-verified 44 px minimum height. The same audit replaced stale release wording and added the 3–5 minute pitch script.
 
 The full gate passed 291 Vitest tests, the production build, and 72 Playwright scenarios. Independent review approved exact candidate `d6afdeb`; [PR #25](https://github.com/bizhello/datatale/pull/25) passed hosted CI, squash-merged as `4be7bba`, and reached production. A live dark-theme walkthrough verified the visible input, close/reopen action, corrected quota copy, and danger-styled deletion trigger.
+
+## 2026-09-20 — reproducible submission showcase
+
+The README now leads evaluators through the live product, a synthetic production screenshot, the grounding boundary, and a checked CSV walkthrough. The repository includes the exact demo data, deterministic totals, supported prompts, and the pitch script. A Vitest case imports the fixture through the real CSV parser and verifies every published total.
+
+Independent review rejected the first guide because “Which channel contributes the most revenue?” required a grouped calculation that the current chat contract does not permit. The same review found that the guide promised more deterministic chart selection than the runtime schema guarantees. The guide now asks the supported “What is the sum of revenue?” question and states that the model may select any supported two- or three-chart subset. This correction kept the demo truthful without adding product scope for the presentation.
+
+`bun run check` passed 292 Vitest tests and the production build; `bun run test:e2e` passed 72 scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Independent review approved exact candidate `be2fe5f`; [PR #26](https://github.com/bizhello/datatale/pull/26) passed hosted CI, squash-merged as `68ec1e1`, and reached Vercel production.
