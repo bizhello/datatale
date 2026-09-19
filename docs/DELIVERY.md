@@ -1,84 +1,40 @@
 # Delivery board
 
-Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
+DataTale's production MVP delivers the complete assignment journey: CSV/XLSX/text input → grounded 2–3 sentence narrative → AI-selected charts for suitable tables → source-only chat. The live service is [datatale.bizhov.ru](https://datatale.bizhov.ru).
 
-**Current state:** the complete MVP journey is integrated through `63b6b36`: CSV/XLSX/text input → bounded AI analysis → checked narrative and charts → grounded Ask the Data chat. Successful analyses persist immutable source/report payloads and owner-scoped messages for seven days from creation; chat uses a ten-user-turn-per-workspace daily quota, exact absent-data refusal, canonical server-owned claims, persisted replay, and a paid-call inference lease. Sol approved the exact code candidate after disposable PostgreSQL concurrency probes; 209 Vitest and 48 Playwright cases pass. Live Neon migration, Vercel preview/runtime, production gateway invocation, and scheduled cleanup remain release gates.
+## Current state
 
-## Work packages
+All Must Have features and the optional first-visit tour are deployed. Production commit `fd464cb` is Ready. Production Neon contains migrations `0001`–`0004`; guarded production builds run the checksum-ledger migration runner before Next.js and a subsequent deployment logged `Applied 0 migrations` before building. Branch and pull-request Vercel deployments are disabled; historical and canceled previews were removed, leaving only main production.
 
-These are acceptance packages, not mandatory separate PRs. Dispatch complete user-visible features that combine their needed packages, with cohesive commits on one feature branch. Dependencies refer to integrated outcomes, not started work. Exact path reservations and commits belong in the active assignment table.
+The release gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 231 Vitest tests, and 66 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. A post-merge production table run returned HTTP 200 with three hero statements, three metrics, and three charts; missing-data chat returned the exact refusal with HTTP 200. Desktop Chromium and mobile WebKit onboarding smoke passed with an inert welcome, local deterministic demo, Escape/replay, unique IDs, and zero `/api/analyze` calls.
 
-| ID | Outcome and acceptance | Depends on | State |
-| --- | --- | --- | --- |
-| DT-00 | Establish baseline: inspect intended files, frozen install and foundation checks, baseline commit; record SHA | — | done |
-| DT-01 | Core contracts: canonical Dataset, AnalysisPlan, Facts and Report schemas; serializable bar/line/donut catalog; shared synthetic fixture and invalid-plan cases. Feature boundaries validate cross-entity references | DT-00 | exact candidate approved; external gates pending |
-| DT-02 | Visual shell: responsive layout, light/dark/system, custom identity/favicon, HeroUI Skeleton and accessible states; both-theme mobile/desktop evidence | DT-00 | implemented in PR #7 |
-| DT-03 | CSV input: picker/dropzone, preview, limits and canonical normalization; quoted newlines/BOM/duplicate headers/empty input tests | DT-01a | implemented in PR #7 |
-| DT-04 | Verified metrics: profile, approved aggregations and semantic plan checks over all accepted rows; known totals, zero denominator, units and invalid-chart tests | DT-01 | exact candidate approved; external gates pending |
-| DT-05 | Guest storage boundary: Neon/Drizzle and iron-session, immutable source/report/message persistence, ownership, fixed expiry and atomic/idempotent claims; isolation and failure tests | DT-01, EXT-02 | exact candidate approved; disposable PostgreSQL passed, live Neon pending |
-| DT-06 | AI analysis: catalog-generated prompt context, bounded plan repair, checked facts and 2–3 sentence narrative with evidence; invalid output, injection, timeout and real-provider fixtures | DT-04, EXT-01 | candidate complete; local live table/text compatibility passed, deployed eval pending |
-| DT-07 | Report rendering: exhaustive Recharts registry, hero, evidence and chart rationale; 2–3 useful interactive charts from canonical fixtures, touch/keyboard, both themes and expanded chart dialog per UI.md | DT-01, DT-02 | exact candidate approved; preview gate pending |
-| DT-08 | Grounded chat: owner-checked source context, bounded calculations, persisted history/result replay, ten-turn quota, canonical claim IDs, timeout/error handling and exact insufficient-data refusal | DT-05, DT-06 | exact candidate approved |
-| DT-09 | Connected journey: thin API routes, input → analysis → charts → chat, stage state/cancel/retry; owner-scoped saved report/chat replay and cleanup | DT-03, DT-05, DT-06, DT-07, DT-08 | integrated and locally verified; external release gates pending |
-| DT-10 | XLSX/text input: sheet selection, explicit text quantities with quotations, bounded parsing and honest no-chart state; integrate and test through the same journey | DT-01a for input; AI dashboard for extraction | input integrated; text extraction candidate complete |
-| DT-11 | Release: real-model quality, production/mobile/theme/error checks, GitHub README, Vercel/subdomain and 3–5 minute pitch with actual AI evidence | DT-10, EXT-03 | queued |
-| DT-12 | Enhancement: skippable/replayable Driver.js demo tour; persistence, mobile, focus and reduced-motion checks | DT-09 | queued |
-| DT-13 | Enhancement: reuse a blueprint with new input, explicit mapping and recalculation; no carried-over facts | DT-10 | queued |
+## Delivered work
 
-Integrate incremental adapters and smoke tests as each package lands; DT-09 is the completed four-feature journey gate, not permission to postpone all integration until the end. DT-05 defines the storage boundary early to avoid competing temporary backends. Detailed history and reopening UI remain the first substantial enhancement after the MVP journey.
-
-## External prerequisites
-
-| ID | Required evidence | Owner / current state |
+| Package | Production outcome | State |
 | --- | --- | --- |
-| EXT-01 | Eligible provider/model, server credentials, budget and successful small live fixture | Local AI SDK table/text analysis passed through Spiro with `gpt-5.6-terra`. Vercel's hidden production credential, deployed invocation, spend limits and broader grounded evaluation remain unresolved |
-| EXT-02 | Neon development/test access and session-secret configuration; isolated schema and reviewed migrations | Production Neon provisioned; isolated development/test storage and session configuration remain unresolved. |
-| EXT-03 | GitHub/Vercel project access and permission/access for the subdomain DNS record | Vercel main deployed; Cloudflare CNAME added. Custom domain returns HTTPS 200. |
+| Input | Local CSV/XLSX worker parsing, sheet selection, text input, bounded preview, warnings, cancellation, and actionable errors | done |
+| Analysis | Strict provider schemas, semantic plan validation, deterministic full-source calculations, grounded 2–3 sentence hero, recommendations, and honest no-chart text reports | done |
+| Charts | Two or three AI-selected bar/line/donut charts for suitable tables, tabular equivalents, rationale/evidence, and responsive expanded dialogs | done |
+| Ask the Data | Owner-scoped immutable context, canonical claims, exact insufficient-data refusal, persisted replay, quota, and inference lease | done |
+| Guest safety | Sealed workspace, anonymous and invite quotas, idempotency, seven-day saved-analysis retention, delete-all, and scheduled cleanup | done |
+| Operations | Neon migrations, automatic guarded production migration, main-only Vercel deploys, Cloudflare DNS, HTTPS, and production smoke checks | done |
+| Onboarding | Accessible first-visit modal, deterministic local demo, skip/complete persistence, replay, focus restoration, mobile, theme, and reduced-motion behavior | done |
 
-Never put credentials in this board. Local implementation and provider/storage doubles can progress in explicit child tasks while access is pending; a mocked check does not satisfy live acceptance. Ask for missing access early and continue independent ready work.
+## Release evidence
 
-## Dispatch sequence
+| PR | Result | Verification and review correction |
+| --- | --- | --- |
+| [#12](https://github.com/bizhello/datatale/pull/12) | Complete AI dashboard, saved analyses, and grounded chat | Independent review drove calculation, grounding, retention, retry, and concurrent inference fixes; CI and production runtime passed |
+| [#13](https://github.com/bizhello/datatale/pull/13) | Advisory-locked checksum migration runner; main-only Vercel deployments | Ledger drift and reconciliation fail closed; migrations `0001`–`0004` applied to production |
+| [#14](https://github.com/bizhello/datatale/pull/14) | Grounded text evidence survives model unit/period paraphrases | Exact source quotations remain evidence while unsupported numeric facts are excluded |
+| [#15](https://github.com/bizhello/datatale/pull/15) | Production build migrates before Next.js | Review required both `VERCEL_ENV=production` and `VERCEL_GIT_COMMIT_REF=main`; migration failure blocks deployment |
+| [#16](https://github.com/bizhello/datatale/pull/16) | New AI reports require two or three separately grounded hero sentences | A live one-sentence result exposed the gap; prompt and generation schemas now enforce the assignment contract while persisted reports remain compatible |
+| [#17](https://github.com/bizhello/datatale/pull/17) | Accessible first-visit onboarding | Review corrected duplicate IDs during replay, light-theme contrast, and non-modal welcome interaction; final desktop/mobile checks passed |
 
-1. **DT-INPUT:** DT-02 input shell + DT-03 + DT-10 source acceptance, based on the integrated Dataset contract. XLSX/text analysis remains part of the later dashboard.
-2. **AI dashboard:** remaining DT-01 contracts + DT-04/DT-06/DT-07 and necessary connection work; finish input-to-grounded-dashboard before extras.
-3. **Grounded chat:** DT-08 plus required API/source context. Keep credentials and private access server-side.
-4. **Saved history enhancement:** add history listing, reopening, and report deletion on top of DT-05 persistence after the four-feature MVP and external storage gates pass.
-5. **Release:** DT-11 and final polish; onboarding DT-12 only after the core journey passes. DT-13 remains first to cut.
+GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI, component-ownership, HeroUI, and hydration history. [AI-WORKLOG.md](AI-WORKLOG.md) records the material AI-assisted mistakes and corrections used for the pitch.
 
-One feature branch/PR may span several packages. Keep independent exact-candidate review, targeted tests during development and one applicable full release gate. Use multiple executors only when paths and contracts are genuinely independent.
+## Remaining delivery artifact
 
-## Active assignments
+The repository and live service are ready for evaluation. Record the requested 3–5 minute Loom/Vimeo pitch separately, showing the live journey, representative prompts, one reviewer-found mistake, and its verification.
 
-The conductor fills this table before dispatch and updates it on each transition. `—` means unassigned, never implied completion.
-
-| Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
-| --- | --- | --- | --- | --- | --- |
-| AI Dashboard MVP (DT-01/04/05/06/07/08/09) | Luna/Terra executors; conductor integration; Sol review | exact code candidate approved; external gates pending | `63b6b36`; `feat/ai-dashboard`; `../datatale-worktrees/ai-dashboard` | Input, analysis, report, persistence, grounded chat, cleanup, migrations, tests, and canonical docs | Apply migrations `0001`–`0004` to isolated/live Neon, verify Vercel preview and production runtime, then prepare release evidence |
-
-For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
-
-## Delivery evidence
-
-| Task | Integration SHA | Review result / reference | Checks and remaining limitations |
-| --- | --- | --- | --- |
-| DT-00 foundation | `7b8c0ba` | Conductor verification; no independent feature review claimed | Frozen install, lint, FSD, types, build, 2 component and 6 browser tests passed historically. See AI-WORKLOG. No product features verified |
-| DT-01a Dataset | `c0dcbd5` ([PR #1](https://github.com/bizhello/datatale/pull/1)) | Sol medium approved `1230714`; reserved-key, blank-ID and circular-test findings fixed in `d706432` | `bun run check:all`: 12 Vitest + 6 browser tests passed; GitHub CI passed. Squash tree matches reviewed candidate. No parser/AI/UI implementation claimed |
-| DT-01b.1 Chart planning | `54a0308` ([PR #5](https://github.com/bizhello/datatale/pull/5)) | Repeat independent review approved `e020a26` after catalog/schema drift correction | 21 Vitest tests, build and hosted browser CI passed; semantic dataset validation and rendering remain planned |
-| DT-00 workflow/infrastructure | `6842cad` ([PR #3](https://github.com/bizhello/datatale/pull/3)) | Independent review approved `70c3c4c`; classifier and final-gate probes passed | Hosted CI passed; infrastructure limitations remain in DEPLOYMENT |
-| DT-INPUT local workspace | [PR #7](https://github.com/bizhello/datatale/pull/7) records merge SHA/status | Independent review corrections applied; linked PR records final verdict | Combined local check: 48 Vitest tests, build and 21 Playwright cases passed. Source remains local and ephemeral; AI/storage not implemented |
-| DT-INPUT component ownership | `169a04c` ([PR #8](https://github.com/bizhello/datatale/pull/8)) | Sol medium approved exact candidate `61f5c11`; squash tree matched reviewed candidate | `bun run check:all`: 49 Vitest + 21 Playwright tests passed; hosted CI, Vercel deployment and production HTTP smoke passed |
-| DT-INPUT HeroUI adoption | `e13220c` ([PR #9](https://github.com/bizhello/datatale/pull/9)); corrected in `2514d84` ([PR #10](https://github.com/bizhello/datatale/pull/10)) | Independent review rejected a non-discriminating event-handler workaround, then approved the exact hydration-synchronized candidate | `bun run check`, 27 Playwright cases, post-merge hosted CI, and production picker/text smoke passed |
-| AI Dashboard estimated progress | `1a7e3e8` | Sol approved exact pre-integration candidate `6b724ae` after stale-request timer ownership, stepped cadence, honest estimate copy and canonical documentation corrections | Integrated `bun run check`: Biome, Steiger, strict TypeScript, 163 Vitest tests and default Turbopack build passed; 45 Playwright cases passed across desktop Chromium, mobile Chromium and mobile WebKit |
-| Grounded chat and saved analyses | `63b6b36` | Sol approved exact combined code candidate after provider-claim, grounding, retention, migration, ownership, and concurrency review | `bun run check`: 209 Vitest tests and production build passed; Playwright 48/48 passed. PostgreSQL 16 applied migrations `0001`–`0004` and serialized concurrent inference claims; live Neon/Vercel remain pending |
-
-Append one concise row per integrated task. Update task state and any changed README/domain contracts in the same integration handoff. Git retains prior board revisions; AI-WORKLOG retains selected real prompts/errors for the pitch.
-
-## Release acceptance
-
-- Production at `datatale.bizhov.ru`, HTTPS, public reviewer access and verified model availability for the intended audience.
-- CSV/XLSX/text input, grounded hero, 2–3 AI-selected interactive charts on suitable data, and source-only chat with the exact refusal.
-- Mobile/desktop and light/dark, real loading stages, accessible interactions and actionable failure states.
-- GitHub README with accurate startup/environment/limits/retention and passing required checks.
-- A 3–5 minute pitch demonstrating the journey, a real AI prompt, an actual correction and confirming evidence.
-
-Record actual release commit, model/prompt versions, checks and deployment URL before marking DT-11 done. Completion claims must match observable behavior.
+Future product enhancements such as report history/reopen and blueprint reuse are outside the submitted MVP and have no active assignment.

@@ -14,16 +14,19 @@ src/
     import-data/                picker, preview, parsing orchestration
     analyze-data/               client lifecycle, prompt orchestration, calculations, verified report UI
     query-report/               grounded chat UI and server orchestration
+    onboarding/                 first-visit tour lifecycle and preference
   entities/
     dataset/                    source schema, normalization and pure calculations
     report/                     report/plan contracts, chart capabilities and renderers
+    guest-workspace/            sealed guest-session contract and repository
+    saved-analysis/             persisted source/report/message repository
   shared/
     config/                     environment and product limits
     lib/                        small infrastructure utilities with a real consumer
     ui/                         genuinely reused visual patterns
 ```
 
-Create additional slices with their first consumer. `entities/guest-workspace` owns the sealed guest-session contract and server repository. The future client-only `features/onboarding` slice will own Driver.js lifecycle and the versioned UI preference; the dashboard widget supplies stable targets and coordinates demo display.
+Create additional slices with their first consumer. `entities/guest-workspace` owns the sealed guest-session contract and server repository. `features/onboarding` owns Driver.js lifecycle and the versioned local preference; the dashboard widget supplies stable targets and coordinates the deterministic demo.
 
 ## Import and ownership rules
 
@@ -49,13 +52,13 @@ Use direct relative imports inside a slice and preserve its narrow public API. D
 | --- | --- |
 | Input selection, dialogs, local filters | React useState, lifted to the nearest shared parent when needed |
 | Parse/analyze/cancel/retry transitions | Feature-owned useReducer with a discriminated state union |
-| Saved report list/detail and mutations | TanStack Query with report/workspace-scoped keys |
-| Active chat messages and streaming | AI SDK chat state; persist completed messages through the server boundary |
+| Current accepted source and rendered report | Dashboard/widget composition plus feature-owned hooks |
+| Active chat messages and request lifecycle | `query-report` feature hook; persist completed results through the server boundary |
 | Theme | next-themes |
 | Tour completion/dismissal | Onboarding feature's versioned localStorage preference |
 | Durable source, report and message records | Server-side storage |
 
-Use one owner for each value. Do not mirror Query results in a global store or maintain two live copies of the chat transcript. Load persisted chat once when opening a report, then let the AI SDK own the active conversation; invalidate relevant saved-history queries after persistence. Clear private query/chat state when guest access ends or data is deleted.
+Use one owner for each value. Do not maintain two live copies of the chat transcript. Clear private source/report/chat state when guest access ends or data is deleted. A future report-history UI may introduce TanStack Query only with its first real list/detail consumer.
 
 Pass state through feature/widget composition before introducing context. Add narrowly scoped context only for a real shared subtree. Zustand is the preferred candidate if implementation demonstrates substantial cross-tree client state that these owners cannot handle cleanly; introduce it through a reviewed decision with a concrete consumer. The MVP does not currently require Zustand or Redux.
 
@@ -118,7 +121,7 @@ Add a chart by extending capability metadata, schema and renderer mapping plus c
 
 ## Dataset contract (DT-01a)
 
-`entities/dataset` exports the version-1 normalized table schema, inferred types and row/column bounds. It validates 1–30 columns and 1–5,000 rows, unique nonblank identities, exact declared row keys, explicit nulls, finite typed values and ISO calendar dates. The reserved column/key `__proto__` is rejected before Zod record parsing; source headers must be mapped to safe internal field IDs by future parsers.
+`entities/dataset` exports the version-1 normalized table schema, inferred types and row/column bounds. It validates 1–30 columns and 1–5,000 rows, unique nonblank identities, exact declared row keys, explicit nulls, finite typed values and ISO calendar dates. The reserved column/key `__proto__` is rejected before Zod record parsing; import parsers map source headers to safe internal field IDs.
 
 Each row carries a positive original `sourceRowNumber`; reordering does not rewrite that reference. This is table provenance, not a text-quotation citation contract. Parsers and request boundaries remain responsible for byte/decompression limits and source-specific metadata. The schema does not parse CSV/XLSX, calculate metrics or claim to validate AI conclusions.
 
@@ -127,4 +130,4 @@ Each row carries a positive original `sourceRowNumber`; reordering does not rewr
 
 `features/import-data` owns file/text acceptance, parsing lifecycle and preview. Table imports validate against the existing Dataset contract; prose uses a separate versioned TextSource owned by `entities/dataset`. The feature composes these as a discriminated accepted-source result, without weakening table validation or treating prose as extracted facts.
 
-The browser worker owns file parsing and bounded XLSX archive inspection. It reads a workbook once and exposes sheet choices, then normalizes the selected sheet. Termination on cancel, replacement or deadline releases the worker; operation identity rejects late results. Preview samples never replace the full accepted source. No private source is persisted in localStorage or sent over the network by import. Server validation and exact-quotation text extraction are implemented by `analyze-data`; durable source storage remains later work.
+The browser worker owns file parsing and bounded XLSX archive inspection. It reads a workbook once and exposes sheet choices, then normalizes the selected sheet. Termination on cancel, replacement or deadline releases the worker; operation identity rejects late results. Preview samples never replace the full accepted source. Import alone neither persists private source data nor sends it over the network. After the user starts analysis, the server validates and stores the canonical source with the report under the seven-day saved-analysis contract; `analyze-data` owns exact-quotation text extraction.

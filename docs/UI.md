@@ -19,7 +19,6 @@ HeroUI v3 has no mandatory HeroUIProvider. A next-themes ThemeProvider has a sep
 
 | Element | Desktop | Mobile |
 | --- | --- | --- |
-| History | Side panel | Accessible drawer/sheet with focus restoration |
 | Input | Dropzone, picker and text | Prominent file picker and text; dragging is not required |
 | Hero | Wide narrative with adjacent metrics | First item in a single column; no clipped fixed-height text |
 | Charts | Up to 2–3 columns when readable | One chart per row; useful height and readable labels |
@@ -62,7 +61,3 @@ Readable typography, visible focus, sufficient light/dark contrast, touch target
 Acceptance requires screenshots of ready/loading/error/empty states in both themes and representative mobile/desktop layouts, plus keyboard/touch checks. A passing axe scan alone does not prove good UX or chart accessibility.
 
 Sources: [HeroUI themes](https://heroui.com/docs/react/getting-started/theming), [Skeleton](https://heroui.com/docs/react/components/skeleton), [next-themes](https://github.com/pacocoursey/next-themes).
-
-## Deferred liquid hero
-
-The DeepSeek Harness page was not available for direct inspection in this environment because the browser connector could not obtain its authentication token. The liquid/lens hero remains deferred: do not add a WebGL dependency or a fixed 100vh imitation without confirming behavior and measuring mobile performance. If revisited, prototype a CSS or Canvas 2D lens using the existing stack, keep it optional, and prefer a static `/welcome` route only after validating accessibility, reduced motion, and viewport resizing.
