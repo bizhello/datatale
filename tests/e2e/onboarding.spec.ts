@@ -132,9 +132,9 @@ test("Done completes onboarding and suppresses the welcome after reload", async 
   const next = page.locator(".driver-popover-next-btn");
   const done = page.locator(".driver-popover-done-btn");
   await expect(page.locator(".driver-popover")).toBeVisible();
-  await expect(next.or(done)).toBeVisible();
-  for (let step = 0; step < 10 && !(await done.isVisible()); step += 1) {
-    await expect(next).toBeVisible();
+  for (let step = 0; step < 10; step += 1) {
+    await expect(next.or(done)).toBeVisible();
+    if (await done.isVisible()) break;
     await next.click();
   }
   await expect(done).toBeVisible();
