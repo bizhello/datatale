@@ -109,6 +109,8 @@ describe("analysis Drizzle schema parity", () => {
     expect(migration).toContain("DELETE FROM analysis_runs");
     expect(migration).toContain("saved_analyses_report_hero_count_check");
     expect(migration).toContain("analysis_runs_report_hero_count_check");
-    expect(migration).toContain("jsonb_array_length(report -> 'hero') BETWEEN 2 AND 3");
+    expect(migration).toContain(
+      "jsonb_array_length(report -> 'hero') BETWEEN 2 AND 3",
+    );
   });
 });
