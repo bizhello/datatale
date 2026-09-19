@@ -85,6 +85,27 @@ describe("useHistory request lifecycle", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  it("does not clear local source access after a deferred initial list 401", async () => {
+    let resolveList!: (response: Response) => void;
+    const onAccessLost = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveList = resolve;
+          }),
+      ),
+    );
+    const { result } = renderHook(() => useHistory({ onAccessLost }));
+    await act(async () => {
+      resolveList(Response.json({ code: "expired" }, { status: 401 }));
+    });
+    await waitFor(() => expect(result.current.error).toBe(false));
+    expect(result.current.selected).toBeUndefined();
+    expect(onAccessLost).not.toHaveBeenCalled();
+  });
+
   it("clears selected access and notifies the shell after a list 401", async () => {
     const onAccessLost = vi.fn();
     const fetch = vi
