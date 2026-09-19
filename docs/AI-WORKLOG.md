@@ -1,8 +1,8 @@
 # AI development evidence
 
-## 2026-09-19 — honest analysis loading progress
+## 2026-09-19 — estimated analysis loading progress
 
-The analysis request exposes no measurable stage completion or progress denominator. The loading experience therefore uses HeroUI v3.2.6 `ProgressBar` in indeterminate mode, retains the existing Skeleton layout, and names the server lifecycle stages without presenting a fake percentage. The client observes only the guest boundary: protected session/request setup is active before bootstrap resolves, then the opaque analysis request is active while plan selection/validation, deterministic calculation, and narrative generation remain pending context. It never claims source or text preparation is complete. Text sources use their actual extraction lifecycle. Under reduced motion, the fill is a full neutral track with no animation or partial width. Reducer, component, and browser tests cover the phase guard, stale request handling, source-aware labels, accessibility semantics, reduced-motion geometry, and no-percentage promise.
+The server still exposes no stage completion, so loading now uses an explicitly approximate determinate HeroUI v3.2.6 `ProgressBar` based on provisional live Spiro baselines: 22 seconds for tables and 20 seconds for text. A pure deterministic irregular checkpoint schedule advances to 95 and holds there until a validated response; only then does it show 100 for 320ms as an authorized completion feedback beat, not as measured server progress, before rendering the report. Session/request setup remains the only observable client boundary; later plan, calculation, and narrative stages remain named context. Errors, cancellation, source replacement, and stale responses never show 100. Fake-timer tests cover exact steps, early responses, the normal cap, late waits, monotonicity, completion delay, cancellation, abort-listener cleanup, and timer cleanup; component and browser checks cover approximate labeling, quiet numeric updates, and reduced motion.
 
 Record actual prompts, mistakes, corrections and verification for the 3–5 minute pitch. Keep credentials and private data out of this log.
 

@@ -55,7 +55,7 @@ After the free call, show the invite-code modal without clearing the accepted so
 | Requirement | Observable acceptance |
 | --- | --- |
 | File DnD OR text | Plan supports both; picker also works on mobile/keyboard. Parse errors precede AI calls |
-| Polished loading | Skeleton shapes, real stages, measurable progress only where available |
+| Polished loading | Skeleton shapes, real stages, measured progress only where available; otherwise use a clearly labeled time estimate and a brief completion acknowledgment after validation |
 | Hero insight | Prominent 2–3 sentence grounded summary |
 | AI-selected charts | Model selects from supported kinds; suitable fixture renders 2–3 useful interactive charts |
 | Ask the Data | Composer below analysis; answers derive exclusively from accepted source or checked calculations |

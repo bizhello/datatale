@@ -52,6 +52,200 @@ const report: FinalReport = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("useAnalysis HTTP lifecycle", () => {
+  it("holds the approximate estimate at 95 until an early response is validated", async () => {
+    vi.useFakeTimers();
+    const removeAbortListener = vi.spyOn(
+      AbortSignal.prototype,
+      "removeEventListener",
+    );
+    try {
+      vi.stubGlobal("crypto", { randomUUID: () => key });
+      let resolveAnalysis: ((response: Response) => void) | undefined;
+      const fetch = vi
+        .fn()
+        .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+        .mockImplementationOnce(
+          () =>
+            new Promise<Response>((resolve) => {
+              resolveAnalysis = resolve;
+            }),
+        );
+      vi.stubGlobal("fetch", fetch);
+      const { result } = renderHook(() => useAnalysis(source));
+      let runPromise: Promise<void>;
+      act(() => {
+        runPromise = result.current.run();
+      });
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      act(() => vi.advanceTimersByTime(22_000));
+      expect(result.current.state).toMatchObject({
+        status: "analyzing",
+        progress: 95,
+      });
+      act(() => vi.advanceTimersByTime(10_000));
+      expect(result.current.state).toMatchObject({ progress: 95 });
+      resolveAnalysis?.(Response.json({ report }));
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(result.current.state).toMatchObject({
+        status: "completing",
+        progress: 100,
+      });
+      act(() => vi.advanceTimersByTime(320));
+      await act(async () => runPromise);
+      expect(result.current.state.status).toBe("ready");
+      expect(removeAbortListener).toHaveBeenCalledWith(
+        "abort",
+        expect.any(Function),
+      );
+    } finally {
+      removeAbortListener.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("removes the completion abort listener when cancellation interrupts the 100 beat", async () => {
+    vi.useFakeTimers();
+    const removeAbortListener = vi.spyOn(
+      AbortSignal.prototype,
+      "removeEventListener",
+    );
+    try {
+      vi.stubGlobal("crypto", { randomUUID: () => key });
+      let resolveAnalysis: ((response: Response) => void) | undefined;
+      const fetch = vi
+        .fn()
+        .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+        .mockImplementationOnce(
+          () =>
+            new Promise<Response>((resolve) => {
+              resolveAnalysis = resolve;
+            }),
+        );
+      vi.stubGlobal("fetch", fetch);
+      const { result } = renderHook(() => useAnalysis(source));
+      let runPromise: Promise<void>;
+      act(() => {
+        runPromise = result.current.run();
+      });
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      resolveAnalysis?.(Response.json({ report }));
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(result.current.state.status).toBe("completing");
+      act(() => result.current.cancel());
+      await act(async () => runPromise);
+      expect(result.current.state.status).toBe("cancelled");
+      expect(removeAbortListener).toHaveBeenCalledWith(
+        "abort",
+        expect.any(Function),
+      );
+    } finally {
+      removeAbortListener.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("cleans the estimate timer when an in-flight request is cancelled", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal("crypto", { randomUUID: () => key });
+      const fetch = vi.fn(
+        (_url: string, options: { signal?: AbortSignal } | undefined) =>
+          new Promise<Response>((_resolve, reject) => {
+            options?.signal?.addEventListener("abort", () =>
+              reject(new DOMException("Aborted", "AbortError")),
+            );
+          }),
+      );
+      vi.stubGlobal("fetch", fetch);
+      const { result } = renderHook(() => useAnalysis(source));
+      act(() => void result.current.run());
+      act(() => result.current.cancel());
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(result.current.state.status).toBe("cancelled");
+      act(() => vi.advanceTimersByTime(30_000));
+      expect(result.current.state.status).toBe("cancelled");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps request B timers alive when aborted request A settles late", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal("crypto", { randomUUID: () => key });
+      let resolveA: ((response: Response) => void) | undefined;
+      let resolveB: ((response: Response) => void) | undefined;
+      const fetch = vi
+        .fn()
+        .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+        .mockImplementationOnce(
+          () =>
+            new Promise<Response>((resolve) => {
+              resolveA = resolve;
+            }),
+        )
+        .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+        .mockImplementationOnce(
+          () =>
+            new Promise<Response>((resolve) => {
+              resolveB = resolve;
+            }),
+        );
+      vi.stubGlobal("fetch", fetch);
+      const { result } = renderHook(() => useAnalysis(source));
+      let runA: Promise<void>;
+      let runB: Promise<void>;
+      act(() => {
+        runA = result.current.run();
+      });
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      act(() => {
+        runB = result.current.run();
+      });
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      act(() => vi.advanceTimersByTime(770));
+      expect(result.current.state).toMatchObject({
+        status: "analyzing",
+        progress: 5,
+      });
+      resolveA?.(Response.json({ report }));
+      await act(async () => runA);
+      act(() => vi.advanceTimersByTime(990));
+      expect(result.current.state).toMatchObject({ progress: 11 });
+      resolveB?.(Response.json({ report }));
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(result.current.state.status).toBe("completing");
+      act(() => vi.advanceTimersByTime(320));
+      await act(async () => runB);
+      expect(result.current.state.status).toBe("ready");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("bootstraps the guest before analysis and sends one stable key", async () => {
     vi.stubGlobal("crypto", { randomUUID: () => key });
     const fetch = vi

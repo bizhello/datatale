@@ -50,15 +50,18 @@ export function AnalyzeWorkspace({ source, onDelete }: AnalyzeWorkspaceProps) {
             : "Запустить анализ"}
         </Button>
       )}
-      {state.status === "analyzing" && (
+      {(state.status === "analyzing" || state.status === "completing") && (
         <>
           <AnalysisProgress
+            progress={state.progress}
             phase={state.phase}
             sourceKind={source.source.kind === "text" ? "text" : "table"}
           />
-          <Button variant="secondary" onPress={cancel}>
-            Отменить анализ
-          </Button>
+          {state.status === "analyzing" && (
+            <Button variant="secondary" onPress={cancel}>
+              Отменить анализ
+            </Button>
+          )}
         </>
       )}
       {state.status === "error" && (

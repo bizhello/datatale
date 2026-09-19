@@ -310,6 +310,11 @@ footer {
 .analysis-progress-bar {
   margin-top: 22px;
 }
+.analysis-progress-estimate {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
 .analysis-progress-stages {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

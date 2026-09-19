@@ -150,7 +150,7 @@ test("renders a fixture dashboard and expands charts without another analysis re
   expect(requests).toEqual(["guest", "analyze"]);
 });
 
-test("shows honest indeterminate analysis progress while the server request is pending", async ({
+test("shows an approximate analysis estimate while the server request is pending", async ({
   page,
 }) => {
   let releaseAnalysis: (() => void) | undefined;
@@ -176,10 +176,14 @@ test("shows honest indeterminate analysis progress while the server request is p
   await page.getByRole("button", { name: "Запустить анализ" }).click();
   await expect(page.getByRole("status")).toHaveText("Выбор и проверка плана…");
   await expect(
-    page.getByRole("progressbar", { name: "Ход анализа" }),
+    page.getByRole("progressbar", {
+      name: "Оценка хода анализа, приблизительно",
+    }),
   ).toBeVisible();
   const progressGeometry = await page
-    .getByRole("progressbar", { name: "Ход анализа" })
+    .getByRole("progressbar", {
+      name: "Оценка хода анализа, приблизительно",
+    })
     .evaluate((bar) => {
       const track = bar.querySelector<HTMLElement>(
         '[data-slot="progress-bar-track"]',
@@ -192,15 +196,27 @@ test("shows honest indeterminate analysis progress while the server request is p
         trackWidth: track.getBoundingClientRect().width,
         fillWidth: fill.getBoundingClientRect().width,
         animationName: getComputedStyle(fill).animationName,
+        transitionDuration: getComputedStyle(fill).transitionDuration,
       };
     });
-  expect(progressGeometry.fillWidth).toBeCloseTo(
-    progressGeometry.trackWidth,
-    0,
+  expect(progressGeometry.fillWidth).toBeLessThan(
+    progressGeometry.trackWidth * 0.2,
   );
   expect(progressGeometry.animationName).toBe("none");
+  expect(Number.parseFloat(progressGeometry.transitionDuration)).toBeLessThan(
+    0.001,
+  );
   await expect(page.getByText("Детерминированный расчёт")).toBeVisible();
-  await expect(page.getByText(/\d+%/)).toHaveCount(0);
+  await expect(page.getByText(/^Оценка, не измерение: \d+%$/)).toBeVisible();
+  const estimateValue = Number(
+    await page
+      .getByRole("progressbar", {
+        name: "Оценка хода анализа, приблизительно",
+      })
+      .getAttribute("aria-valuenow"),
+  );
+  expect(estimateValue).toBeGreaterThanOrEqual(0);
+  expect(estimateValue).toBeLessThanOrEqual(95);
   await page.getByRole("button", { name: "Отменить анализ" }).click();
   releaseAnalysis?.();
   await expect(

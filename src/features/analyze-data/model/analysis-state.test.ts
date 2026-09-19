@@ -60,6 +60,30 @@ describe("analysis request lifecycle", () => {
     ).toBe(active);
   });
 
+  it("never accepts progress or error from a stale request", () => {
+    const first = analysisReducer(initialAnalysisState, {
+      type: "start",
+      requestId: 1,
+      idempotencyKey: "one",
+    });
+    const second = analysisReducer(first, {
+      type: "start",
+      requestId: 2,
+      idempotencyKey: "two",
+    });
+    expect(
+      analysisReducer(second, { type: "progress", requestId: 1, value: 95 }),
+    ).toBe(second);
+    expect(
+      analysisReducer(second, {
+        type: "error",
+        requestId: 1,
+        error: "network",
+        retryable: true,
+      }),
+    ).toBe(second);
+  });
+
   it("reuses a key only for safe recovery and blocks indeterminate retry", () => {
     expect(responseError(undefined)).toEqual({
       code: "network",
