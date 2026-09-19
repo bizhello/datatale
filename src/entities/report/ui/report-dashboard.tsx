@@ -1,20 +1,26 @@
 "use client";
 import { Button, Modal, Tooltip } from "@heroui/react";
 import { Expand, X } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { FinalReport } from "../model/schema";
 import { ChartVisual } from "./chart-visual";
 
-type ReportDashboardProps = { report: FinalReport };
-export function ReportDashboard({ report }: ReportDashboardProps) {
+type ReportDashboardProps = { report: FinalReport; onboardingDemo?: boolean };
+export function ReportDashboard({
+  report,
+  onboardingDemo = false,
+}: ReportDashboardProps) {
   const [expanded, setExpanded] = useState<
     FinalReport["charts"][number] | undefined
   >();
+  const idPrefix = useId();
+  const reportTitleId = `${idPrefix}-report-title`;
+  const recommendationsTitleId = `${idPrefix}-recommendations-title`;
   return (
-    <section className="report-dashboard" aria-labelledby="report-title">
+    <section className="report-dashboard" aria-labelledby={reportTitleId}>
       <div className="report-hero">
         <p className="eyebrow">ПРОВЕРЕННЫЙ АНАЛИЗ</p>
-        <h2 id="report-title">
+        <h2 id={reportTitleId}>
           {report.hero.map((item) => item.text).join(" ")}
         </h2>
       </div>
@@ -44,6 +50,9 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
                   <Button
                     isIconOnly
                     aria-label={`Развернуть ${chart.title}`}
+                    {...(!onboardingDemo && chart.id === report.charts[0]?.id
+                      ? { id: "onboarding-chart-expand" }
+                      : {})}
                     onPress={() => setExpanded(chart)}
                   >
                     <Expand aria-hidden="true" />
@@ -87,10 +96,10 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
       {report.recommendations.length > 0 && (
         <section
           className="recommendations"
-          aria-labelledby="recommendations-title"
+          aria-labelledby={recommendationsTitleId}
         >
           <p className="eyebrow">СЛЕДУЮЩИЙ ШАГ</p>
-          <h3 id="recommendations-title">Рекомендации</h3>
+          <h3 id={recommendationsTitleId}>Рекомендации</h3>
           {report.recommendations.map((item) => (
             <article
               key={`${item.text}-${item.factIds[0] ?? item.evidenceIds[0] ?? "grounded"}`}

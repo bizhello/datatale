@@ -1,5 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() =>
+    window.localStorage.setItem("datatale:onboarding:v1", "skipped"),
+  );
+});
+
 const report = {
   version: 1,
   hero: [

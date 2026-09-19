@@ -49,7 +49,7 @@ export function AnalyzeWorkspace({
     }
   };
   return (
-    <section className="analysis-workspace">
+    <section className="analysis-workspace" id="onboarding-analysis-flow">
       {(state.status === "idle" || state.status === "cancelled") && (
         <Button onPress={() => void run()}>
           {state.status === "cancelled"

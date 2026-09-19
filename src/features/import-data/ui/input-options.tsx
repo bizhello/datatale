@@ -46,7 +46,7 @@ export function InputOptions({
         </Button>
         <small>XLS нужно сохранить как XLSX</small>
       </div>
-      <Surface className="text-input">
+      <Surface className="text-input" id="onboarding-text-input">
         <span className="input-icon">
           <FileText aria-hidden="true" />
         </span>

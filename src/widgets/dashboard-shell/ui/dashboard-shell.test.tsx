@@ -1,7 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ONBOARDING_STORAGE_KEY } from "@/features/onboarding";
 import { DashboardShell } from "./dashboard-shell";
 
+beforeEach(() =>
+  window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "skipped"),
+);
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Dashboard input shell", () => {

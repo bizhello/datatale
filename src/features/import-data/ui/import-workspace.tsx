@@ -26,7 +26,11 @@ export function ImportWorkspace({ onReady }: ImportWorkspaceProps) {
   } = useImportWorkspace();
   const canEdit = state.status === "empty" || state.status === "error";
   return (
-    <section className="import-workspace" aria-labelledby="input-title">
+    <section
+      className="import-workspace"
+      aria-labelledby="input-title"
+      id="onboarding-source"
+    >
       <div className="section-heading">
         <p className="eyebrow">ИСТОЧНИК ДАННЫХ</p>
         <h1 id="input-title">Начните с того, что у вас уже есть.</h1>
@@ -54,7 +58,12 @@ export function ImportWorkspace({ onReady }: ImportWorkspaceProps) {
         />
       )}
       {canEdit && (
-        <Button className="demo-button" variant="ghost" onPress={showDemo}>
+        <Button
+          className="demo-button"
+          id="onboarding-demo"
+          variant="ghost"
+          onPress={showDemo}
+        >
           Загрузить синтетический демо-набор
         </Button>
       )}

@@ -6,13 +6,16 @@ import type { Dataset, TextSource } from "@/entities/dataset";
 import { ReportDashboard } from "@/entities/report/ui";
 import { AnalyzeWorkspace } from "@/features/analyze-data";
 import { ImportWorkspace } from "@/features/import-data";
+import { OnboardingTour } from "@/features/onboarding";
 import { AskDataPanel, createAskDataSend } from "@/features/query-report";
 import { ThemeControl } from "@/shared/ui/theme-control";
+import { OnboardingDemo } from "./onboarding-demo";
 
 export function DashboardShell() {
   const [mounted, setMounted] = useState(false);
   const [source, setSource] = useState<Dataset | TextSource>();
   const [workspaceVersion, setWorkspaceVersion] = useState(0);
+  const [onboardingActive, setOnboardingActive] = useState(false);
   useEffect(() => setMounted(true), []);
   return (
     <div className="page-shell" data-hydrated={mounted ? "true" : undefined}>
@@ -36,27 +39,39 @@ export function DashboardShell() {
       <main id="main">
         <ImportWorkspace key={workspaceVersion} onReady={setSource} />
         {source && (
-          <AnalyzeWorkspace
-            key={source.id}
-            source={source}
-            renderReport={(analysisId, report) => (
-              <>
-                <ReportDashboard report={report} />
-                <AskDataPanel send={createAskDataSend(analysisId)} />
-              </>
-            )}
-            onDelete={() => {
-              setSource(undefined);
-              setWorkspaceVersion((version) => version + 1);
-            }}
-          />
+          <div
+            aria-hidden={onboardingActive || undefined}
+            className={
+              onboardingActive ? "onboarding-workspace-hidden" : undefined
+            }
+          >
+            <AnalyzeWorkspace
+              key={source.id}
+              source={source}
+              renderReport={(analysisId, report) => (
+                <>
+                  <ReportDashboard report={report} />
+                  <AskDataPanel send={createAskDataSend(analysisId)} />
+                </>
+              )}
+              onDelete={() => {
+                setSource(undefined);
+                setWorkspaceVersion((version) => version + 1);
+              }}
+            />
+          </div>
         )}
+        {onboardingActive && <OnboardingDemo />}
       </main>
       <footer>
         <span>DataTale / From data to a point of view</span>
         <span>
           <BarChart3 size={14} aria-hidden="true" /> Проверенный источник
         </span>
+        <OnboardingTour
+          hydrated={mounted}
+          onSessionChange={setOnboardingActive}
+        />
       </footer>
     </div>
   );

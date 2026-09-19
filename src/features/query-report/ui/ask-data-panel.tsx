@@ -11,14 +11,14 @@ import {
 } from "@heroui/react";
 import { ArrowUp, RefreshCw, Square } from "lucide-react";
 import type { FormEvent, KeyboardEvent } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { type AskDataSend, MAX_QUESTION_LENGTH } from "../model/types";
 import { useAskData } from "../model/use-ask-data";
 import styles from "./ask-data.module.css";
 import { MessageBubble } from "./message-bubble";
 import { SuggestedQuestions } from "./suggested-questions";
 
-export type AskDataPanelProps = { send: AskDataSend };
+export type AskDataPanelProps = { send: AskDataSend; onboardingDemo?: boolean };
 
 const suggestions = [
   "Какие главные выводы?",
@@ -26,7 +26,10 @@ const suggestions = [
   "Какие показатели стоит проверить?",
 ] as const;
 
-export function AskDataPanel({ send }: AskDataPanelProps) {
+export function AskDataPanel({
+  send,
+  onboardingDemo = false,
+}: AskDataPanelProps) {
   const {
     messages,
     question,
@@ -40,6 +43,7 @@ export function AskDataPanel({ send }: AskDataPanelProps) {
   } = useAskData(send);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const questionHelpId = `${useId()}-question-help`;
   const scrollKey = `${messages.length}:${pending}:${error ?? ""}`;
 
   const restoreQuestionFocus = () => {
@@ -74,7 +78,12 @@ export function AskDataPanel({ send }: AskDataPanelProps) {
   };
 
   return (
-    <Surface className={styles.panel ?? ""} variant="default">
+    <Surface
+      data-onboarding-ask="true"
+      className={styles.panel ?? ""}
+      {...(!onboardingDemo ? { id: "onboarding-ask-data" } : {})}
+      variant="default"
+    >
       <header className={styles.header}>
         <div>
           <p className={styles.eyebrow}>ОТЧЁТ</p>
@@ -142,13 +151,13 @@ export function AskDataPanel({ send }: AskDataPanelProps) {
           <Label>Ваш вопрос к отчёту</Label>
           <TextArea
             ref={inputRef}
-            aria-describedby="ask-data-question-help"
+            aria-describedby={questionHelpId}
             maxLength={MAX_QUESTION_LENGTH}
             onKeyDown={onKeyDown}
             placeholder="Например: какие месяцы были лучшими?"
             rows={2}
           />
-          <Description id="ask-data-question-help">
+          <Description id={questionHelpId}>
             <span>
               {question.length} / {MAX_QUESTION_LENGTH}
             </span>
