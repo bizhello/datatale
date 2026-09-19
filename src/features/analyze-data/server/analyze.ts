@@ -255,6 +255,10 @@ export function analysisProposalFromProviderOutput(
     };
     switch (chart.kind) {
       case "bar":
+        if (chart.categoryLimit === 0)
+          invalidProviderOutput(
+            "Bar proposals require a positive category limit.",
+          );
         if (
           chart.pointLimit !== 0 ||
           chart.missingPeriodPolicy !== "" ||
@@ -270,7 +274,7 @@ export function analysisProposalFromProviderOutput(
         return {
           ...base,
           kind: "bar" as const,
-          categoryLimit: chart.categoryLimit || BAR_MAX_CATEGORIES,
+          categoryLimit: chart.categoryLimit,
           ...(chart.topNCount > 0
             ? {
                 topN: {
@@ -281,6 +285,13 @@ export function analysisProposalFromProviderOutput(
             : {}),
         };
       case "line":
+        if (
+          chart.pointLimit < LINE_MIN_POINTS ||
+          chart.missingPeriodPolicy !== "reject"
+        )
+          invalidProviderOutput(
+            "Line proposals require a valid point limit and reject missing periods.",
+          );
         if (
           chart.categoryLimit !== 0 ||
           chart.topNCount !== 0 ||
@@ -293,13 +304,14 @@ export function analysisProposalFromProviderOutput(
         return {
           ...base,
           kind: "line" as const,
-          pointLimit:
-            chart.pointLimit >= LINE_MIN_POINTS
-              ? chart.pointLimit
-              : LINE_MAX_POINTS,
-          missingPeriodPolicy: "reject" as const,
+          pointLimit: chart.pointLimit,
+          missingPeriodPolicy: chart.missingPeriodPolicy,
         };
       case "donut":
+        if (chart.segmentLimit < DONUT_MIN_SEGMENTS)
+          invalidProviderOutput(
+            "Donut proposals require a valid segment limit.",
+          );
         if (
           chart.categoryLimit !== 0 ||
           chart.topNCount !== 0 ||
@@ -313,10 +325,7 @@ export function analysisProposalFromProviderOutput(
         return {
           ...base,
           kind: "donut" as const,
-          segmentLimit:
-            chart.segmentLimit >= DONUT_MIN_SEGMENTS
-              ? chart.segmentLimit
-              : DONUT_MAX_SEGMENTS,
+          segmentLimit: chart.segmentLimit,
         };
       default:
         return invalidProviderOutput("Unsupported chart kind.");

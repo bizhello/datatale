@@ -192,6 +192,48 @@ describe("provider-facing structured output", () => {
         ],
       }),
     ).toThrow(/leave bar and line sentinels empty/);
+    expect(() =>
+      analysisProposalFromProviderOutput({
+        ...providerProposal,
+        charts: [
+          { ...providerProposal.charts[0], categoryLimit: 0 },
+          providerProposal.charts[1],
+        ],
+      }),
+    ).toThrow(/positive category limit/);
+    expect(() =>
+      analysisProposalFromProviderOutput({
+        ...providerProposal,
+        charts: [
+          providerProposal.charts[0],
+          { ...providerProposal.charts[1], pointLimit: 0 },
+        ],
+      }),
+    ).toThrow(/valid point limit/);
+    expect(() =>
+      analysisProposalFromProviderOutput({
+        ...providerProposal,
+        charts: [
+          providerProposal.charts[0],
+          { ...providerProposal.charts[1], missingPeriodPolicy: "" },
+        ],
+      }),
+    ).toThrow(/valid point limit/);
+    expect(() =>
+      analysisProposalFromProviderOutput({
+        ...providerProposal,
+        charts: [
+          {
+            ...providerProposal.charts[0],
+            id: "donut",
+            kind: "donut",
+            categoryLimit: 0,
+            segmentLimit: 0,
+          },
+          providerProposal.charts[1],
+        ],
+      }),
+    ).toThrow(/valid segment limit/);
   });
 
   it("converts fully required narrative and text wire objects", () => {
