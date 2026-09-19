@@ -38,7 +38,6 @@ export type SavedAnalysisRepository = Readonly<{
     analysisId: string;
     message: SavedMessageInput;
     dailyLimit: number;
-    result?: unknown;
     now?: Date;
   }): Promise<SavedAnalysisMessage | "quota-exceeded" | undefined>;
   messages(input: {

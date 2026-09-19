@@ -92,6 +92,7 @@ export const savedAnalyses = pgTable(
       table.workspaceId,
       table.expiresAt,
     ),
+    index("saved_analyses_expiry_idx").on(table.expiresAt),
   ],
 );
 

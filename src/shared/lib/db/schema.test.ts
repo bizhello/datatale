@@ -45,6 +45,9 @@ describe("analysis Drizzle schema parity", () => {
     expect(analyses.checks.map((check) => check.name)).toContain(
       "saved_analyses_source_kind_check",
     );
+    expect(analyses.indexes.map((index) => index.config.name)).toContain(
+      "saved_analyses_expiry_idx",
+    );
     expect(messages.foreignKeys[0]?.onDelete).toBe("cascade");
     expect(
       messages.primaryKeys[0]?.columns.map((column) => column.name),
