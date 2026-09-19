@@ -29,3 +29,18 @@ ALTER TABLE analysis_runs
       AND jsonb_array_length(report -> 'hero') BETWEEN 2 AND 3
     )
   );
+
+DROP FUNCTION IF EXISTS claim_analysis_run(
+  uuid,
+  uuid,
+  text,
+  text,
+  text,
+  timestamptz,
+  integer,
+  integer,
+  integer,
+  integer,
+  integer,
+  integer
+);

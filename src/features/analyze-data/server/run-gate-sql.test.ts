@@ -20,10 +20,11 @@ describe("claim_analysis_run migration contract", () => {
     expect(migration).toContain("INSERT INTO analysis_runs");
   });
 
-  it("keeps migration variables distinct from bucket columns and preserves the legacy overload", async () => {
-    const [initial, upgrade] = await Promise.all([
+  it("keeps migration variables distinct and removes only the legacy overload", async () => {
+    const [initial, upgrade, cleanup] = await Promise.all([
       readFile("migrations/0001_ai_dashboard.sql", "utf8"),
       readFile("migrations/0002_access_gate.sql", "utf8"),
+      readFile("migrations/0005_strict_report_hero.sql", "utf8"),
     ]);
     for (const migration of [initial, upgrade]) {
       expect(migration).toContain("quota_bucket_start");
@@ -32,9 +33,14 @@ describe("claim_analysis_run migration contract", () => {
       expect(migration).toContain(
         "CREATE OR REPLACE FUNCTION claim_analysis_run(",
       );
-      expect(migration).not.toContain("DROP FUNCTION claim_analysis_run");
     }
     expect(upgrade).toContain("p_code_fingerprint text");
-    expect(upgrade).toContain("NULL::text");
+    expect(upgrade).toContain("p_code_limit integer");
+    expect(cleanup).toMatch(
+      /DROP FUNCTION IF EXISTS claim_analysis_run\(\s*uuid,\s*uuid,\s*text,\s*text,\s*text,\s*timestamptz,\s*integer,\s*integer,\s*integer,\s*integer,\s*integer,\s*integer\s*\);/,
+    );
+    expect(cleanup).not.toMatch(
+      /DROP FUNCTION IF EXISTS claim_analysis_run\(\s*uuid,\s*uuid,\s*text,\s*text,\s*text,\s*text,\s*timestamptz,\s*integer,\s*integer,\s*integer,\s*integer,\s*integer,\s*integer,\s*integer\s*\);/,
+    );
   });
 });
