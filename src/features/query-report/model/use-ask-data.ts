@@ -49,6 +49,10 @@ function errorMessage(error: unknown) {
   return "Не удалось получить ответ. Проверьте соединение и попробуйте ещё раз.";
 }
 
+function canRetry(error: unknown) {
+  return !(error instanceof AskDataClientError) || error.retryable;
+}
+
 function resultMessage(
   result: AskDataResult,
 ): Omit<AskDataMessage, "id" | "role"> {
@@ -133,12 +137,13 @@ export function useAskData(send: AskDataSend) {
           return false;
         }
         requestRef.current = null;
+        const retryable = canRetry(error);
         setState((current) => ({
           ...current,
           pending: false,
           error: errorMessage(error),
-          retryQuestion: question,
-          retryMessageId: messageId,
+          retryQuestion: retryable ? question : null,
+          retryMessageId: retryable ? messageId : null,
         }));
         return false;
       }

@@ -42,10 +42,17 @@ export function AskDataPanel({ send }: AskDataPanelProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollKey = `${messages.length}:${pending}:${error ?? ""}`;
 
+  const restoreQuestionFocus = () => {
+    const focus = () => inputRef.current?.focus();
+    if (typeof requestAnimationFrame === "function")
+      requestAnimationFrame(focus);
+    else setTimeout(focus, 0);
+  };
+
   useEffect(() => {
     const log = logRef.current;
     if (log && scrollKey && typeof log.scrollTo === "function") {
-      log.scrollTo({ top: log.scrollHeight, behavior: "smooth" });
+      log.scrollTo({ top: log.scrollHeight });
     }
   }, [scrollKey]);
 
@@ -113,9 +120,10 @@ export function AskDataPanel({ send }: AskDataPanelProps) {
               <Button
                 size="sm"
                 variant="secondary"
-                onPress={() =>
-                  void submit(retryQuestion, retryMessageId ?? undefined)
-                }
+                onPress={() => {
+                  void submit(retryQuestion, retryMessageId ?? undefined);
+                  restoreQuestionFocus();
+                }}
               >
                 <RefreshCw aria-hidden="true" /> Повторить
               </Button>
@@ -153,7 +161,10 @@ export function AskDataPanel({ send }: AskDataPanelProps) {
               aria-label="Отменить запрос"
               type="button"
               variant="tertiary"
-              onPress={cancel}
+              onPress={() => {
+                cancel();
+                restoreQuestionFocus();
+              }}
             >
               <Square aria-hidden="true" /> Отменить
             </Button>

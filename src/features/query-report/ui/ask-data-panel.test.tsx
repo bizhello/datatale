@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
+  AskDataClientError,
   type AskDataResult,
   type AskDataSend,
   MAX_QUESTION_LENGTH,
@@ -91,6 +92,23 @@ describe("AskDataPanel", () => {
     expect(send.mock.calls[0]?.[0].messageId).toBe(
       send.mock.calls[1]?.[0].messageId,
     );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("textbox", { name: "Ваш вопрос к отчёту" }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it("does not offer retry for a non-retryable client error", async () => {
+    const send = vi.fn(async () => {
+      throw new AskDataClientError("Invalid request", { retryable: false });
+    });
+    render(<AskDataPanel send={send} />);
+    enterQuestion("Недопустимый вопрос");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "сформулировать вопрос иначе",
+    );
+    expect(screen.queryByRole("button", { name: /Повторить/ })).toBeNull();
   });
 
   it("cancels a pending request and ignores its late result", async () => {
@@ -105,6 +123,11 @@ describe("AskDataPanel", () => {
     const signal = send.mock.calls[0]?.[1];
     fireEvent.click(screen.getByRole("button", { name: /Отменить/ }));
     expect(signal?.aborted).toBe(true);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("textbox", { name: "Ваш вопрос к отчёту" }),
+      ).toHaveFocus(),
+    );
     request.resolve({ status: "answered", answer: "Поздний ответ" });
     await waitFor(() => expect(screen.queryByText("Поздний ответ")).toBeNull());
     enterQuestion("Новый вопрос");
