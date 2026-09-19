@@ -5,11 +5,25 @@ import type { Dataset, TextSource } from "@/entities/dataset";
 import {
   type AnalysisProposal,
   analysisProposalSchema,
+  BAR_MAX_CATEGORIES,
   chartCatalogPromptDescription,
+  DONUT_MAX_SEGMENTS,
+  DONUT_MIN_SEGMENTS,
+  FIELD_REFERENCE_MAX_LENGTH,
   type FinalReport,
   finalReportSchema,
+  LINE_MAX_POINTS,
+  LINE_MIN_POINTS,
   narrativeResponseSchema,
+  REPORT_ID_MAX_LENGTH,
+  REPORT_LABEL_MAX_LENGTH,
+  REPORT_NARRATIVE_MAX_LENGTH,
+  REPORT_NO_CHART_REASON_MAX_LENGTH,
+  REPORT_PERIOD_MAX_LENGTH,
   REPORT_QUOTE_MAX_LENGTH,
+  REPORT_RATIONALE_MAX_LENGTH,
+  REPORT_TITLE_MAX_LENGTH,
+  REPORT_UNIT_MAX_LENGTH,
   textExtractionResponseSchema,
 } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
@@ -35,7 +49,8 @@ export type AnalysisStage =
   | "table-repair"
   | "text-extraction"
   | "narrative";
-export const MODEL_CALL_TIMEOUT_MS = 15_000;
+export const MODEL_CALL_TIMEOUT_MS = 30_000;
+export const ANALYSIS_TIMEOUT_MS = 75_000;
 export const MODEL_OUTPUT_TOKEN_LIMITS: Readonly<
   Record<AnalysisStage, number>
 > = {
@@ -48,25 +63,275 @@ export type ModelCall = (request: {
   stage: AnalysisStage;
   prompt: string;
   schema: z.ZodType;
+  providerSchema?: z.ZodType;
+  decodeProviderOutput?: (output: unknown) => unknown;
   signal: AbortSignal;
 }) => Promise<unknown>;
 export type AnalyzeOptions = { callModel?: ModelCall; timeoutMs?: number };
+
+const providerIdentifierString = z.string().min(1).max(REPORT_ID_MAX_LENGTH);
+const providerFieldReferenceString = z.string().max(FIELD_REFERENCE_MAX_LENGTH);
+const providerLabelString = z.string().min(1).max(REPORT_LABEL_MAX_LENGTH);
+const providerTitleString = z.string().min(1).max(REPORT_TITLE_MAX_LENGTH);
+const providerRationaleString = z
+  .string()
+  .min(1)
+  .max(REPORT_RATIONALE_MAX_LENGTH);
+const providerNarrativeString = z
+  .string()
+  .min(1)
+  .max(REPORT_NARRATIVE_MAX_LENGTH);
+const providerUnitString = z.string().min(1).max(REPORT_UNIT_MAX_LENGTH);
+const providerPeriodString = z.string().min(1).max(REPORT_PERIOD_MAX_LENGTH);
+const providerQuoteString = z.string().min(1).max(REPORT_QUOTE_MAX_LENGTH);
+
+const providerMetricSchema = z
+  .object({
+    id: providerIdentifierString,
+    label: providerLabelString,
+    aggregationKind: z.enum(["count", "sum", "average", "min", "max"]),
+    aggregationFieldId: providerFieldReferenceString,
+  })
+  .strict();
+const providerChartSchema = z
+  .object({
+    id: providerIdentifierString,
+    kind: z.enum(["bar", "line", "donut"]),
+    title: providerTitleString,
+    rationale: providerRationaleString,
+    dimensionFieldId: providerFieldReferenceString,
+    aggregationKind: z.enum(["count", "sum", "average", "min", "max"]),
+    aggregationFieldId: providerFieldReferenceString,
+    categoryLimit: z
+      .number()
+      .int()
+      .min(0)
+      .max(BAR_MAX_CATEGORIES)
+      .describe("Bar: 1-12. Line or donut: 0."),
+    topNCount: z
+      .number()
+      .int()
+      .min(0)
+      .max(BAR_MAX_CATEGORIES - 1)
+      .describe("Bar top-N count, otherwise 0."),
+    topNIncludeOther: z
+      .boolean()
+      .describe("True only when bar topNCount is positive."),
+    pointLimit: z
+      .number()
+      .int()
+      .min(0)
+      .max(LINE_MAX_POINTS)
+      .describe("Line: 2-24. Bar or donut: 0."),
+    missingPeriodPolicy: z
+      .enum(["", "reject"])
+      .describe('Line: "reject". Bar or donut: empty string.'),
+    segmentLimit: z
+      .number()
+      .int()
+      .min(0)
+      .max(DONUT_MAX_SEGMENTS)
+      .describe("Donut: 2-6. Bar or line: 0."),
+  })
+  .strict();
+export const providerAnalysisProposalSchema = z
+  .object({
+    outcome: z.enum(["charts", "no-chart"]),
+    reason: z.string().max(REPORT_NO_CHART_REASON_MAX_LENGTH),
+    metrics: z.array(providerMetricSchema).min(2).max(4),
+    charts: z.array(providerChartSchema).max(3),
+  })
+  .strict();
+
+const providerNarrativeItemSchema = z
+  .object({
+    text: providerNarrativeString,
+    factIds: z.array(providerIdentifierString).max(4),
+    evidenceIds: z.array(providerIdentifierString).max(7),
+    kind: z.enum(["observation", "hypothesis", "action"]),
+  })
+  .strict();
+export const providerNarrativeResponseSchema = z
+  .object({
+    hero: z.array(providerNarrativeItemSchema).min(1).max(3),
+    recommendations: z
+      .array(providerNarrativeItemSchema.extend({ kind: z.literal("action") }))
+      .max(3),
+  })
+  .strict();
+export const providerTextExtractionResponseSchema = z
+  .object({
+    facts: z
+      .array(
+        z
+          .object({
+            id: providerIdentifierString,
+            label: providerLabelString,
+            value: z.number().finite(),
+            unit: providerUnitString,
+            period: providerPeriodString,
+            paragraphIndex: z.number().int().positive(),
+            quote: providerQuoteString,
+          })
+          .strict(),
+      )
+      .max(4),
+    observations: z
+      .array(
+        z
+          .object({
+            id: providerIdentifierString,
+            paragraphIndex: z.number().int().positive(),
+            quote: providerQuoteString,
+          })
+          .strict(),
+      )
+      .max(3),
+  })
+  .strict();
+
+type ProviderAggregationKind = z.infer<
+  typeof providerMetricSchema
+>["aggregationKind"];
+
+function invalidProviderOutput(message: string): never {
+  throw new AnalysisError("invalid-model-output", message);
+}
+
+function aggregationFromProvider(
+  kind: ProviderAggregationKind,
+  fieldId: string,
+) {
+  if (kind === "count") {
+    if (fieldId !== "")
+      invalidProviderOutput(
+        "Count aggregations must use an empty field sentinel.",
+      );
+    return { kind } as const;
+  }
+  if (fieldId === "")
+    invalidProviderOutput("Numeric aggregations must name a source field.");
+  return { kind, field: { fieldId } } as const;
+}
+
+export function analysisProposalFromProviderOutput(
+  output: unknown,
+): AnalysisProposal {
+  const wire = providerAnalysisProposalSchema.parse(output);
+  const metrics = wire.metrics.map((metric) => ({
+    id: metric.id,
+    label: metric.label,
+    aggregation: aggregationFromProvider(
+      metric.aggregationKind,
+      metric.aggregationFieldId,
+    ),
+  }));
+  if (wire.outcome === "no-chart") {
+    if (wire.reason.trim() === "" || wire.charts.length !== 0)
+      invalidProviderOutput(
+        "No-chart proposals require a reason and empty chart sentinels.",
+      );
+    return analysisProposalSchema.parse({
+      outcome: "no-chart",
+      reason: wire.reason,
+      metrics,
+    });
+  }
+  const charts = wire.charts.map((chart) => {
+    const base = {
+      id: chart.id,
+      kind: chart.kind,
+      title: chart.title,
+      rationale: chart.rationale,
+      dimension: { fieldId: chart.dimensionFieldId },
+      aggregation: aggregationFromProvider(
+        chart.aggregationKind,
+        chart.aggregationFieldId,
+      ),
+    };
+    switch (chart.kind) {
+      case "bar":
+        if (chart.topNCount === 0 && chart.topNIncludeOther)
+          invalidProviderOutput("A bar top-N sentinel cannot include Other.");
+        if (chart.topNCount > 0 && !chart.topNIncludeOther)
+          invalidProviderOutput("A bar top-N requires Other.");
+        return {
+          ...base,
+          kind: "bar" as const,
+          categoryLimit: chart.categoryLimit || BAR_MAX_CATEGORIES,
+          ...(chart.topNCount > 0
+            ? {
+                topN: {
+                  count: chart.topNCount,
+                  includeOther: true as const,
+                },
+              }
+            : {}),
+        };
+      case "line":
+        return {
+          ...base,
+          kind: "line" as const,
+          pointLimit:
+            chart.pointLimit >= LINE_MIN_POINTS
+              ? chart.pointLimit
+              : LINE_MAX_POINTS,
+          missingPeriodPolicy: "reject" as const,
+        };
+      case "donut":
+        return {
+          ...base,
+          kind: "donut" as const,
+          segmentLimit:
+            chart.segmentLimit >= DONUT_MIN_SEGMENTS
+              ? chart.segmentLimit
+              : DONUT_MAX_SEGMENTS,
+        };
+      default:
+        return invalidProviderOutput("Unsupported chart kind.");
+    }
+  });
+  return analysisProposalSchema.parse({
+    outcome: "charts",
+    charts,
+    metrics,
+  });
+}
+
+export function narrativeFromProviderOutput(output: unknown) {
+  return narrativeResponseSchema.parse(
+    providerNarrativeResponseSchema.parse(output),
+  );
+}
+
+export function textExtractionFromProviderOutput(output: unknown) {
+  return textExtractionResponseSchema.parse(
+    providerTextExtractionResponseSchema.parse(output),
+  );
+}
 
 function defaultCallModel(): ModelCall {
   const model = getAnalysisModel();
   if (!model)
     throw new AnalysisError("unavailable", "Analysis is not configured.");
-  return async ({ stage, prompt, schema, signal }) => {
+  return async ({
+    stage,
+    prompt,
+    schema,
+    providerSchema = schema,
+    decodeProviderOutput = (output) => output,
+    signal,
+  }) => {
     const response = await generateText({
       model,
-      output: Output.object({ schema }),
+      output: Output.object({ schema: providerSchema }),
       prompt,
       maxRetries: 0,
       maxOutputTokens: MODEL_OUTPUT_TOKEN_LIMITS[stage],
       abortSignal: signal,
       timeout: MODEL_CALL_TIMEOUT_MS,
     });
-    return response.output;
+    return decodeProviderOutput(response.output);
   };
 }
 function checkedNarrative(
@@ -225,6 +490,8 @@ async function analyzeText(
     await callModel({
       stage: "text-extraction",
       schema: textExtractionResponseSchema,
+      providerSchema: providerTextExtractionResponseSchema,
+      decodeProviderOutput: textExtractionFromProviderOutput,
       signal,
       prompt: `${extractPrompt}\n\n${boundedSourceDescription(source)}`,
     }),
@@ -307,6 +574,8 @@ async function analyzeText(
     await callModel({
       stage: "narrative",
       schema: narrativeResponseSchema,
+      providerSchema: providerNarrativeResponseSchema,
+      decodeProviderOutput: narrativeFromProviderOutput,
       signal,
       prompt: `${narrativePrompt}\n\nChecked facts and evidence only:\n${JSON.stringify({ facts, evidence })}`,
     }),
@@ -332,7 +601,7 @@ export async function analyzeSource(
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort(),
-    options.timeoutMs ?? 30_000,
+    options.timeoutMs ?? ANALYSIS_TIMEOUT_MS,
   );
   try {
     if ("rawText" in source)
@@ -350,6 +619,8 @@ export async function analyzeSource(
         await callModel({
           stage: "table-plan",
           schema: analysisProposalSchema,
+          providerSchema: providerAnalysisProposalSchema,
+          decodeProviderOutput: analysisProposalFromProviderOutput,
           signal: controller.signal,
           prompt: `${planPrompt}\n\nCapabilities:\n${chartCatalogPromptDescription}\n\n${sourceDescription}`,
         }),
@@ -361,6 +632,8 @@ export async function analyzeSource(
         await callModel({
           stage: "table-repair",
           schema: analysisProposalSchema,
+          providerSchema: providerAnalysisProposalSchema,
+          decodeProviderOutput: analysisProposalFromProviderOutput,
           signal: controller.signal,
           prompt: `${planPrompt}\n\nRepair the previous proposal. Resolve only these concrete semantic errors: ${error.message}\n\nCapabilities:\n${chartCatalogPromptDescription}\n\n${sourceDescription}`,
         }),
@@ -384,6 +657,8 @@ export async function analyzeSource(
       await callModel({
         stage: "narrative",
         schema: narrativeResponseSchema,
+        providerSchema: providerNarrativeResponseSchema,
+        decodeProviderOutput: narrativeFromProviderOutput,
         signal: controller.signal,
         prompt: `${narrativePrompt}\n\nChecked facts only; do not add values:\n${JSON.stringify({ facts: metrics, evidence: tableEvidence(source) })}`,
       }),
