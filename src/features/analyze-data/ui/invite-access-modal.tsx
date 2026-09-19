@@ -62,7 +62,7 @@ export function InviteAccessModal({
                   isRequired
                 >
                   <Label>Код приглашения</Label>
-                  <Input autoComplete="off" />
+                  <Input autoComplete="off" fullWidth variant="secondary" />
                   {status === "error" && (
                     <ErrorMessage>
                       Код не принят. Проверьте его и повторите.

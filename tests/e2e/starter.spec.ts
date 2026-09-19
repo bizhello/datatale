@@ -486,6 +486,26 @@ test("unlocks workspace quota with invite retry and preserves the source", async
   await expect(
     page.getByRole("heading", { name: "Продолжить анализ" }),
   ).toBeVisible();
+  const inviteInput = page.getByLabel("Код приглашения");
+  const inviteInputStyle = await inviteInput.evaluate((input) => {
+    const bounds = input.getBoundingClientRect();
+    return {
+      backgroundColor: getComputedStyle(input).backgroundColor,
+      height: bounds.height,
+      width: bounds.width,
+    };
+  });
+  expect(inviteInputStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(inviteInputStyle.height).toBeGreaterThanOrEqual(44);
+  expect(inviteInputStyle.width).toBeGreaterThan(200);
+  await page.getByRole("button", { name: "Закрыть" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Продолжить анализ" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Ввести код приглашения" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Продолжить анализ" }),
+  ).toBeVisible();
   await page.getByLabel("Код приглашения").fill("wrong");
   await page.getByRole("button", { name: "Разблокировать анализ" }).click();
   await expect(

@@ -6,9 +6,9 @@
 
 Verified on 2026-09-19:
 
-- Vercel project `datatale` deploys `bizhello/datatale` from `main`. Production commit `5a10043` is Ready; [datatale.bizhov.ru](https://datatale.bizhov.ru) and [datatale.vercel.app](https://datatale.vercel.app) return HTTPS 200.
+- Vercel project `datatale` deploys `bizhello/datatale` from `main`. The current release SHA and smoke evidence are recorded in [DELIVERY.md](DELIVERY.md). [datatale.bizhov.ru](https://datatale.bizhov.ru) and [datatale.vercel.app](https://datatale.vercel.app) return HTTPS 200.
 - `vercel.json` allows Git builds only for `main`. Pull-request and branch builds are reported as ignored; historical and canceled preview deployments were removed, leaving no preview deployments.
-- `bun run build:vercel` runs `bun run db:migrate` before `next build` only when `VERCEL_ENV=production` and `VERCEL_GIT_COMMIT_REF=main`. Deployment `dpl_C3edY7uwV1LTXUMGGBsRpQac9pcx` logged `Applied 1 migration.` immediately before `$ next build` and reached Ready.
+- `bun run build:vercel` runs `bun run db:migrate` before `next build` only when `VERCEL_ENV=production` and `VERCEL_GIT_COMMIT_REF=main`. Historical migration deployment `dpl_C3edY7uwV1LTXUMGGBsRpQac9pcx` logged `Applied 1 migration.` immediately before `$ next build` and reached Ready while deploying the earlier code commit `5a10043`; it is migration evidence, not the current production release.
 - Production Neon `datatale-db` is connected in `iad1`; migrations `0001`–`0005` are applied. Migration `0005_strict_report_hero.sql` deleted reports written under the previous contract, removed the obsolete analysis-claim overload, and enabled database constraints for the current hero and calculation-provenance shapes.
 - Cloudflare is authoritative for DNS. The DNS-only `datatale` CNAME points to Vercel; apex, mail, nameservers, and unrelated records are unchanged.
 - Production uses the OpenAI-compatible gateway at `https://ai-gateway.spiro.vc/v1` with `gpt-5.6-terra`. Live Vercel requests completed table and text analysis and grounded chat successfully.

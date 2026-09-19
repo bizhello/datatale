@@ -10,7 +10,7 @@ Guests receive one analysis per UTC day. Production uses one workspace and one s
 
 The normalized Dataset contract and chart-planning catalog are integrated. The repository uses Bun, Biome, strict TypeScript, Steiger, Vitest and Playwright/axe. GitHub: https://github.com/bizhello/datatale.
 
-Live app: https://datatale.bizhov.ru (also https://datatale.vercel.app). Production AI analysis, grounded chat, owner-scoped history access, quota unlock, migrations, the labeled liquid preview, desktop/mobile layout, themes, favicon, and onboarding have been smoke-tested. See [deployment operations](docs/DEPLOYMENT.md).
+Live app: https://datatale.bizhov.ru (also https://datatale.vercel.app). Production AI analysis, grounded chat, owner-scoped history access, quota unlock, migrations, the empty-workspace explanation, desktop/mobile layout, themes, favicon, and onboarding have been smoke-tested. See [deployment operations](docs/DEPLOYMENT.md).
 
 ## Development
 
@@ -48,6 +48,7 @@ Use one `bun.lock`; add exact versions with Bun. Install selected feature librar
 | How do we deploy, configure, and roll back? | [Deployment](docs/DEPLOYMENT.md) |
 | Which agent skills are available? | [Skills and provenance](docs/SKILLS.md) |
 | What actually happened while using AI? | [AI worklog](docs/AI-WORKLOG.md) |
+| How should the submission pitch be recorded? | [Pitch script](docs/PITCH.md) |
 
 Engineering documentation, prompts, comments, tests, commit messages, PR titles/descriptions, and review comments use English. User-facing language is a separate product decision; the existing UI remains Russian. See [agent instructions](AGENTS.md).
 

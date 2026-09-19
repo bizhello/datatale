@@ -849,13 +849,6 @@ footer {
   gap: 10px;
   margin-top: 18px;
 }
-.destructive-action {
-  background: var(--danger);
-  color: white;
-}
-.destructive-action:hover {
-  background: color-mix(in srgb, var(--danger) 84%, black);
-}
 .invite-modal-copy {
   margin: 0 0 18px;
   color: var(--muted);
@@ -868,6 +861,9 @@ footer {
 .invite-modal-form .textfield {
   display: grid;
   gap: 8px;
+}
+.invite-modal-form .input {
+  min-height: 44px;
 }
 .invite-modal-form .button {
   justify-self: end;
