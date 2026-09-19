@@ -1,18 +1,19 @@
 "use client";
-import { Chip, ToggleButton, ToggleButtonGroup, Tooltip } from "@heroui/react";
-import { BarChart3, BookOpen, Monitor, Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
+import { Chip } from "@heroui/react";
+import { BarChart3, BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { Dataset, TextSource } from "@/entities/dataset";
+import { ReportDashboard } from "@/entities/report/ui";
+import { AnalyzeWorkspace } from "@/features/analyze-data";
 import { ImportWorkspace } from "@/features/import-data";
+import { AskDataPanel, createAskDataSend } from "@/features/query-report";
+import { ThemeControl } from "@/shared/ui/theme-control";
 
 export function DashboardShell() {
-  const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [source, setSource] = useState<Dataset | TextSource>();
+  const [workspaceVersion, setWorkspaceVersion] = useState(0);
   useEffect(() => setMounted(true), []);
-  const selectedMode =
-    mounted && (theme === "light" || theme === "dark" || theme === "system")
-      ? theme
-      : "system";
   return (
     <div className="page-shell" data-hydrated={mounted ? "true" : undefined}>
       <a href="#main" className="skip-link">
@@ -29,62 +30,32 @@ export function DashboardShell() {
           <Chip className="local-badge" size="sm" variant="soft">
             Локальная проверка
           </Chip>
-          <ToggleButtonGroup
-            aria-label="Тема оформления"
-            className="theme-selector"
-            disallowEmptySelection
-            selectedKeys={new Set([selectedMode])}
-            selectionMode="single"
-            onSelectionChange={(keys) => {
-              const [mode] = keys;
-              if (mode === "light" || mode === "dark" || mode === "system") {
-                setTheme(mode);
-              }
-            }}
-          >
-            <Tooltip delay={0}>
-              <ToggleButton
-                className="theme-control"
-                id="light"
-                isIconOnly
-                aria-label="Светлая тема"
-              >
-                <Sun className="theme-icon" aria-hidden="true" />
-              </ToggleButton>
-              <Tooltip.Content>Светлая тема</Tooltip.Content>
-            </Tooltip>
-            <Tooltip delay={0}>
-              <ToggleButton
-                className="theme-control"
-                id="dark"
-                isIconOnly
-                aria-label="Тёмная тема"
-              >
-                <Moon className="theme-icon" aria-hidden="true" />
-              </ToggleButton>
-              <Tooltip.Content>Тёмная тема</Tooltip.Content>
-            </Tooltip>
-            <Tooltip delay={0}>
-              <ToggleButton
-                className="theme-control"
-                id="system"
-                isIconOnly
-                aria-label="Системная тема"
-              >
-                <Monitor className="theme-icon" aria-hidden="true" />
-              </ToggleButton>
-              <Tooltip.Content>Системная тема</Tooltip.Content>
-            </Tooltip>
-          </ToggleButtonGroup>
+          <ThemeControl />
         </div>
       </header>
       <main id="main">
-        <ImportWorkspace />
+        <ImportWorkspace key={workspaceVersion} onReady={setSource} />
+        {source && (
+          <AnalyzeWorkspace
+            key={source.id}
+            source={source}
+            renderReport={(analysisId, report) => (
+              <>
+                <ReportDashboard report={report} />
+                <AskDataPanel send={createAskDataSend(analysisId)} />
+              </>
+            )}
+            onDelete={() => {
+              setSource(undefined);
+              setWorkspaceVersion((version) => version + 1);
+            }}
+          />
+        )}
       </main>
       <footer>
         <span>DataTale / From data to a point of view</span>
         <span>
-          <BarChart3 size={14} aria-hidden="true" /> Данные остаются в браузере
+          <BarChart3 size={14} aria-hidden="true" /> Проверенный источник
         </span>
       </footer>
     </div>

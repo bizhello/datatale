@@ -2,7 +2,7 @@
 
 **Make failures visible at the boundary that owns the rule.** Type checking, runtime validation, semantic tests and browser review protect different risks. None makes the project impossible to break.
 
-Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Input coverage includes parser contracts, source provenance, workbook preflight, UI recovery, viewport overflow and automated accessibility in Chromium and WebKit. Model/provider/storage evaluations remain separate release work.
+Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Coverage includes parser contracts, strict provider wire-schema compatibility, semantic plan validation, deterministic calculations, provider doubles, guest/deletion/cleanup lifecycle, owner-scoped saved-analysis persistence, immutable source/report payloads, chat replay/quota/refusal/claim validation, source replacement races, responsive dashboard containment, expanded charts, viewport overflow and automated accessibility in Chromium and WebKit. Local live Spiro table/text probes passed; broader real-provider quality, isolated Neon concurrency/expiry, and Vercel runtime checks remain separate release gates.
 
 ## Gate design
 
@@ -28,9 +28,11 @@ A behavioral feature is incomplete without tests for its acceptance and meaningf
 | --- | --- |
 | Calculation, parsing or schema rule | Focused Vitest cases with independently known expected values, boundaries and invalid input |
 | Interactive UI | Component behavior tests; Playwright for changed critical user journeys, mobile and keyboard behavior |
+| Analysis loading progress | Exact checkpoint and fake-timer hook tests for monotonic 0–95 caps, early/late responses, completion delay, error/cancel cleanup, abort-listener removal and stale responses; component/E2E checks for approximate determinate semantics, quiet numeric updates, and reduced motion |
 | Boundary between real components | Integration test exercising the connected components, including error propagation and validation |
 | Route plus persistence/session | Integration against isolated test storage for ownership, transaction behavior, expiry and failure; mock external inference rather than the entire data path |
 | AI orchestration | Integration of actual validators/calculations with controlled provider responses; separate live-model evaluations for output quality |
+| Grounded chat and persistence | Route integration with isolated storage: owner isolation, immutable source/report, seven-day fixed expiry, ten-turn daily quota, retry replay, exact refusal and canonical claim-ID validation |
 | Bug fix | Regression test that reproduces the defect and passes after the correction |
 | Documentation or cosmetic formatting only | Relevant static/manual verification; no artificial behavioral tests |
 
@@ -78,6 +80,6 @@ For parallel work, use the assignment, independent review and integration gates 
 
 Do not test low-impact formatting or a function's private mechanics just to increase counts. Do not claim 100% coverage means correctness. Prioritize boundary/branch cases in calculations, permissions and model validation. A regression fix includes a durable behavioral test rather than only another instruction to the agent.
 
-Steiger excludes `.gitkeep` placeholders. A temporary `fsd/insignificant-slice` exception applies only to `entities/dataset` while its contract precedes the DT-03/DT-04 consumers; remove it once both slices consume Dataset. A matching usage-only exception applies to `entities/report` until DT-04 and DT-07 consume its public contracts; remove it when both consumers exist. All import-boundary rules remain enabled. Import checks cover resolved code imports; the installed plugin does not catch the tested CSS side-effect import into a higher layer. Review stylesheet ownership explicitly. Biome uses the recommended preset and fails on warnings; the two reduced-motion declarations retain documented local `!important` exceptions.
+Steiger excludes `.gitkeep` placeholders. Scoped `fsd/insignificant-slice` exceptions apply to `import-data`, `entities/report`, and `analyze-data` because each owns independent parsing, contract/rendering, or server-orchestration invariants despite the plugin counting only one external consumer. All import-boundary rules remain enabled. Import checks cover resolved code imports; the installed plugin does not catch the tested CSS side-effect import into a higher layer. Review stylesheet ownership explicitly. Biome uses the recommended preset and fails on warnings; the two reduced-motion declarations retain documented local `!important` exceptions.
 
 The import-data feature has one dashboard consumer but owns parsing and lifecycle invariants independently of rendering. Its scoped `fsd/insignificant-slice` exception disables only the usage-count heuristic; import direction and public API checks remain enabled. Revisit it when another consumer is added rather than merging parsing into the widget to satisfy a count.

@@ -2,6 +2,14 @@ import type { AnalysisPlan } from "@/entities/report";
 
 export const chartedAnalysisPlanFixture: AnalysisPlan = {
   outcome: "charts",
+  metrics: [
+    {
+      id: "total-revenue",
+      label: "Total revenue",
+      aggregation: { kind: "sum", field: { fieldId: "revenue" } },
+    },
+    { id: "order-count", label: "Orders", aggregation: { kind: "count" } },
+  ],
   charts: [
     {
       id: "revenue-by-region",
@@ -20,6 +28,7 @@ export const chartedAnalysisPlanFixture: AnalysisPlan = {
       dimension: { fieldId: "month" },
       aggregation: { kind: "count" },
       pointLimit: 12,
+      missingPeriodPolicy: "reject",
     },
     {
       id: "revenue-share",
@@ -36,4 +45,12 @@ export const chartedAnalysisPlanFixture: AnalysisPlan = {
 export const noChartAnalysisPlanFixture: AnalysisPlan = {
   outcome: "no-chart",
   reason: "The source has no useful quantities to visualize.",
+  metrics: [
+    { id: "count", label: "Count", aggregation: { kind: "count" } },
+    {
+      id: "minimum",
+      label: "Minimum",
+      aggregation: { kind: "min", field: { fieldId: "metric" } },
+    },
+  ],
 };

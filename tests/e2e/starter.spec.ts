@@ -3,6 +3,66 @@ import { expect, test } from "@playwright/test";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { createMultiSheetXlsx } from "../fixtures/import/xlsx";
 
+const analysisId = "00000000-0000-4000-8000-000000000009";
+
+const dashboardReport = {
+  version: 1,
+  hero: [
+    {
+      text: "Выручка выросла в феврале, а каналы заметно различаются.",
+      factIds: ["revenue"],
+    },
+  ],
+  metrics: [
+    {
+      id: "revenue",
+      label: "Выручка",
+      value: 274000,
+      unit: "₽",
+      evidenceIds: ["rows"],
+    },
+  ],
+  charts: [
+    {
+      id: "bar",
+      kind: "bar",
+      title: "По регионам",
+      rationale: "Сравнение регионов",
+      points: [
+        { label: "Север", value: 120000 },
+        { label: "Юг", value: 154000 },
+      ],
+      evidenceIds: ["rows"],
+    },
+    {
+      id: "line",
+      kind: "line",
+      title: "По месяцам",
+      rationale: "Динамика",
+      points: [
+        { label: "Январь", value: 128000 },
+        { label: "Февраль", value: 146000 },
+      ],
+      evidenceIds: ["rows"],
+    },
+    {
+      id: "donut",
+      kind: "donut",
+      title: "По каналам",
+      rationale: "Доля каналов",
+      points: [
+        { label: "Онлайн", value: 174000 },
+        { label: "Офлайн", value: 100000 },
+      ],
+      evidenceIds: ["rows"],
+    },
+  ],
+  evidence: [{ id: "rows", kind: "row-range", label: "Все строки источника" }],
+  recommendations: [
+    { text: "Проверьте рост онлайн-канала.", factIds: ["revenue"] },
+  ],
+};
+
 function xlsxWithInvalidFirstSheet() {
   const archive = unzipSync(createMultiSheetXlsx());
   archive["xl/worksheets/sheet1.xml"] = strToU8(
@@ -23,10 +83,267 @@ test("accepts text locally and exposes an honest preview", async ({ page }) => {
   await page.getByRole("button", { name: "Проверить текст" }).click();
   await expect(page.getByText("Текст готов к анализу")).toBeVisible();
   await expect(
-    page.getByText(
-      "Источник проверен. Анализ и сохранение отчёта появятся в следующем этапе.",
-    ),
+    page.getByText("Полный проверенный источник будет передан AI-провайдеру."),
   ).toBeVisible();
+  await expect(page.getByText(/отчёт и чат хранятся.*7 дней/)).toBeVisible();
+  await expect(page.getByText(/Сам полный источник не хранится/)).toHaveCount(
+    0,
+  );
+});
+
+test("renders a fixture dashboard and expands charts without another analysis request", async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  await page.route("**/api/guest", async (route) => {
+    requests.push("guest");
+    await route.fulfill({
+      json: { expiresAt: "2026-10-19T00:00:00.000Z" },
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  });
+  await page.route("**/api/analyze", async (route) => {
+    requests.push("analyze");
+    await route.fulfill({ json: { analysisId, report: dashboardReport } });
+  });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Загрузить синтетический демо-набор" })
+    .click();
+  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
+  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  await expect(
+    page.getByRole("heading", { name: /Выручка выросла/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Развернуть По регионам" }),
+  ).toBeVisible();
+  const chartCards = page.locator(".chart-card");
+  const evidence = page.locator(".evidence");
+  const evidenceBox = await evidence.boundingBox();
+  if (!evidenceBox) throw new Error("Evidence bounds are unavailable.");
+  for (let index = 0; index < (await chartCards.count()); index += 1) {
+    const card = chartCards.nth(index);
+    const [cardBox, tableBox] = await Promise.all([
+      card.boundingBox(),
+      card.locator("table").boundingBox(),
+    ]);
+    if (!cardBox || !tableBox)
+      throw new Error(`Chart ${index + 1} bounds are unavailable.`);
+    expect(tableBox.y + tableBox.height).toBeLessThanOrEqual(
+      cardBox.y + cardBox.height + 1,
+    );
+    expect(cardBox.y + cardBox.height).toBeLessThanOrEqual(evidenceBox.y + 1);
+  }
+  await expect(page.getByText("Действие", { exact: true })).toBeVisible();
+  await expect(page.getByText("Наблюдение", { exact: true })).toHaveCount(0);
+  await expect(
+    chartCards.first().locator(".recharts-legend-wrapper"),
+  ).toBeVisible();
+  const expandButton = page.getByRole("button", {
+    name: "Развернуть По регионам",
+  });
+  await expandButton.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByRole("heading", { name: "Основание графика" }),
+  ).toBeVisible();
+  await expect(dialog.getByText("Все строки источника")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await expect(expandButton).toBeFocused();
+  expect(requests).toEqual(["guest", "analyze"]);
+});
+
+test("asks a grounded question about the analyzed report", async ({ page }) => {
+  let chatRequest: Record<string, unknown> | undefined;
+  await page.route("**/api/guest", async (route) => {
+    await route.fulfill({
+      json: { expiresAt: "2026-10-19T00:00:00.000Z" },
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  });
+  await page.route("**/api/analyze", async (route) => {
+    await route.fulfill({ json: { analysisId, report: dashboardReport } });
+  });
+  await page.route("**/api/chat", async (route) => {
+    chatRequest = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      json: {
+        outcome: "answered",
+        answer: "Выручка: 274 000 ₽.",
+        references: [{ id: "evidence-0" }],
+      },
+    });
+  });
+
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Загрузить синтетический демо-набор" })
+    .click();
+  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
+  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  const composer = page.getByRole("textbox", { name: "Ваш вопрос к отчёту" });
+  await composer.fill("Какая выручка?");
+  await composer.press("Enter");
+
+  await expect(page.getByText("Выручка: 274 000 ₽.")).toBeVisible();
+  expect(chatRequest).toMatchObject({
+    analysisId,
+    messageId: expect.stringMatching(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    ),
+    question: "Какая выручка?",
+  });
+});
+
+test("shows an approximate analysis estimate while the server request is pending", async ({
+  page,
+}) => {
+  let releaseAnalysis: (() => void) | undefined;
+  const analysisPending = new Promise<void>((resolve) => {
+    releaseAnalysis = resolve;
+  });
+  await page.route("**/api/guest", async (route) => {
+    await route.fulfill({
+      json: { expiresAt: "2026-10-19T00:00:00.000Z" },
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  });
+  await page.route("**/api/analyze", async (route) => {
+    await analysisPending;
+    await route.fulfill({ json: { analysisId, report: dashboardReport } });
+  });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Загрузить синтетический демо-набор" })
+    .click();
+  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
+  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  await expect(page.getByRole("status")).toHaveText("Выбор и проверка плана…");
+  await expect(
+    page.getByRole("progressbar", {
+      name: "Оценка хода анализа, приблизительно",
+    }),
+  ).toBeVisible();
+  const progressGeometry = await page
+    .getByRole("progressbar", {
+      name: "Оценка хода анализа, приблизительно",
+    })
+    .evaluate((bar) => {
+      const track = bar.querySelector<HTMLElement>(
+        '[data-slot="progress-bar-track"]',
+      );
+      const fill = bar.querySelector<HTMLElement>(
+        '[data-slot="progress-bar-fill"]',
+      );
+      if (!track || !fill) throw new Error("Progress geometry is unavailable.");
+      return {
+        trackWidth: track.getBoundingClientRect().width,
+        fillWidth: fill.getBoundingClientRect().width,
+        animationName: getComputedStyle(fill).animationName,
+        transitionDuration: getComputedStyle(fill).transitionDuration,
+      };
+    });
+  expect(progressGeometry.fillWidth).toBeLessThan(
+    progressGeometry.trackWidth * 0.2,
+  );
+  expect(progressGeometry.animationName).toBe("none");
+  expect(Number.parseFloat(progressGeometry.transitionDuration)).toBeLessThan(
+    0.001,
+  );
+  await expect(page.getByText("Детерминированный расчёт")).toBeVisible();
+  await expect(page.getByText(/^Оценка, не измерение: \d+%$/)).toBeVisible();
+  const estimateValue = Number(
+    await page
+      .getByRole("progressbar", {
+        name: "Оценка хода анализа, приблизительно",
+      })
+      .getAttribute("aria-valuenow"),
+  );
+  expect(estimateValue).toBeGreaterThanOrEqual(0);
+  expect(estimateValue).toBeLessThanOrEqual(95);
+  await page.getByRole("button", { name: "Отменить анализ" }).click();
+  releaseAnalysis?.();
+  await expect(
+    page.getByRole("button", { name: "Запустить снова" }),
+  ).toBeVisible();
+});
+
+test("unlocks workspace quota with invite retry and preserves the source", async ({
+  page,
+}) => {
+  let analysisCalls = 0;
+  await page.route("**/api/guest", async (route) => {
+    await route.fulfill({ json: { expiresAt: "2026-10-19T00:00:00.000Z" } });
+  });
+  await page.route("**/api/analyze", async (route) => {
+    analysisCalls += 1;
+    if (analysisCalls === 1) {
+      await route.fulfill({
+        status: 429,
+        json: { code: "quota", scope: "workspace" },
+      });
+      return;
+    }
+    await route.fulfill({ json: { analysisId, report: dashboardReport } });
+  });
+  await page.route("**/api/access", async (route) => {
+    const body = route.request().postDataJSON() as { code?: string };
+    await route.fulfill(
+      body.code === "wrong"
+        ? { status: 401, json: { code: "invalid-code" } }
+        : { json: { unlocked: true } },
+    );
+  });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Загрузить синтетический демо-набор" })
+    .click();
+  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
+  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Продолжить анализ" }),
+  ).toBeVisible();
+  await page.getByLabel("Код приглашения").fill("wrong");
+  await page.getByRole("button", { name: "Разблокировать анализ" }).click();
+  await expect(
+    page.getByText("Код не принят. Проверьте его и повторите."),
+  ).toBeVisible();
+  await page.getByLabel("Код приглашения").fill("valid-invite");
+  await page.getByRole("button", { name: "Разблокировать анализ" }).click();
+  await expect.poll(() => analysisCalls).toBe(2);
+  await expect(
+    page.getByRole("heading", { name: /Выручка выросла/ }),
+  ).toBeVisible();
+});
+
+test("keeps code quota terminal without opening invite modal", async ({
+  page,
+}) => {
+  await page.route("**/api/guest", async (route) => {
+    await route.fulfill({ json: { expiresAt: "2026-10-19T00:00:00.000Z" } });
+  });
+  await page.route("**/api/analyze", async (route) => {
+    await route.fulfill({
+      status: 429,
+      json: { code: "quota", scope: "code" },
+    });
+  });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Загрузить синтетический демо-набор" })
+    .click();
+  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
+  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  await expect(
+    page.getByText("Лимит этого кода приглашения на сегодня исчерпан."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Продолжить анализ" }),
+  ).toHaveCount(0);
 });
 
 test("uploads a CSV in the browser and labels its bounded preview", async ({

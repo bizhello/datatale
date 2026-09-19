@@ -1,6 +1,6 @@
 # Architecture
 
-**Model:** one guest workspace owns immutable datasets, reports and messages. An analysis plan becomes checked facts; a report combines those facts with narrative and chart specifications. UI, model provider and persistence do not own arithmetic.
+**Model:** a guest workspace owns analysis receipts and saved analyses. An AI analysis plan becomes checked facts; a report combines those facts with narrative and chart specifications. Application code owns arithmetic and semantic validation. Accepted source, validated report, and chat messages are persisted server-side for seven days from creation and remain owner-scoped and immutable.
 
 ## Target structure
 
@@ -12,8 +12,8 @@ src/
   widgets/dashboard-shell/      screen composition and interaction coordination
   features/
     import-data/                picker, preview, parsing orchestration
-    analyze-data/server/        prompt loading, constrained plan, verified report
-    ask-data/                   chat UI and server orchestration
+    analyze-data/               client lifecycle, prompt orchestration, calculations, verified report UI
+    query-report/               grounded chat UI and server orchestration
   entities/
     dataset/                    source schema, normalization and pure calculations
     report/                     report/plan contracts, chart capabilities and renderers
@@ -23,7 +23,7 @@ src/
     ui/                         genuinely reused visual patterns
 ```
 
-Create additional slices with their first consumer. Guest workspace contracts belong in an entity when persistence is added. The client-only `features/onboarding` owns Driver.js lifecycle and the versioned UI preference; the dashboard widget supplies stable targets and coordinates demo display.
+Create additional slices with their first consumer. `entities/guest-workspace` owns the sealed guest-session contract and server repository. The future client-only `features/onboarding` slice will own Driver.js lifecycle and the versioned UI preference; the dashboard widget supplies stable targets and coordinates demo display.
 
 ## Import and ownership rules
 
@@ -70,37 +70,41 @@ flowchart LR
   Plan --> Check[Semantic validation]
   Check --> Facts[Deterministic calculations]
   Facts --> Story[AI narrative with evidence]
-  Story --> Save[Validate and save report]
-  Save --> UI[Typed renderer registry]
-  Save --> Chat[Source-grounded chat]
+  Story --> Receipt[Validate and cache receipt for 15 minutes]
+  Receipt --> UI[Typed renderer registry]
+  Receipt --> Save[Persist immutable source and report]
+  Save --> Chat[Owner-scoped grounded chat]
 ```
 
 | Record | Ownership and contents |
 | --- | --- |
-| GuestWorkspace | Random server ID, expiry/revocation; no account credentials |
-| Dataset | Guest owner, immutable normalized source JSONB, schema, units, warnings, fingerprint, version, expiry |
-| Report | Guest/dataset references, goal, state, blueprint, checked output, model/prompt/schema/catalog versions, run ID/deadline |
-| Message | Report reference, role, text, evidence, status and date |
+| GuestWorkspace | Implemented: random server ID, inactivity expiry/revocation; no account credentials |
+| AnalysisRun | Implemented: workspace/key/fingerprint, lease/provider state, failure or validated report; 15-minute TTL |
+| QuotaBucket | Implemented: UTC daily workspace, hashed-IP and global counters; 48-hour TTL |
+| Dataset | Saved as immutable accepted source with schema, units, warnings, fingerprint and fixed expiry |
+| Report / Message | Saved report provenance and owner-checked chat history; assistant result envelopes enable replay |
 
-Keep small normalized inputs in bounded JSONB for MVP. Do not retain original binary files initially. A saved chart alone cannot support later chat: retain the accepted dataset until its retention deadline. Corrections produce a new dataset/report version rather than silently changing old evidence.
+The analysis request sends the complete canonical source to the server and provider, then saves the validated source/report under the workspace. Original binary files are not retained. Saved analyses and messages expire seven days after creation; viewing or chatting never extends that deadline. Replays use the persisted validated result and do not call the provider again. Corrections produce a new analysis rather than silently changing old evidence.
 
 ## Guest access
 
 Use iron-session for sealed cookie payloads, not hand-written signing. Production: host-only `__Host-datatale`, HttpOnly, Secure, SameSite=Lax, Path=/, no Domain attribute. Store minimal workspace identity/expiry, not report data. Validate the unsealed shape and workspace activity on every operation; a client-supplied owner ID is never authority.
 
-Use a server-only secret and explicit TTL settings matching PRODUCT. Dev HTTP cookie settings are separate. Protect mutations against CSRF; private responses are not publicly cached. Serialize first-session creation so concurrent initial requests do not orphan reports under competing cookies. Delete-all revokes access server-side. IP is a rate-limit signal, not ownership.
+Use a server-only secret and explicit TTL settings matching PRODUCT. Dev HTTP cookie settings are separate. Protect mutations against CSRF; private responses are not publicly cached. Create the database workspace before attaching its cookie, and keep the client bootstrap single-flight. Delete-all revokes access server-side. IP is a rate-limit signal, not ownership.
 
-## Planned API surface
+## API surface
 
 ```text
-POST/DELETE /api/guest
-POST/GET    /api/reports
-GET/DELETE  /api/reports/:id
-POST        /api/reports/:id/chat
-GET         /api/reports/:id/messages
+POST/DELETE /api/guest            implemented
+POST        /api/analyze          implemented
+GET         /api/cron/cleanup     implemented, Bearer CRON_SECRET
+POST/GET    /api/reports          future history list/detail API
+GET/DELETE  /api/reports/:id      future report management API
+POST        /api/chat              implemented, owner-scoped grounded chat
+GET         /api/chat/history      future explicit history API
 ```
 
-Report detail returns status and saved output. Internal source lookup and references remain owner-checked. Reuse blueprint calls report creation with a permitted previous report reference; no separate template service initially.
+Mutations require same-origin requests. `/api/analyze` revalidates the canonical source, hashes the IP only as an abuse signal, atomically claims quotas and an idempotency receipt, and validates replayed reports. The client creates the guest workspace before analysis and never receives its ID. `/api/chat` accepts only an analysis UUID, message UUID and question; it loads owner-scoped source/report/history and never trusts browser-supplied facts. A user message consumes one of ten workspace chat turns per UTC day; assistant messages and idempotent replays do not consume quota.
 
 ## Failure and extension boundaries
 
@@ -108,7 +112,7 @@ Use explicit outcomes for invalid input, insufficient data, unsupported operatio
 
 States: idle → parsing → ready-to-analyze → analyzing → ready; failed/cancelled states retain a safe retry path. Use a discriminated union instead of independent booleans that allow contradictory combinations. Abort stale client requests and ignore late responses by request ID. Final save is atomic; do not label an unsaved result saved.
 
-Use idempotency keys and a server-side run claim to prevent duplicate paid requests. Bound execution, attempts and output. A small MVP run may use one request; do not claim durable background execution after tab closure. Reopening checks state, not automatically reruns inference. Expired run leases expose an explicit retry.
+The client uses a stable idempotency key for safe pre-provider retries. The PostgreSQL claim function serializes the key and quota buckets in one transaction. Once provider work may have started, an uncertain result is not retried automatically. The route bounds body bytes, AI calls, retries, lease and receipt lifetime; it does not claim background completion after tab closure.
 
 Add a chart by extending capability metadata, schema and renderer mapping plus contract tests. Add a parser through import-data and canonical Dataset, leaving analysis unchanged. Swap a provider at the AI boundary after fixture evaluation. Change storage through entity repositories, not UI.
 
@@ -123,4 +127,4 @@ Each row carries a positive original `sourceRowNumber`; reordering does not rewr
 
 `features/import-data` owns file/text acceptance, parsing lifecycle and preview. Table imports validate against the existing Dataset contract; prose uses a separate versioned TextSource owned by `entities/dataset`. The feature composes these as a discriminated accepted-source result, without weakening table validation or treating prose as extracted facts.
 
-The browser worker owns file parsing and bounded XLSX archive inspection. It reads a workbook once and exposes sheet choices, then normalizes the selected sheet. Termination on cancel, replacement or deadline releases the worker; operation identity rejects late results. Preview samples never replace the full accepted source. No private source is persisted in localStorage or sent over the network by import. Server validation, source storage and text quantity extraction belong to later analysis work.
+The browser worker owns file parsing and bounded XLSX archive inspection. It reads a workbook once and exposes sheet choices, then normalizes the selected sheet. Termination on cancel, replacement or deadline releases the worker; operation identity rejects late results. Preview samples never replace the full accepted source. No private source is persisted in localStorage or sent over the network by import. Server validation and exact-quotation text extraction are implemented by `analyze-data`; durable source storage remains later work.

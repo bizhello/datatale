@@ -7,6 +7,8 @@
 - Support light, dark and system via next-themes and HeroUI semantic CSS tokens. Default to system unless a saved preference exists. Keep theme preference in localStorage; never put dataset/session secrets there.
 - Use a consistent Lucide Sun/Moon/Monitor control with an accessible label describing the action or selected mode. The UI must work by keyboard and touch, not only tooltip hover.
 - Animate icon changes with a short opacity/rotation transition (approximately 150–220 ms). Transition relevant surface/text colors, not every CSS property. Respect reduced motion and avoid full-screen flashes.
+- The theme control uses HeroUI toggle buttons with a native View Transition API circular reveal anchored to the pressed control when supported. It falls back to an immediate next-themes update when the API is unavailable or reduced motion is requested. The reveal is limited to the root view transition and does not block theme switching.
+- Typography uses `Noto Sans` for interface copy and `Noto Serif Display` for the primary narrative heading through `next/font/google`, with Latin and Cyrillic subsets bundled by Next at build time and `display: swap`. This keeps Russian text readable without a runtime font request.
 - Preserve pre-hydration theme application; avoid wrong-theme paint, layout shifts and broad suppression of hydration errors. Chart colors, tooltips, focus rings, empty states and Skeleton must all use theme tokens.
 - The DataTale mark combines an open book and rising chart columns in white on the brand blue (#365EDB). Edit the vector source at `public/brand/datatale.svg`; regenerate `src/app/favicon.ico` with 16/32/48/64/128/256 px frames after changes. Keep the single Next.js favicon route. Verify small-size legibility on light and dark backgrounds.
 - Use a consistent wordmark, header and metadata title, e.g. `DataTale — Turn data into a story`, with localized product copy if appropriate. Add description and share metadata when production URL is known. Do not expose private report content in publicly fetched social previews.
@@ -39,9 +41,11 @@ Provide a visible close button, Escape dismissal, focus containment/restoration 
 
 Use HeroUI Skeleton shaped like the final hero/metric/chart cards to minimize layout shift. Skeletons are placeholders, not the completed layout with invented values. Announce the current stage once; do not repeatedly read decorative skeletons or every streamed token to screen readers.
 
-Show named stages for unknown inference duration. Progress percentages require a measurable denominator. Make cancel/retry available where meaningful. Avoid artificial waiting to display an animation. Stable empty/error layouts explain the issue and next action without clearing a valid selected file unnecessarily.
+Show named stages for unknown inference duration. Measured progress percentages require a measurable denominator; an explicitly labeled estimate may use a provisional baseline when it is clearly described as approximate. Make cancel/retry available where meaningful. Avoid artificial waiting to display an animation. Stable empty/error layouts explain the issue and next action without clearing a valid selected file unnecessarily.
 
-Use restrained entrance transitions and button/dropzone feedback. Do not stagger large dashboards so long that content becomes slow to access. Reduced-motion mode must preserve all information without movement.
+Analysis loading uses a determinate HeroUI `ProgressBar` with an explicitly approximate estimate based on provisional live-provider baselines: 22 seconds for tables and 20 seconds for text. A deterministic uneven checkpoint schedule advances from 0 to 95 and holds there when the response is late; after a validated report it presents 100 briefly as an authorized completion feedback beat, then renders the report. This 100% beat is a UI confirmation, not a measurement of server work. Label the percentage as an estimate, keep numeric ticks out of live announcements, and preserve the named session/setup, plan/validation, calculation, and narrative stages. Errors, cancellation, and source replacement must never show 100. Respect reduced motion by removing movement while retaining discrete, understandable state updates.
+
+Use restrained entrance transitions and button/dropzone feedback. A brief completion acknowledgment after a validated response is intentional feedback, even though the percentage before it is only an estimate. Do not stagger large dashboards so long that content becomes slow to access. Reduced-motion mode must preserve all information without movement.
 
 ## Guided tour
 
@@ -58,3 +62,7 @@ Readable typography, visible focus, sufficient light/dark contrast, touch target
 Acceptance requires screenshots of ready/loading/error/empty states in both themes and representative mobile/desktop layouts, plus keyboard/touch checks. A passing axe scan alone does not prove good UX or chart accessibility.
 
 Sources: [HeroUI themes](https://heroui.com/docs/react/getting-started/theming), [Skeleton](https://heroui.com/docs/react/components/skeleton), [next-themes](https://github.com/pacocoursey/next-themes).
+
+## Deferred liquid hero
+
+The DeepSeek Harness page was not available for direct inspection in this environment because the browser connector could not obtain its authentication token. The liquid/lens hero remains deferred: do not add a WebGL dependency or a fixed 100vh imitation without confirming behavior and measuring mobile performance. If revisited, prototype a CSS or Canvas 2D lens using the existing stack, keep it optional, and prefer a static `/welcome` route only after validating accessibility, reduced motion, and viewport resizing.

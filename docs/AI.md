@@ -4,9 +4,11 @@
 
 ## One code-owned capability catalog
 
-Plan a pure `entities/report/model/chart-catalog.ts` containing serializable metadata: kind, purpose, required dimensions/metrics, allowed aggregations, disqualifying conditions, point/category limits and presentation requirements. Derive the prompt's supported-chart section from this catalog. Do not maintain a second handwritten catalog inside a Markdown prompt.
+The pure `entities/report/model/chart-catalog.ts` contains serializable metadata: kind, purpose, required dimensions/metrics, allowed aggregations, disqualifying conditions, point/category limits and presentation requirements. The prompt's supported-chart section is derived from this catalog. Do not maintain a second handwritten catalog inside a Markdown prompt.
 
 Zod constrains kinds/specification shape. Semantic validators check the data-dependent conditions. A renderer map implements every catalog kind; TypeScript exhaustiveness and contract tests detect missing mappings. Functions and React components never go into model context.
+
+The gateway-facing schema is a flat strict wire contract because the configured provider rejects `oneOf` and requires every object property in `required`. Required sentinel fields keep that JSON Schema compatible; the server rejects contradictory sentinels and converts accepted wire objects into the stricter discriminated domain schemas before any semantic validation or calculation. Server contracts are exported through `entities/report`; client renderers use the separate `entities/report/ui` entry point so React UI cannot enter a server-only import graph.
 
 | Kind | Suitable data | Disqualifying or cautionary conditions |
 | --- | --- | --- |
@@ -24,15 +26,15 @@ Start with at most 12 visible bar categories, 2–6 donut segments and a bounded
 4. Validate shape and semantic compatibility against real columns and units. Reject nonexistent IDs and unsupported operations. Allow at most one bounded repair attempt using specific errors; never silently accept a different chart as if it was the model recommendation.
 5. Execute accepted metrics against all accepted rows. The preview informs planning, never the reported population totals.
 6. Supply checked Facts to the model for a 2–3 sentence narrative and recommendations referencing fact IDs.
-7. Validate and save a versioned Report. UI renders only supported checked specifications and code-computed series. Show a short “Why this chart” rationale.
+7. Validate the versioned Report and store it only in the short-lived idempotency receipt. UI renders only supported checked specifications and code-computed series. Show a short “Why this chart” rationale.
 
-For text, extract explicitly stated quantities with exact source quotations before calculation. Check quotation, units, period and interpretation. Text without quantities may produce narrative without charts; useful numeric acceptance fixtures must still produce 2–3 charts.
+For text, extract explicitly stated quantities with exact source quotations before the narrative call. Signed/localized numeric tokens and standalone unit/period phrases must match the quotation exactly. If extraction finds nothing, use a bounded exact excerpt from the first paragraph as narrative evidence. Text analysis deliberately returns no charts in this feature; chart selection is enabled for suitable tables.
 
 ## Prompt and schema ownership
 
-Planned server assets: `features/analyze-data/server/prompts/plan.md`, `narrative.md`, and `features/ask-data/server/prompts/answer.md`. Instructions are English; response language is an explicit product setting.
+Analysis prompt assets are `features/analyze-data/server/prompts/table.md`, `text.md`, and `narrative.md`. The grounded chat prompt is owned by `features/query-report/server/prompts/chat.md`. Instructions are English and require Russian report copy.
 
-Each prompt describes its role, permitted sources, allowed actions, uncertainty rules and response intent. Zod defines the response shape; the capability catalog defines available charts. Prompt ID/version/hash and schema/catalog version are recorded with each report. Verify prompt assets are included in the serverless bundle.
+Each prompt describes its role, permitted sources, allowed actions, uncertainty rules and response intent. Zod defines the response shape; the capability catalog defines available charts. Prompt files are loaded through static URL references so the Next server bundle includes them. Persistent prompt/version provenance remains release work and must be added with saved reports.
 
 Treat uploaded text as untrusted context, never as system instructions. No shell, arbitrary SQL, code execution, web search or hidden access to other workspaces. Do not load user-supplied Markdown as an application prompt.
 
@@ -47,18 +49,18 @@ Treat uploaded text as untrusted context, never as system instructions. No shell
 
 ## Chat
 
-The server checks guest/report ownership, loads the immutable dataset and bounded history, and reconstructs trusted context. The browser sends a question and report reference, not trusted system messages or source facts.
+The server checks guest/report ownership, loads the immutable dataset/report and bounded history, and reconstructs trusted context. The browser sends only an analysis ID, message ID and question, never trusted system messages or source facts. Completed assistant results are persisted and replayed by message ID without another model call.
 
-Use existing Facts when sufficient. Otherwise, allow one bounded validated aggregation over the accepted source and answer from its result. Distinguish information absent from the source from an operation the product does not support.
+Use existing Facts when sufficient. Otherwise, allow one bounded validated aggregation over the accepted source and answer from its result. The provider returns only an outcome and canonical claim IDs; the server constructs the final answer and references from trusted source/report claims. Unknown, duplicate or excessive claim IDs fail closed. Distinguish information absent from the source from an operation the product does not support.
 
 When information is absent, return `insufficient_data` and display exactly: “В этом отчете нет такой информации”. Unsupported analysis gets a separate honest explanation. Neither condition is a provider exception.
 
-Use cleaned full context for small files or checked aggregates/source retrieval for larger accepted ones. Do not silently trim rows and answer as if all data was examined. Trim older chat first; if source still exceeds budget, explain the limit.
+Use cleaned full context for small files or checked aggregates/source retrieval for larger accepted ones. Do not silently trim rows and answer as if all data was examined. Trim older chat first; if source still exceeds budget, explain the limit. Chat history is bounded and stored with the saved analysis.
 
 Streaming may show progress/provisional text, but only a validated completed answer may be marked verified and saved as final. An interrupted stream is not a successful answer. Chat does not silently rewrite saved charts.
 
 ## Operational bounds
 
-Use the gateway and initial model specified in DECISIONS.md; model ID remains server-side. The server-only provider adapter belongs in `shared/lib/ai`. Pass the base URL and key explicitly and fail closed when required configuration is missing. Use `provider.chat(modelId)` for the smoke-tested Chat Completions endpoint; Responses support is unverified. Live acceptance must cover structured output, streaming, invalid-model/auth failures and a grounded synthetic fixture. Proposed context ceiling: 24k tokens, also bounded below the selected model's actual context window with room for output and instructions. Add per-workspace limits, an IP abuse signal, a global spend cap, request deadlines and bounded retry. Shared rate limiting must survive serverless concurrency; an in-memory Map is insufficient.
+Use the configured Spiro OpenAI-compatible gateway and server-side model ID. The server-only provider adapter in `shared/lib/ai` passes the base URL and key explicitly. Paid analysis fails closed unless provider, Neon, session, rate-salt and quota settings all exist; deletion and cleanup do not depend on provider availability. AI SDK transport retries are disabled. A table uses at most plan + one repair + narrative (three calls); text uses extraction + narrative (two calls); chat uses one bounded provider call after deterministic facts and source context are prepared. Each call has a 30-second deadline within one 75-second analysis deadline and a stage-specific output-token cap; model strings and serialized reports/results are bounded. Neon atomically enforces daily workspace, hashed-IP and global quotas, and saved-analysis chat enforces ten user turns per workspace per UTC day. Receipts expire after 15 minutes, saved analyses/messages after seven days from creation, leases after 90 seconds, workspaces after 30 days of inactivity, and quota buckets after 48 hours. Local live table and text probes passed through Spiro with `gpt-5.6-terra`; Vercel's hidden production credential and deployed runtime remain release gates.
 
 Log request ID, stage, model, token usage, duration and error category, not raw uploads or personal chat. Explain provider transmission and retention separately from database retention. Tests and live-model evaluation: QUALITY.md.

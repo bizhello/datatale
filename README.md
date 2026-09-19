@@ -2,7 +2,11 @@
 
 Turn a CSV, an Excel workbook, or a short report into a grounded story, interactive charts, and answers supported by the source.
 
-**Current implementation: local input workspace.** Import CSV/XLSX or paste a report, choose an Excel sheet, inspect a labeled preview and full accepted counts, or try the synthetic demo. File parsing runs in a cancellable browser worker with resource limits; light/dark/system themes and mobile layouts are supported. This step does not send source data to a server or save it. AI analysis, chart rendering, chat, persistence and onboarding remain planned.
+**Current implementation: input-to-grounded-chat candidate.** Import CSV/XLSX or paste a report, inspect the bounded preview, and run a grounded analysis. AI proposes metrics and supported bar/line/donut charts; application code validates the proposal, calculates every displayed value over the complete accepted table, and asks AI for a narrative tied to checked facts. Text reports use exact quotation-backed evidence and return an honest no-chart result. The responsive HeroUI/Recharts dashboard includes loading, error, retry, cancellation, evidence, expanded charts, and Ask the Data chat.
+
+Analysis creates a sealed 30-day guest workspace and a 15-minute idempotency receipt in Neon. The accepted canonical source, validated report, and chat messages are stored under that workspace for a fixed seven days from analysis creation; original binary uploads are not stored. Ask the Data loads only owner-scoped server data, constructs answers from server-owned claims, persists validated results for replay, and allows ten user turns per workspace per UTC day. Report-history/reopen UI and onboarding remain planned. Paid analysis and chat fail closed until database, provider, session, salt, and quota settings are valid; deletion and cleanup use smaller independent runtime gates.
+
+Guests receive one analysis per UTC day. Production uses one workspace and one salted-IP trial claim per UTC day, so clearing the cookie or creating a new workspace does not reset the anonymous allowance. After that, an invite code is required; configure only comma-separated SHA-256 invite-code hashes in `ANALYSIS_INVITE_CODE_HASHES` (never plaintext codes). Generate a high-entropy code and its hash with the Node command in `.env.example`; copy only the hash into deployment configuration and keep the printed code in the intended private channel. Each code has a separate atomic ten-analysis UTC-day budget across users and IPs, plus the global cap. Invalid attempts are limited by salted IP and return generic errors.
 
 The normalized Dataset contract and chart-planning catalog are integrated. The repository uses Bun, Biome, strict TypeScript, Steiger, Vitest and Playwright/axe. GitHub: https://github.com/bizhello/datatale.
 
@@ -17,7 +21,7 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
-Open http://localhost:3000. Local input and preview need no secrets. Refreshing the page clears source data; only the theme preference persists.
+Open http://localhost:3000. Local input and preview need no secrets. Analysis and chat require the database, provider, session, salt, and quota variables in `.env.example` plus migrations `0001_ai_dashboard.sql` through `0004_chat_inference_leases.sql` applied in order to an isolated Neon database. `CRON_SECRET` is required only for scheduled cleanup. The current UI does not reopen a saved analysis after refresh, although its owner-scoped server record remains available until the seven-day expiry; report-history UI is future work.
 
 ```bash
 bun run check                       # lint, architecture, types, unit tests, production build
