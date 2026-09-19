@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "db:migrate": "bun scripts/migrate.ts",
     "check": "bun run lint && bun run architecture && bun run typecheck && bun run test && bun run build",
     "check:all": "bun run check && bun run test:e2e"
   },
