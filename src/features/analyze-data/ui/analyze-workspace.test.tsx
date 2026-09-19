@@ -231,13 +231,33 @@ describe("analysis workspace", () => {
     expect(
       await screen.findByRole("heading", { name: "Продолжить анализ" }),
     ).toBeVisible();
-    expect(screen.getByLabelText("Код приглашения")).toBeVisible();
+    expect(screen.getByLabelText("Код приглашения")).toHaveClass(
+      "input--secondary",
+      "input--full-width",
+    );
     await waitFor(() =>
       expect(document.activeElement).toBe(screen.getByRole("dialog")),
     );
     expect(document.activeElement).not.toBe(
       document.querySelector('[role="alert"]'),
     );
+    fireEvent.click(screen.getByRole("button", { name: "Закрыть" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("heading", { name: "Продолжить анализ" }),
+      ).toBeNull(),
+    );
+    expect(
+      screen.getByText(
+        "Бесплатный анализ на сегодня использован. Продолжите с кодом приглашения.",
+      ),
+    ).toBeVisible();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ввести код приглашения" }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Продолжить анализ" }),
+    ).toBeVisible();
   });
 
   it("moves focus to an actionable error while keeping replacement available", async () => {
@@ -308,12 +328,14 @@ describe("analysis workspace", () => {
       />,
     );
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Удалить сохранённые данные",
-      }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Удалить всё" }));
+    const deleteTrigger = screen.getByRole("button", {
+      name: "Удалить сохранённые данные",
+    });
+    expect(deleteTrigger).toHaveClass("button--danger-soft");
+    fireEvent.click(deleteTrigger);
+    const confirm = screen.getByRole("button", { name: "Удалить всё" });
+    expect(confirm).toHaveClass("button--danger");
+    fireEvent.click(confirm);
 
     await waitFor(() => expect(onDelete).toHaveBeenCalledOnce());
     expect(screen.queryByText("Не удалось удалить данные")).toBeNull();

@@ -9,7 +9,7 @@ import {
 } from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
 import { ReportDashboard } from "@/entities/report/ui";
-import { errorMessage } from "../model/analysis-error";
+import { canUnlockAnalysis, errorMessage } from "../model/analysis-error";
 import type { AnalysisFocus } from "../model/analysis-focus";
 import { type RestoredAnalysis, useAnalysis } from "../model/use-analysis";
 import { AnalysisProgress } from "./analysis-progress";
@@ -57,21 +57,23 @@ export function AnalyzeWorkspace({
   useEffect(() => {
     if (
       state.status === "error" &&
-      state.error === "quota" &&
-      (state.quotaScope === "workspace" || state.quotaScope === "ip")
+      canUnlockAnalysis(state.error, state.quotaScope)
     )
       setAccessOpen(true);
   }, [state]);
   const stateError = state.status === "error" ? state.error : undefined;
   const stateQuotaScope =
     state.status === "error" ? state.quotaScope : undefined;
+  const canUnlock =
+    state.status === "error" &&
+    canUnlockAnalysis(state.error, state.quotaScope);
   useEffect(() => {
     if (state.status === "analyzing") progressRef.current?.focus();
     if (
       state.status === "error" &&
       !(
-        stateError === "quota" &&
-        (stateQuotaScope === "workspace" || stateQuotaScope === "ip")
+        stateError !== undefined &&
+        canUnlockAnalysis(stateError, stateQuotaScope)
       )
     )
       errorRef.current?.focus();
@@ -146,6 +148,11 @@ export function AnalyzeWorkspace({
             <h2>Анализ не завершён</h2>
             <p>{errorMessage(state.error, state.quotaScope)}</p>
             {state.retryable && <Button onPress={retry}>Повторить</Button>}
+            {canUnlock && (
+              <Button onPress={() => setAccessOpen(true)}>
+                Ввести код приглашения
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -174,7 +181,7 @@ export function AnalyzeWorkspace({
         </p>
         <Button
           className="delete-session"
-          variant="tertiary"
+          variant="danger-soft"
           isDisabled={deleteState === "deleting"}
           onPress={() => setDeleteConfirmOpen(true)}
         >
@@ -207,7 +214,7 @@ export function AnalyzeWorkspace({
                     Отмена
                   </Button>
                   <Button
-                    className="destructive-action"
+                    variant="danger"
                     onPress={() => {
                       setDeleteConfirmOpen(false);
                       void deleteAll();

@@ -49,6 +49,6 @@ GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI
 
 ## Remaining delivery artifact
 
-The repository and live service are ready for evaluation. Record the requested 3–5 minute Loom/Vimeo pitch separately, showing the live journey, representative prompts, one reviewer-found mistake, and its verification.
+The repository and live service are ready for evaluation. The 3–5 minute recording script and checklist are in [PITCH.md](PITCH.md). Recording and uploading the Loom/Vimeo pitch remains user-owned; no recording URL is claimed in this repository. The recording should show the live journey, representative prompts, one reviewer-found mistake, and its verification.
 
 Blueprint reuse remains outside the submitted MVP and has no active assignment.
