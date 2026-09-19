@@ -39,6 +39,11 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     isWorkspaceActive: async () => true,
     readReply: vi.fn(async () => undefined),
     claimQuestion: vi.fn(async () => "claimed" as const),
+    claimInference: vi.fn(async () => ({
+      token: "00000000-0000-4000-8000-000000000004",
+      expiresAt: new Date("2026-09-19T12:01:00.000Z"),
+    })),
+    releaseInference: vi.fn(async () => undefined),
     answer: vi.fn(async () => answer),
     saveReply: vi.fn(async () => true),
     ...overrides,
@@ -116,6 +121,36 @@ describe("POST /api/chat handler", () => {
     )(request());
     expect(quota.status).toBe(429);
     expect(answerCall).not.toHaveBeenCalled();
+  });
+
+  it("does not invoke the provider twice for concurrent identical requests", async () => {
+    let resolveAnswer: (() => void) | undefined;
+    const answerCall = vi.fn(
+      () =>
+        new Promise<ChatResult>((resolve) => {
+          resolveAnswer = () => resolve(answer);
+        }),
+    );
+    let inferenceClaimed = false;
+    const deps = dependencies({
+      answer: answerCall,
+      claimInference: vi.fn(async () => {
+        if (inferenceClaimed) return "in-flight" as const;
+        inferenceClaimed = true;
+        return {
+          token: "00000000-0000-4000-8000-000000000004",
+          expiresAt: new Date("2026-09-19T12:01:00.000Z"),
+        };
+      }),
+    });
+    const first = createChatHandler(deps)(request());
+    await vi.waitFor(() => expect(answerCall).toHaveBeenCalledOnce());
+    const second = await createChatHandler(deps)(request());
+    expect(second.status).toBe(409);
+    await expect(second.json()).resolves.toEqual({ code: "in-flight" });
+    resolveAnswer?.();
+    expect((await first).status).toBe(200);
+    expect(answerCall).toHaveBeenCalledOnce();
   });
 
   it.each([

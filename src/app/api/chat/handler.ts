@@ -6,6 +6,7 @@ import {
   chatResultSchema,
 } from "@/entities/chat";
 import type { GuestWorkspace } from "@/entities/guest-workspace";
+import type { InferenceLease } from "@/entities/saved-analysis";
 import { ChatProviderError } from "@/features/query-report/server";
 import {
   BodyTooLargeError,
@@ -31,6 +32,16 @@ type ChatHandlerDependencies = Readonly<{
     workspaceId: string;
     request: ChatRequest;
   }): Promise<ClaimOutcome>;
+  claimInference(input: {
+    workspaceId: string;
+    analysisId: string;
+    messageId: string;
+  }): Promise<InferenceLease | "in-flight" | undefined>;
+  releaseInference(input: {
+    analysisId: string;
+    messageId: string;
+    token: string;
+  }): Promise<void>;
   answer(input: {
     workspaceId: string;
     request: ChatRequest;
@@ -110,22 +121,38 @@ export function createChatHandler(dependencies: ChatHandlerDependencies) {
       });
       if (afterClaimReplay) return privateJson(afterClaimReplay);
 
-      const result = chatResultSchema.parse(
-        await dependencies.answer({
-          workspaceId: workspace.id,
-          request: chatRequest,
-          signal: request.signal,
-        }),
-      );
-      if (
-        !(await dependencies.saveReply({
-          workspaceId: workspace.id,
-          request: chatRequest,
-          result,
-        }))
-      )
-        return privateJson({ code: "unavailable" }, 503);
-      return privateJson(result);
+      const lease = await dependencies.claimInference({
+        workspaceId: workspace.id,
+        analysisId: chatRequest.analysisId,
+        messageId: chatRequest.messageId,
+      });
+      if (!lease) return privateJson({ code: "not-found" }, 404);
+      if (lease === "in-flight") return privateJson({ code: "in-flight" }, 409);
+
+      try {
+        const result = chatResultSchema.parse(
+          await dependencies.answer({
+            workspaceId: workspace.id,
+            request: chatRequest,
+            signal: request.signal,
+          }),
+        );
+        if (
+          !(await dependencies.saveReply({
+            workspaceId: workspace.id,
+            request: chatRequest,
+            result,
+          }))
+        )
+          return privateJson({ code: "unavailable" }, 503);
+        return privateJson(result);
+      } finally {
+        await dependencies.releaseInference({
+          analysisId: chatRequest.analysisId,
+          messageId: chatRequest.messageId,
+          token: lease.token,
+        });
+      }
     } catch (error) {
       if (error instanceof ChatProviderError) return providerFailure(error);
       if (error instanceof z.ZodError)

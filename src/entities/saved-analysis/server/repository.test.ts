@@ -244,4 +244,54 @@ describe("saved analysis memory repository", () => {
       }),
     ).rejects.toThrow("immutable");
   });
+
+  it("allows only one concurrent inference lease and releases it for retry", async () => {
+    const result = repository();
+    await result.create({
+      workspaceId,
+      analysisId,
+      source: {
+        version: 1,
+        id: "text-1",
+        source: { kind: "text" },
+        rawText: "One",
+        paragraphs: [{ index: 1, text: "One" }],
+      },
+      report,
+      now,
+    });
+    await result.appendMessage({
+      workspaceId,
+      analysisId,
+      dailyLimit: 10,
+      now,
+      message: { id: "m-lease", role: "user", content: "Question" },
+    });
+    const claims = await Promise.all(
+      Array.from({ length: 2 }, () =>
+        result.claimInference({
+          workspaceId,
+          analysisId,
+          messageId: "m-lease",
+          now,
+        }),
+      ),
+    );
+    expect(claims.filter((claim) => claim !== "in-flight")).toHaveLength(1);
+    const lease = claims.find((claim) => typeof claim === "object");
+    if (!lease || typeof lease === "string") throw new Error("Lease missing");
+    await result.releaseInference({
+      analysisId,
+      messageId: "m-lease",
+      token: lease.token,
+    });
+    await expect(
+      result.claimInference({
+        workspaceId,
+        analysisId,
+        messageId: "m-lease",
+        now,
+      }),
+    ).resolves.toMatchObject({ token: expect.any(String) });
+  });
 });

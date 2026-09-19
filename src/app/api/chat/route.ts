@@ -65,6 +65,14 @@ export const POST = createChatHandler({
     if (stored === "quota-exceeded") return "quota";
     return stored ? "claimed" : "missing";
   },
+  claimInference: ({ workspaceId, analysisId, messageId }) =>
+    savedAnalysisRepository.claimInference({
+      workspaceId,
+      analysisId,
+      messageId,
+    }),
+  releaseInference: ({ analysisId, messageId, token }) =>
+    savedAnalysisRepository.releaseInference({ analysisId, messageId, token }),
   answer: ({ workspaceId, request, signal }) =>
     answerChat(request, {
       signal,

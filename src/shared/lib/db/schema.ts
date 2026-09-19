@@ -122,3 +122,23 @@ export const savedAnalysisMessages = pgTable(
     ),
   ],
 );
+
+export const savedAnalysisInferenceLeases = pgTable(
+  "saved_analysis_inference_leases",
+  {
+    analysisId: uuid("analysis_id")
+      .notNull()
+      .references(() => savedAnalyses.id, { onDelete: "cascade" }),
+    messageId: text("message_id").notNull(),
+    leaseToken: uuid("lease_token").notNull(),
+    leaseExpiresAt: timestamp("lease_expires_at", {
+      withTimezone: true,
+    }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.analysisId, table.messageId] }),
+    index("saved_analysis_inference_leases_expiry_idx").on(
+      table.leaseExpiresAt,
+    ),
+  ],
+);

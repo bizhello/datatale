@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 import {
   type AcceptedSource,
   assertStoragePayloads,
+  type InferenceLease,
   SAVED_ANALYSIS_HISTORY_MAX_MESSAGES,
+  SAVED_ANALYSIS_INFERENCE_LEASE_MS,
   SAVED_ANALYSIS_TTL_MS,
   type SavedAnalysis,
   type SavedAnalysisMessage,
@@ -36,6 +38,7 @@ export class MemorySavedAnalysisRepository implements SavedAnalysisRepository {
   >();
   private readonly workspaces = new Map<string, Workspace>();
   private readonly chatCounts = new Map<string, number>();
+  private readonly inferenceLeases = new Map<string, InferenceLease>();
   constructor(
     private readonly validators: SavedAnalysisValidators,
     workspaces: ReadonlyMap<string, Workspace> = new Map(),
@@ -125,6 +128,8 @@ export class MemorySavedAnalysisRepository implements SavedAnalysisRepository {
       if (analysis.expiresAt <= now) {
         this.analyses.delete(id);
         this.messagesByAnalysis.delete(id);
+        for (const key of this.inferenceLeases.keys())
+          if (key.startsWith(`${id}:`)) this.inferenceLeases.delete(key);
         removed++;
       }
     return removed;
@@ -199,5 +204,45 @@ export class MemorySavedAnalysisRepository implements SavedAnalysisRepository {
       SAVED_ANALYSIS_HISTORY_MAX_MESSAGES,
     );
     return (this.messagesByAnalysis.get(input.analysisId) ?? []).slice(-limit);
+  }
+
+  async claimInference(input: {
+    workspaceId: string;
+    analysisId: string;
+    messageId: string;
+    now?: Date;
+  }) {
+    const now = input.now ?? new Date();
+    const analysis = this.analyses.get(input.analysisId);
+    const message = this.messagesByAnalysis
+      .get(input.analysisId)
+      ?.find((item) => item.id === input.messageId && item.role === "user");
+    if (
+      !analysis ||
+      !message ||
+      analysis.workspaceId !== input.workspaceId ||
+      !this.active(input.workspaceId, now) ||
+      analysis.expiresAt <= now
+    )
+      return undefined;
+    const key = `${input.analysisId}:${input.messageId}`;
+    const current = this.inferenceLeases.get(key);
+    if (current && current.expiresAt > now) return "in-flight" as const;
+    const lease = {
+      token: randomUUID(),
+      expiresAt: new Date(now.getTime() + SAVED_ANALYSIS_INFERENCE_LEASE_MS),
+    } satisfies InferenceLease;
+    this.inferenceLeases.set(key, lease);
+    return lease;
+  }
+
+  async releaseInference(input: {
+    analysisId: string;
+    messageId: string;
+    token: string;
+  }) {
+    const key = `${input.analysisId}:${input.messageId}`;
+    if (this.inferenceLeases.get(key)?.token === input.token)
+      this.inferenceLeases.delete(key);
   }
 }

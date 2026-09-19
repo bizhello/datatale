@@ -4,7 +4,9 @@ import { getDatabase } from "@/shared/lib/db";
 import {
   type AcceptedSource,
   assertStoragePayloads,
+  type InferenceLease,
   SAVED_ANALYSIS_HISTORY_MAX_MESSAGES,
+  SAVED_ANALYSIS_INFERENCE_LEASE_MS,
   SAVED_ANALYSIS_TTL_MS,
   type SavedAnalysis,
   type SavedAnalysisMessage,
@@ -40,6 +42,17 @@ export type SavedAnalysisRepository = Readonly<{
     dailyLimit: number;
     now?: Date;
   }): Promise<SavedAnalysisMessage | "quota-exceeded" | undefined>;
+  claimInference(input: {
+    workspaceId: string;
+    analysisId: string;
+    messageId: string;
+    now?: Date;
+  }): Promise<InferenceLease | "in-flight" | undefined>;
+  releaseInference(input: {
+    analysisId: string;
+    messageId: string;
+    token: string;
+  }): Promise<void>;
   messages(input: {
     workspaceId: string;
     analysisId: string;
@@ -255,5 +268,60 @@ export class SqlSavedAnalysisRepository implements SavedAnalysisRepository {
         return parsed ? [parsed] : [];
       })
       .reverse();
+  }
+
+  async claimInference(input: {
+    workspaceId: string;
+    analysisId: string;
+    messageId: string;
+    now?: Date;
+  }) {
+    const now = input.now ?? new Date();
+    const token = randomUUID();
+    const expiresAt = new Date(
+      now.getTime() + SAVED_ANALYSIS_INFERENCE_LEASE_MS,
+    );
+    const rows = await this.client()`
+      INSERT INTO saved_analysis_inference_leases (analysis_id, message_id, lease_token, lease_expires_at)
+      SELECT ${input.analysisId}, ${input.messageId}, ${token}, ${expiresAt}
+      FROM saved_analysis_messages m
+      JOIN saved_analyses a ON a.id = m.analysis_id
+      JOIN guest_workspaces w ON w.id = a.workspace_id
+      WHERE m.analysis_id = ${input.analysisId} AND m.message_id = ${input.messageId}
+        AND m.role = 'user' AND a.workspace_id = ${input.workspaceId}
+        AND w.revoked_at IS NULL AND w.expires_at > ${now} AND a.expires_at > ${now}
+      ON CONFLICT (analysis_id, message_id) DO UPDATE
+        SET lease_token = EXCLUDED.lease_token, lease_expires_at = EXCLUDED.lease_expires_at
+        WHERE saved_analysis_inference_leases.lease_expires_at <= ${now}
+      RETURNING lease_expires_at AS "leaseExpiresAt"
+    `;
+    const inserted = rows[0];
+    if (inserted)
+      return { token, expiresAt: inserted.leaseExpiresAt } as InferenceLease;
+    const active = await this.client()`
+      SELECT 1
+      FROM saved_analysis_inference_leases l
+      JOIN saved_analysis_messages m ON m.analysis_id = l.analysis_id AND m.message_id = l.message_id
+      JOIN saved_analyses a ON a.id = m.analysis_id
+      JOIN guest_workspaces w ON w.id = a.workspace_id
+      WHERE l.analysis_id = ${input.analysisId} AND l.message_id = ${input.messageId}
+        AND m.role = 'user' AND a.workspace_id = ${input.workspaceId}
+        AND l.lease_expires_at > ${now} AND a.expires_at > ${now}
+        AND w.revoked_at IS NULL AND w.expires_at > ${now}
+      LIMIT 1
+    `;
+    return active.length > 0 ? ("in-flight" as const) : undefined;
+  }
+
+  async releaseInference(input: {
+    analysisId: string;
+    messageId: string;
+    token: string;
+  }) {
+    await this.client()`
+      DELETE FROM saved_analysis_inference_leases
+      WHERE analysis_id = ${input.analysisId} AND message_id = ${input.messageId}
+        AND lease_token = ${input.token}
+    `;
   }
 }

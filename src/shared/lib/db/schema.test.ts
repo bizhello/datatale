@@ -5,6 +5,7 @@ import {
   analysisQuotaBuckets,
   analysisRuns,
   savedAnalyses,
+  savedAnalysisInferenceLeases,
   savedAnalysisMessages,
 } from "./schema";
 
@@ -74,5 +75,22 @@ describe("analysis Drizzle schema parity", () => {
       "saved_analysis_messages_analysis_sequence_idx",
     );
     expect(migration).toContain("saved_analyses_expiry_idx");
+  });
+
+  it("models one expiring inference lease per user message", async () => {
+    const leases = getTableConfig(savedAnalysisInferenceLeases);
+    expect(leases.foreignKeys[0]?.onDelete).toBe("cascade");
+    expect(leases.primaryKeys[0]?.columns.map((column) => column.name)).toEqual(
+      ["analysis_id", "message_id"],
+    );
+    expect(leases.indexes.map((index) => index.config.name)).toContain(
+      "saved_analysis_inference_leases_expiry_idx",
+    );
+    const migration = await readFile(
+      "migrations/0004_chat_inference_leases.sql",
+      "utf8",
+    );
+    expect(migration).toContain("PRIMARY KEY (analysis_id, message_id)");
+    expect(migration).toContain("ON DELETE CASCADE");
   });
 });

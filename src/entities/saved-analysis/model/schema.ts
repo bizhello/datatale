@@ -6,6 +6,7 @@ export const SAVED_ANALYSIS_SOURCE_MAX_BYTES = inputLimits.canonicalSourceBytes;
 export const SAVED_ANALYSIS_MESSAGE_MAX_LENGTH = 12_000;
 export const SAVED_ANALYSIS_MESSAGE_ID_MAX_LENGTH = 160;
 export const SAVED_ANALYSIS_HISTORY_MAX_MESSAGES = 100;
+export const SAVED_ANALYSIS_INFERENCE_LEASE_MS = 60_000;
 
 export type StorageSchema<T> = Readonly<{ parse(input: unknown): T }>;
 export type SavedAnalysisValidators<
@@ -59,6 +60,10 @@ export type SavedMessageInput = z.infer<typeof savedMessageInputSchema>;
 export type SavedAnalysis = z.infer<typeof savedAnalysisSchema>;
 export type SavedAnalysisMessage = z.infer<typeof savedAnalysisMessageSchema>;
 export type ValidatedChatResult = Readonly<Record<string, unknown>>;
+export type InferenceLease = Readonly<{
+  token: string;
+  expiresAt: Date;
+}>;
 
 export function sourceKind(source: unknown): "dataset" | "text" {
   return typeof source === "object" && source !== null && "rawText" in source
