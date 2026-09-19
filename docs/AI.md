@@ -26,7 +26,7 @@ Start with at most 12 visible bar categories, 2–6 donut segments and a bounded
 6. Supply checked Facts to the model for a 2–3 sentence narrative and recommendations referencing fact IDs.
 7. Validate the versioned Report and store it only in the short-lived idempotency receipt. UI renders only supported checked specifications and code-computed series. Show a short “Why this chart” rationale.
 
-For text, extract explicitly stated quantities with exact source quotations before the narrative call. Check quotation, units and period against the source. Text analysis deliberately returns no charts in this feature; chart selection is enabled for suitable tables.
+For text, extract explicitly stated quantities with exact source quotations before the narrative call. Signed/localized numeric tokens and standalone unit/period phrases must match the quotation exactly. If extraction finds nothing, use a bounded exact excerpt from the first paragraph as narrative evidence. Text analysis deliberately returns no charts in this feature; chart selection is enabled for suitable tables.
 
 ## Prompt and schema ownership
 

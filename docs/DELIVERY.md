@@ -2,7 +2,7 @@
 
 Deliver the four-feature journey: input → grounded narrative → AI-selected charts → source-only chat. [WORKFLOW.md](WORKFLOW.md) defines execution; [PRODUCT.md](PRODUCT.md), [AI.md](AI.md), [UI.md](UI.md) and [QUALITY.md](QUALITY.md) define acceptance.
 
-**Current state:** DT-INPUT and HeroUI adoption are integrated through `2514d84`. The AI Dashboard candidate now connects CSV/XLSX/text input to bounded AI analysis, checked facts, a responsive narrative dashboard, and atomic guest/quota/idempotency controls. The first independent review rejected nine lifecycle, grounding, calculation, output-bound, and UI issues; all are corrected with regression coverage. Local static, unit, integration, build, browser, and visual gates pass. Repeat exact-candidate review, isolated Neon verification, Vercel preview, and live-model evaluation remain required before its PR. Chat, durable history, onboarding, and long-lived source/report persistence are not implemented.
+**Current state:** DT-INPUT and HeroUI adoption are integrated through `2514d84`. The AI Dashboard candidate now connects CSV/XLSX/text input to bounded AI analysis, checked facts, a responsive narrative dashboard, and atomic guest/quota/idempotency controls. Independent review rounds rejected lifecycle, grounding, calculation, output-bound, and UI issues; corrections include adversarial regressions for every finding. Local static, unit, integration, build, browser, and visual gates pass. Final exact-candidate review, isolated Neon verification, Vercel preview, and live-model evaluation remain required before its PR. Chat, durable history, onboarding, and long-lived source/report persistence are not implemented.
 
 ## Work packages
 
