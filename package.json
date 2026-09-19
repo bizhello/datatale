@@ -27,6 +27,7 @@
     "@react-aria/ssr": "3.10.1",
     "@react-aria/utils": "3.34.1",
     "ai": "7.0.107",
+    "driver.js": "1.8.0",
     "drizzle-orm": "0.45.2",
     "fflate": "0.8.3",
     "iron-session": "9.0.1",

@@ -74,7 +74,11 @@ export function AskDataPanel({ send }: AskDataPanelProps) {
   };
 
   return (
-    <Surface className={styles.panel ?? ""} variant="default">
+    <Surface
+      className={styles.panel ?? ""}
+      id="onboarding-ask-data"
+      variant="default"
+    >
       <header className={styles.header}>
         <div>
           <p className={styles.eyebrow}>ОТЧЁТ</p>

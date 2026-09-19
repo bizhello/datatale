@@ -44,6 +44,9 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
                   <Button
                     isIconOnly
                     aria-label={`Развернуть ${chart.title}`}
+                    {...(chart.id === report.charts[0]?.id
+                      ? { id: "onboarding-chart-expand" }
+                      : {})}
                     onPress={() => setExpanded(chart)}
                   >
                     <Expand aria-hidden="true" />

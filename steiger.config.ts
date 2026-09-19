@@ -28,4 +28,10 @@ export default defineConfig([
     files: ["./src/features/query-report", "./src/features/query-report/**"],
     rules: { "fsd/insignificant-slice": "off" },
   },
+  {
+    // Onboarding owns the versioned UI preference and tour lifecycle; it is
+    // intentionally mounted once by the dashboard shell.
+    files: ["./src/features/onboarding", "./src/features/onboarding/**"],
+    rules: { "fsd/insignificant-slice": "off" },
+  },
 ]);

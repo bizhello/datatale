@@ -6,6 +6,7 @@ import type { Dataset, TextSource } from "@/entities/dataset";
 import { ReportDashboard } from "@/entities/report/ui";
 import { AnalyzeWorkspace } from "@/features/analyze-data";
 import { ImportWorkspace } from "@/features/import-data";
+import { OnboardingTour } from "@/features/onboarding";
 import { AskDataPanel, createAskDataSend } from "@/features/query-report";
 import { ThemeControl } from "@/shared/ui/theme-control";
 
@@ -57,6 +58,7 @@ export function DashboardShell() {
         <span>
           <BarChart3 size={14} aria-hidden="true" /> Проверенный источник
         </span>
+        <OnboardingTour hydrated={mounted} />
       </footer>
     </div>
   );

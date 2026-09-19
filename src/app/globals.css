@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "driver.js/dist/driver.css";
 @import "@heroui/styles";
 
 :root {
@@ -108,6 +109,67 @@ footer {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+.onboarding-replay {
+  color: var(--accent);
+  font-size: 0.78rem;
+}
+
+.onboarding-popover {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  color: var(--foreground);
+  background: var(--surface);
+  font-family: var(--font-body), sans-serif;
+  max-width: min(22rem, calc(100vw - 2rem));
+}
+
+.onboarding-popover .driver-popover-title {
+  color: var(--foreground);
+  font-family: var(--font-display), serif;
+  font-size: 1.12rem;
+}
+
+.onboarding-popover .driver-popover-description,
+.onboarding-popover .driver-popover-progress-text {
+  color: var(--muted);
+}
+
+.onboarding-popover .driver-popover-footer-btn {
+  border-color: var(--line);
+  border-radius: 0.55rem;
+  color: var(--foreground);
+  background: var(--surface-raised);
+  font: inherit;
+  min-height: 2rem;
+  padding: 0.35rem 0.7rem;
+}
+
+.onboarding-popover .driver-popover-footer-btn:focus-visible,
+.onboarding-popover .driver-popover-close-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.onboarding-popover .driver-popover-next-btn,
+.onboarding-popover .driver-popover-done-btn {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+@media (max-width: 600px) {
+  .onboarding-popover {
+    max-width: calc(100vw - 1.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-popover,
+  .onboarding-popover * {
+    animation: none;
+    transition: none;
+  }
 }
 .site-header {
   min-height: 84px;

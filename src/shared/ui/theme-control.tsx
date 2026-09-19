@@ -64,27 +64,31 @@ export function ThemeControl() {
   }
 
   return (
-    <ToggleButtonGroup
-      aria-label="Тема оформления"
-      className="theme-selector"
-      disallowEmptySelection
-      selectedKeys={new Set([selectedMode])}
-      selectionMode="single"
-    >
-      {themeOptions.map(({ icon: Icon, label, mode }) => (
-        <Tooltip key={mode} delay={0}>
-          <ToggleButton
-            className="theme-control"
-            id={mode}
-            isIconOnly
-            aria-label={label}
-            onPress={(event) => changeTheme(mode, event.target as HTMLElement)}
-          >
-            <Icon className="theme-icon" aria-hidden="true" />
-          </ToggleButton>
-          <Tooltip.Content>{label}</Tooltip.Content>
-        </Tooltip>
-      ))}
-    </ToggleButtonGroup>
+    <div id="onboarding-theme">
+      <ToggleButtonGroup
+        aria-label="Тема оформления"
+        className="theme-selector"
+        disallowEmptySelection
+        selectedKeys={new Set([selectedMode])}
+        selectionMode="single"
+      >
+        {themeOptions.map(({ icon: Icon, label, mode }) => (
+          <Tooltip key={mode} delay={0}>
+            <ToggleButton
+              className="theme-control"
+              id={mode}
+              isIconOnly
+              aria-label={label}
+              onPress={(event) =>
+                changeTheme(mode, event.target as HTMLElement)
+              }
+            >
+              <Icon className="theme-icon" aria-hidden="true" />
+            </ToggleButton>
+            <Tooltip.Content>{label}</Tooltip.Content>
+          </Tooltip>
+        ))}
+      </ToggleButtonGroup>
+    </div>
   );
 }
