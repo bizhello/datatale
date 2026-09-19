@@ -34,6 +34,14 @@ The release gate passes Biome, Steiger, strict TypeScript, the Turbopack product
 
 GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI, component-ownership, HeroUI, and hydration history. [AI-WORKLOG.md](AI-WORKLOG.md) records the material AI-assisted mistakes and corrections used for the pitch.
 
+## Active product wave
+
+| Task | Owner | Base | Worktree | Scope | State |
+| --- | --- | --- | --- | --- | --- |
+| Guest history/reopen v1 | history executor | `ba0f2b5` | `datatale-worktrees/history-reopen` | Saved-analysis read API, owner isolation, report/chat hydration, tests | in progress |
+| Liquid editorial first viewport | visual executor | `ba0f2b5` | `datatale-worktrees/liquid-hero` | Existing empty workspace presentation, responsive/reduced-motion tests | in progress |
+| Product-wave integration | conductor | `ba0f2b5` | `datatale-worktrees/next-product-wave` | Shared docs, AGENTS, integration, review, release | in progress |
+
 ## Remaining delivery artifact
 
 The repository and live service are ready for evaluation. Record the requested 3–5 minute Loom/Vimeo pitch separately, showing the live journey, representative prompts, one reviewer-found mistake, and its verification.
