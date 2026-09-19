@@ -121,6 +121,98 @@ export const analysisPlanSchema = z.discriminatedUnion("outcome", [
   noChartAnalysisPlanSchema,
 ]);
 
+export const metricSpecificationSchema = z
+  .object({
+    id: nonblankString,
+    label: nonblankString,
+    aggregation: aggregationSchema,
+  })
+  .strict();
+
+export const analysisProposalSchema = z
+  .object({
+    outcome: z.enum(["charts", "no-chart"]),
+    charts: z.array(chartSpecificationSchema).max(3).default([]),
+    metrics: z.array(metricSpecificationSchema).min(2).max(4),
+    reason: nonblankString.optional(),
+  })
+  .strict();
+
+export const reportEvidenceSchema = z
+  .object({
+    id: nonblankString,
+    kind: z.enum(["row-range", "quote"]),
+    label: nonblankString,
+    excerpt: nonblankString.optional(),
+  })
+  .strict();
+
+export const reportFactSchema = z
+  .object({
+    id: nonblankString,
+    label: nonblankString,
+    value: z.number().finite(),
+    unit: z.string().optional(),
+    evidenceIds: z.array(nonblankString).min(1),
+  })
+  .strict();
+
+export const reportChartSchema = z
+  .object({
+    id: nonblankString,
+    kind: z.enum([BAR_CHART_KIND, LINE_CHART_KIND, DONUT_CHART_KIND]),
+    title: nonblankString,
+    rationale: nonblankString,
+    unit: z.string().optional(),
+    points: z
+      .array(
+        z
+          .object({ label: nonblankString, value: z.number().finite() })
+          .strict(),
+      )
+      .min(1),
+    evidenceIds: z.array(nonblankString).min(1),
+  })
+  .strict();
+
+export const reportNarrativeItemSchema = z
+  .object({
+    text: nonblankString,
+    factIds: z.array(nonblankString).default([]),
+    evidenceIds: z.array(nonblankString).default([]),
+  })
+  .strict()
+  .refine(
+    (item) => item.factIds.length + item.evidenceIds.length > 0,
+    "Narrative must be grounded.",
+  );
+
+export const finalReportSchema = z
+  .object({
+    version: z.literal(1),
+    hero: z.array(reportNarrativeItemSchema).min(1).max(3),
+    metrics: z.array(reportFactSchema).min(1).max(4),
+    charts: z.array(reportChartSchema).max(3),
+    evidence: z.array(reportEvidenceSchema).min(1),
+    recommendations: z.array(reportNarrativeItemSchema).max(3),
+    noChartReason: nonblankString.optional(),
+  })
+  .strict()
+  .superRefine((report, context) => {
+    if (report.charts.length === 0 && !report.noChartReason)
+      context.addIssue({
+        code: "custom",
+        message: "No-chart reports require a reason.",
+        path: ["noChartReason"],
+      });
+    if (report.charts.length > 0 && report.noChartReason)
+      context.addIssue({
+        code: "custom",
+        message: "Charted reports cannot have a no-chart reason.",
+        path: ["noChartReason"],
+      });
+  });
+
 export type FieldReference = z.infer<typeof fieldReferenceSchema>;
 export type CountAggregation = z.infer<typeof countAggregationSchema>;
 export type NumericAggregation = z.infer<typeof numericAggregationSchema>;
@@ -134,3 +226,6 @@ export type DonutChartSpecification = z.infer<
 >;
 export type ChartSpecification = z.infer<typeof chartSpecificationSchema>;
 export type AnalysisPlan = z.infer<typeof analysisPlanSchema>;
+export type MetricSpecification = z.infer<typeof metricSpecificationSchema>;
+export type AnalysisProposal = z.infer<typeof analysisProposalSchema>;
+export type FinalReport = z.infer<typeof finalReportSchema>;

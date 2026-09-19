@@ -1,13 +1,18 @@
 "use client";
 
 import { Button } from "@heroui/react";
+import type { Dataset, TextSource } from "@/entities/dataset";
 import { useImportWorkspace } from "../model/use-import-workspace";
 import { ErrorState } from "./error-state";
 import { InputOptions } from "./input-options";
 import { LoadingState } from "./loading-state";
 import { SourcePreview } from "./source-preview";
 
-export function ImportWorkspace() {
+type ImportWorkspaceProps = {
+  onReady?: (source: Dataset | TextSource) => void;
+};
+
+export function ImportWorkspace({ onReady }: ImportWorkspaceProps) {
   const {
     state,
     acceptText,
@@ -57,7 +62,12 @@ export function ImportWorkspace() {
         <LoadingState onCancel={cancel} sheet={state.selectingSheet} />
       )}
       {state.status === "ready" && (
-        <SourcePreview state={state} onSheet={selectSheet} onClear={clear} />
+        <SourcePreview
+          state={state}
+          onSheet={selectSheet}
+          onClear={clear}
+          {...(onReady ? { onAnalyze: onReady } : {})}
+        />
       )}
     </section>
   );

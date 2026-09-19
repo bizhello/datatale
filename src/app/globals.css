@@ -213,6 +213,94 @@ footer {
   color: var(--muted);
   line-height: 1.55;
 }
+.analysis-action,
+.analysis-workspace {
+  margin-top: 20px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.report-dashboard {
+  margin-top: 36px;
+  display: grid;
+  gap: 20px;
+}
+.report-hero,
+.metric-card,
+.chart-card,
+.evidence,
+.no-chart,
+.report-loading {
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 24px;
+  background: var(--surface);
+}
+.report-hero h2 {
+  max-width: 850px;
+  margin: 8px 0 0;
+  font-size: clamp(1.55rem, 3vw, 2.4rem);
+  letter-spacing: -0.04em;
+}
+.metric-grid,
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+.metric-card {
+  display: grid;
+  gap: 7px;
+}
+.metric-card span,
+.metric-card small,
+.chart-card p {
+  color: var(--muted);
+}
+.metric-card strong {
+  font-size: 2rem;
+}
+.chart-card {
+  min-width: 0;
+}
+.chart-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+.chart-heading h3 {
+  margin: 0;
+}
+.chart-heading p {
+  margin: 0.35rem 0;
+}
+.chart-heading button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.chart-card table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.chart-card th,
+.chart-card td {
+  padding: 5px;
+  text-align: left;
+  border-top: 1px solid var(--line);
+}
+.report-skeleton {
+  height: 130px;
+  margin-top: 12px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
 .dropzone p {
   max-width: 350px;
   margin: 0;

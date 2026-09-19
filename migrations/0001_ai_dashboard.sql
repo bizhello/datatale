@@ -1,0 +1,3 @@
+CREATE TABLE IF NOT EXISTS guest_workspaces (id uuid PRIMARY KEY, expires_at timestamptz NOT NULL, revoked_at timestamptz);
+CREATE TABLE IF NOT EXISTS analysis_runs (id uuid PRIMARY KEY, workspace_id uuid NOT NULL REFERENCES guest_workspaces(id), idempotency_key text NOT NULL, fingerprint text NOT NULL, state text NOT NULL, lease_expires_at timestamptz NOT NULL, expires_at timestamptz NOT NULL, report jsonb, UNIQUE (workspace_id, idempotency_key));
+CREATE TABLE IF NOT EXISTS analysis_quota_buckets (scope text NOT NULL, bucket_start timestamptz NOT NULL, count integer NOT NULL DEFAULT 0, expires_at timestamptz NOT NULL, PRIMARY KEY (scope, bucket_start));

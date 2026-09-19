@@ -3,15 +3,22 @@ import { AlertTriangle, CheckCircle2, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { isTextSource } from "../lib/source-guards";
 import type { ReadyState } from "../model/import-workspace-state";
+import type { Dataset, TextSource } from "@/entities/dataset";
 import { TablePreview } from "./table-preview";
 
 type SourcePreviewProps = {
   state: ReadyState;
   onSheet: (value: string) => void;
   onClear: () => void;
+  onAnalyze?: (source: Dataset | TextSource) => void;
 };
 
-export function SourcePreview({ state, onSheet, onClear }: SourcePreviewProps) {
+export function SourcePreview({
+  state,
+  onSheet,
+  onClear,
+  onAnalyze,
+}: SourcePreviewProps) {
   const prefersReducedMotion = useReducedMotion();
   const source = state.result.source;
   const text = isTextSource(source) ? source : undefined;
@@ -105,10 +112,21 @@ export function SourcePreview({ state, onSheet, onClear }: SourcePreviewProps) {
       ) : (
         data && <TablePreview data={data} />
       )}
-      <p className="analysis-note">
-        Источник проверен. Анализ и сохранение отчёта появятся в следующем
-        этапе.
-      </p>
+      {onAnalyze ? (
+        <div className="analysis-action">
+          <p className="analysis-note">
+            Полный проверенный источник будет передан AI-провайдеру. Сам
+            источник не хранится; результат с точными цитатами сохраняется на 15
+            минут для повтора. После обновления страницы отчёт исчезнет.
+          </p>
+          <Button onPress={() => onAnalyze(source)}>Запустить анализ</Button>
+        </div>
+      ) : (
+        <p className="analysis-note">
+          Источник проверен. Анализ и сохранение отчёта появятся в следующем
+          этапе.
+        </p>
+      )}
     </motion.div>
   );
 }

@@ -1,0 +1,1 @@
+export { getAnalysisModel } from "./server";

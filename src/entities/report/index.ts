@@ -12,22 +12,28 @@ export {
 export type {
   Aggregation,
   AnalysisPlan,
+  AnalysisProposal,
   BarChartSpecification,
   ChartSpecification,
   CountAggregation,
   DonutChartSpecification,
   FieldReference,
+  FinalReport,
   LineChartSpecification,
+  MetricSpecification,
   NumericAggregation,
 } from "./model/schema";
 export {
   aggregationSchema,
   analysisPlanSchema,
+  analysisProposalSchema,
   barChartSpecificationSchema,
   chartSpecificationSchema,
   countAggregationSchema,
   donutChartSpecificationSchema,
   fieldReferenceSchema,
+  finalReportSchema,
   lineChartSpecificationSchema,
   numericAggregationSchema,
 } from "./model/schema";
+export { ReportDashboard } from "./ui/report-dashboard";

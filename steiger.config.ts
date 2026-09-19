@@ -11,15 +11,15 @@ export default defineConfig([
     rules: { "fsd/insignificant-slice": "off" },
   },
   {
-    // DT-01a introduces the contract before DT-03/DT-04 provide its consumers.
-    // Remove this usage-only exception once both feature slices import Dataset.
-    files: ["./src/entities/dataset", "./src/entities/dataset/**"],
+    // Contract, server calculation, and renderer use this entity through its
+    // public API; the current plugin does not count these internal consumers.
+    files: ["./src/entities/report", "./src/entities/report/**"],
     rules: { "fsd/insignificant-slice": "off" },
   },
   {
-    // DT-01b introduces the contract before DT-04/DT-07 provide its consumers.
-    // Remove this usage-only exception once both planned consumers import the report public API.
-    files: ["./src/entities/report", "./src/entities/report/**"],
+    // The analysis feature owns both server orchestration and the report UI;
+    // the widget only composes its public client entry point.
+    files: ["./src/features/analyze-data", "./src/features/analyze-data/**"],
     rules: { "fsd/insignificant-slice": "off" },
   },
 ]);
