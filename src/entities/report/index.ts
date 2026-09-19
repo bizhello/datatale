@@ -53,4 +53,3 @@ export {
   reportFactSchema,
   textExtractionResponseSchema,
 } from "./model/schema";
-export { ReportDashboard } from "./ui/report-dashboard";

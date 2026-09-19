@@ -2,7 +2,7 @@
 import { Button, Skeleton } from "@heroui/react";
 import { useState } from "react";
 import type { Dataset, TextSource } from "@/entities/dataset";
-import { ReportDashboard } from "@/entities/report";
+import { ReportDashboard } from "@/entities/report/ui";
 import { analysisErrorMessages } from "../model/analysis-state";
 import { useAnalysis } from "../model/use-analysis";
 
