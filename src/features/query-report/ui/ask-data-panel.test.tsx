@@ -111,19 +111,20 @@ describe("AskDataPanel", () => {
     expect(screen.queryByRole("button", { name: /Повторить/ })).toBeNull();
   });
 
-  it("explains when the guest session has expired", async () => {
+  it.each([
+    ["expired", "Срок действия гостевого сеанса истёк"],
+    ["not-found", "Этот отчёт больше недоступен"],
+    ["quota", "Лимит вопросов к отчёту на сегодня исчерпан"],
+    ["in-flight", "Этот вопрос уже обрабатывается"],
+  ] as const)("explains %s without offering retry", async (code, message) => {
     const send = vi.fn(async () => {
-      throw new AskDataClientError("expired", {
-        code: "expired",
-        retryable: false,
-      });
+      throw new AskDataClientError(code, { code, retryable: false });
     });
-    render(<AskDataPanel send={send} />);
+    const view = render(<AskDataPanel send={send} />);
     enterQuestion("Какой итог?");
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Срок действия гостевого сеанса истёк",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
     expect(screen.queryByRole("button", { name: /Повторить/ })).toBeNull();
+    view.unmount();
   });
 
   it("cancels a pending request and ignores its late result", async () => {

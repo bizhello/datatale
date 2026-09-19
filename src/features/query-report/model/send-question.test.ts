@@ -76,10 +76,12 @@ describe("query report API adapter", () => {
     ).rejects.toMatchObject({ retryable: false });
   });
 
-  it("preserves actionable session and report errors", async () => {
+  it("preserves actionable chat error codes", async () => {
     for (const [code, status] of [
       ["expired", 401],
       ["not-found", 404],
+      ["quota", 429],
+      ["in-flight", 409],
     ] as const) {
       vi.stubGlobal(
         "fetch",
