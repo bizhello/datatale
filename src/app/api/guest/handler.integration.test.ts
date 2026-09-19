@@ -8,7 +8,8 @@ const workspace = {
 
 function dependencies() {
   return {
-    runtimeSafe: () => true,
+    postRuntimeSafe: () => true,
+    deleteRuntimeSafe: () => true,
     bootstrap: vi.fn(async () => workspace),
     readSession: vi.fn(async () => workspace),
     clearSession: vi.fn(async () => undefined),
@@ -42,5 +43,32 @@ describe("guest route handlers", () => {
     await expect(response.json()).resolves.toEqual({
       expiresAt: workspace.expiresAt,
     });
+  });
+
+  it("allows same-origin deletion when AI runtime is unavailable", async () => {
+    const deps = dependencies();
+    const handlers = createGuestHandlers({
+      ...deps,
+      postRuntimeSafe: () => false,
+      deleteRuntimeSafe: () => true,
+    });
+    expect(
+      (
+        await handlers.delete(
+          new Request("https://example.test/api/guest", { method: "DELETE" }),
+        )
+      ).status,
+    ).toBe(403);
+    expect(deps.deleteWorkspace).not.toHaveBeenCalled();
+    const response = await handlers.delete(
+      new Request("https://example.test/api/guest", {
+        method: "DELETE",
+        headers: { origin: "https://example.test" },
+      }),
+    );
+    expect(response.status).toBe(204);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(deps.deleteWorkspace).toHaveBeenCalledWith(workspace.id);
+    expect(deps.clearSession).toHaveBeenCalledOnce();
   });
 });

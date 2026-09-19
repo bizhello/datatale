@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useReducer,
+  useRef,
+} from "react";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import { finalReportSchema } from "@/entities/report";
 import {
@@ -46,6 +52,16 @@ export function useAnalysis(source: Dataset | TextSource) {
   const [state, dispatch] = useReducer(analysisReducer, initialAnalysisState);
   const nextRequestId = useRef(0);
   const controller = useRef<AbortController | undefined>(undefined);
+  const currentSource = useRef(source);
+
+  useLayoutEffect(() => {
+    if (currentSource.current === source) return;
+    currentSource.current = source;
+    nextRequestId.current += 1;
+    controller.current?.abort();
+    controller.current = undefined;
+    dispatch({ type: "reset" });
+  }, [source]);
 
   const run = useCallback(
     async (reuseKey?: string) => {
@@ -131,6 +147,12 @@ export function useAnalysis(source: Dataset | TextSource) {
     }
     void run();
   }, [run, state]);
-  useEffect(() => () => controller.current?.abort(), []);
+  useEffect(
+    () => () => {
+      nextRequestId.current += 1;
+      controller.current?.abort();
+    },
+    [],
+  );
   return { state, run, cancel, retry };
 }

@@ -11,6 +11,7 @@ export function DashboardShell() {
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [source, setSource] = useState<Dataset | TextSource>();
+  const [workspaceVersion, setWorkspaceVersion] = useState(0);
   useEffect(() => setMounted(true), []);
   const selectedMode =
     mounted && (theme === "light" || theme === "dark" || theme === "system")
@@ -82,11 +83,15 @@ export function DashboardShell() {
         </div>
       </header>
       <main id="main">
-        <ImportWorkspace onReady={setSource} />
+        <ImportWorkspace key={workspaceVersion} onReady={setSource} />
         {source && (
           <AnalyzeWorkspace
+            key={source.id}
             source={source}
-            onDelete={() => setSource(undefined)}
+            onDelete={() => {
+              setSource(undefined);
+              setWorkspaceVersion((version) => version + 1);
+            }}
           />
         )}
       </main>

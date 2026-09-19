@@ -3,7 +3,8 @@ import type { GuestWorkspaceRepository } from "@/entities/guest-workspace/server
 import { isSameOrigin, privateJson } from "../private-http";
 
 type GuestHandlerDependencies = Readonly<{
-  runtimeSafe(): boolean;
+  postRuntimeSafe(): boolean;
+  deleteRuntimeSafe(): boolean;
   bootstrap(): Promise<GuestWorkspace | undefined>;
   readSession(): Promise<GuestWorkspace | undefined>;
   clearSession(): Promise<void>;
@@ -14,7 +15,7 @@ type GuestHandlerDependencies = Readonly<{
 export function createGuestHandlers(dependencies: GuestHandlerDependencies) {
   return {
     async post(request: Request) {
-      if (!dependencies.runtimeSafe())
+      if (!dependencies.postRuntimeSafe())
         return privateJson({ code: "unavailable" }, 503);
       if (!isSameOrigin(request)) return privateJson({ code: "csrf" }, 403);
       try {
@@ -28,12 +29,12 @@ export function createGuestHandlers(dependencies: GuestHandlerDependencies) {
     },
 
     async delete(request: Request) {
-      if (!dependencies.runtimeSafe())
+      if (!dependencies.deleteRuntimeSafe())
         return privateJson({ code: "unavailable" }, 503);
       if (!isSameOrigin(request)) return privateJson({ code: "csrf" }, 403);
-      const workspace = await dependencies.readSession();
-      if (!workspace) return privateJson({ code: "expired" }, 401);
       try {
+        const workspace = await dependencies.readSession();
+        if (!workspace) return privateJson({ code: "expired" }, 401);
         if (
           !(await dependencies.repository.isActive(workspace.id, new Date()))
         ) {

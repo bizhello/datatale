@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { hasSafeAnalysisRuntime } from "./analysis-runtime";
+import {
+  hasSafeAnalysisRuntime,
+  hasSafeCleanupRuntime,
+  hasSafeGuestRuntime,
+} from "./analysis-runtime";
 
 const safeEnvironment = {
   DATABASE_URL: "postgresql://test.invalid/db",
@@ -33,7 +37,6 @@ describe("analysis runtime guard", () => {
     "OPENAI_BASE_URL",
     "AI_MODEL",
     "RATE_LIMIT_SALT",
-    "CRON_SECRET",
   ] as const)("fails closed when %s is missing", (name) => {
     setSafeEnvironment();
     vi.stubEnv(name, "");
@@ -53,6 +56,9 @@ describe("analysis runtime guard", () => {
     setSafeEnvironment();
     vi.stubEnv("RATE_LIMIT_SALT", "   ");
     expect(hasSafeAnalysisRuntime()).toBe(false);
+    vi.stubEnv("RATE_LIMIT_SALT", "test-salt");
+    vi.stubEnv("SESSION_PASSWORD", " ".repeat(32));
+    expect(hasSafeGuestRuntime()).toBe(false);
   });
 
   it("does not accept legacy gateway environment names", () => {
@@ -62,5 +68,48 @@ describe("analysis runtime guard", () => {
     vi.stubEnv("INSPIRO_GATEWAY_API_KEY", "legacy-key");
     vi.stubEnv("AI_GATEWAY_URL", "https://legacy.example/v1");
     expect(hasSafeAnalysisRuntime()).toBe(false);
+  });
+
+  it("allows guest deletion without provider, quota, rate, or cron settings", () => {
+    setSafeEnvironment();
+    for (const name of [
+      "OPENAI_API_KEY",
+      "OPENAI_BASE_URL",
+      "AI_MODEL",
+      "RATE_LIMIT_SALT",
+      "CRON_SECRET",
+      "ANALYSIS_WORKSPACE_DAILY_LIMIT",
+      "ANALYSIS_IP_DAILY_LIMIT",
+      "ANALYSIS_GLOBAL_DAILY_LIMIT",
+    ])
+      vi.stubEnv(name, "");
+    expect(hasSafeGuestRuntime()).toBe(true);
+    expect(hasSafeAnalysisRuntime()).toBe(false);
+  });
+
+  it("allows cleanup without provider, session, quota, or rate settings", () => {
+    setSafeEnvironment();
+    for (const name of [
+      "OPENAI_API_KEY",
+      "OPENAI_BASE_URL",
+      "AI_MODEL",
+      "SESSION_PASSWORD",
+      "RATE_LIMIT_SALT",
+      "ANALYSIS_WORKSPACE_DAILY_LIMIT",
+      "ANALYSIS_IP_DAILY_LIMIT",
+      "ANALYSIS_GLOBAL_DAILY_LIMIT",
+    ])
+      vi.stubEnv(name, "");
+    expect(hasSafeCleanupRuntime()).toBe(true);
+    expect(hasSafeAnalysisRuntime()).toBe(false);
+  });
+
+  it("requires database and cron secret for cleanup", () => {
+    setSafeEnvironment();
+    vi.stubEnv("CRON_SECRET", "");
+    expect(hasSafeCleanupRuntime()).toBe(false);
+    vi.stubEnv("CRON_SECRET", "cron-secret");
+    vi.stubEnv("DATABASE_URL", "");
+    expect(hasSafeCleanupRuntime()).toBe(false);
   });
 });

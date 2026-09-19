@@ -94,4 +94,66 @@ describe("useAnalysis HTTP lifecycle", () => {
     act(() => result.current.retry());
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+
+  it("synchronously clears a completed report when the accepted source changes", async () => {
+    vi.stubGlobal("crypto", { randomUUID: () => key });
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+      .mockResolvedValueOnce(Response.json({ report }));
+    vi.stubGlobal("fetch", fetch);
+    const replacement = { ...source, id: "replacement-source" };
+    const { result, rerender } = renderHook(
+      ({ acceptedSource }) => useAnalysis(acceptedSource),
+      { initialProps: { acceptedSource: source } },
+    );
+    await act(async () => result.current.run());
+    expect(result.current.state.status).toBe("ready");
+    rerender({ acceptedSource: replacement });
+    expect(result.current.state).toEqual({ status: "idle" });
+  });
+
+  it("aborts an in-flight request when the accepted source is replaced", async () => {
+    vi.stubGlobal("crypto", { randomUUID: () => key });
+    let requestSignal: AbortSignal | undefined;
+    const fetch = vi.fn(
+      (_url: string, options: { signal?: AbortSignal } | undefined) =>
+        new Promise<Response>((_resolve, reject) => {
+          requestSignal = options?.signal;
+          requestSignal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const replacement = { ...source, id: "replacement-source" };
+    const { result, rerender } = renderHook(
+      ({ acceptedSource }) => useAnalysis(acceptedSource),
+      { initialProps: { acceptedSource: source } },
+    );
+    act(() => void result.current.run());
+    expect(requestSignal?.aborted).toBe(false);
+    rerender({ acceptedSource: replacement });
+    expect(requestSignal?.aborted).toBe(true);
+    expect(result.current.state).toEqual({ status: "idle" });
+  });
+
+  it("clears an analysis error when the accepted source changes", async () => {
+    vi.stubGlobal("crypto", { randomUUID: () => key });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ code: "unavailable" }, { status: 503 }),
+      ),
+    );
+    const replacement = { ...source, id: "replacement-source" };
+    const { result, rerender } = renderHook(
+      ({ acceptedSource }) => useAnalysis(acceptedSource),
+      { initialProps: { acceptedSource: source } },
+    );
+    await act(async () => result.current.run());
+    expect(result.current.state.status).toBe("error");
+    rerender({ acceptedSource: replacement });
+    expect(result.current.state).toEqual({ status: "idle" });
+  });
 });
