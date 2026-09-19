@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ONBOARDING_STORAGE_KEY,
   readOnboardingPreference,
@@ -24,5 +24,22 @@ describe("onboarding preference", () => {
   it("ignores unknown versions or values", () => {
     window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "unknown");
     expect(readOnboardingPreference()).toBeUndefined();
+  });
+
+  it("keeps a session preference when browser storage is unavailable", () => {
+    const getItem = vi
+      .spyOn(window.localStorage, "getItem")
+      .mockImplementation(() => {
+        throw new Error("blocked");
+      });
+    const setItem = vi
+      .spyOn(window.localStorage, "setItem")
+      .mockImplementation(() => {
+        throw new Error("blocked");
+      });
+    writeOnboardingPreference("skipped");
+    expect(readOnboardingPreference()).toBe("skipped");
+    getItem.mockRestore();
+    setItem.mockRestore();
   });
 });

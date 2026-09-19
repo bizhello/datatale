@@ -75,6 +75,7 @@ export function AskDataPanel({ send }: AskDataPanelProps) {
 
   return (
     <Surface
+      data-onboarding-ask="true"
       className={styles.panel ?? ""}
       id="onboarding-ask-data"
       variant="default"

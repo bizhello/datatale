@@ -116,6 +116,32 @@ footer {
   font-size: 0.78rem;
 }
 
+.onboarding-welcome {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: 0 0.75rem 2.5rem rgb(23 32 51 / 12%);
+  margin: 1rem auto;
+  max-width: 38rem;
+  padding: 1.25rem;
+}
+
+.onboarding-welcome h2 {
+  color: var(--foreground);
+  font-family: var(--font-display), serif;
+  margin: 0;
+}
+
+.onboarding-welcome p {
+  color: var(--muted);
+}
+
+.onboarding-welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .onboarding-popover {
   border: 1px solid var(--line);
   border-radius: 1rem;

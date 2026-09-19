@@ -2,13 +2,16 @@
 
 import { Button } from "@heroui/react";
 import { type DriveStep, driver, type PopoverDOM } from "driver.js";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   readOnboardingPreference,
   writeOnboardingPreference,
 } from "../model/onboarding-preference";
 
-type OnboardingTourProps = { hydrated: boolean };
+type OnboardingTourProps = {
+  hydrated: boolean;
+  onSessionChange: (active: boolean) => void;
+};
 type TourAction = "completed" | "skipped";
 
 const tourSteps: ReadonlyArray<DriveStep> = [
@@ -43,11 +46,11 @@ const tourSteps: ReadonlyArray<DriveStep> = [
     },
   },
   {
-    element: "#onboarding-analysis-flow",
+    element: ".onboarding-demo-analysis",
     popover: {
       title: "Проверьте и запустите анализ",
       description:
-        "После проверки источника здесь появится кнопка запуска анализа.",
+        "После проверки источника здесь появляется готовый результат анализа.",
     },
   },
   {
@@ -58,7 +61,7 @@ const tourSteps: ReadonlyArray<DriveStep> = [
     },
   },
   {
-    element: "#onboarding-chart-expand",
+    element: ".onboarding-demo-workspace .chart-heading button",
     popover: {
       title: "Изучайте диаграммы",
       description:
@@ -66,7 +69,7 @@ const tourSteps: ReadonlyArray<DriveStep> = [
     },
   },
   {
-    element: "#onboarding-ask-data",
+    element: ".onboarding-demo-workspace [data-onboarding-ask]",
     popover: {
       title: "Спросите данные",
       description:
@@ -76,10 +79,11 @@ const tourSteps: ReadonlyArray<DriveStep> = [
 ];
 
 function availableSteps() {
-  return tourSteps.filter((step) => {
-    if (typeof step.element !== "string") return true;
-    return document.querySelector(step.element) !== null;
-  });
+  return tourSteps.filter(
+    (step) =>
+      typeof step.element !== "string" ||
+      document.querySelector(step.element) !== null,
+  );
 }
 
 function prefersReducedMotion() {
@@ -98,19 +102,40 @@ function addSkipButton(popover: PopoverDOM, skip: () => void) {
   popover.footerButtons.prepend(button);
 }
 
-export function OnboardingTour({ hydrated }: OnboardingTourProps) {
+export function OnboardingTour({
+  hydrated,
+  onSessionChange,
+}: OnboardingTourProps) {
   const driverRef = useRef<ReturnType<typeof driver> | undefined>(undefined);
   const actionRef = useRef<TourAction | undefined>(undefined);
+  const focusRef = useRef<HTMLElement | undefined>(undefined);
+  const replayRef = useRef<HTMLButtonElement>(null);
+  const welcomeStartRef = useRef<HTMLButtonElement>(null);
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [pendingStart, setPendingStart] = useState(false);
 
-  const start = useCallback((initial = false) => {
+  const finish = useCallback((action: TourAction) => {
+    if (actionRef.current) return;
+    actionRef.current = action;
+    writeOnboardingPreference(action);
+  }, []);
+
+  const restoreFocus = useCallback(() => {
+    const target = focusRef.current;
+    if (target?.isConnected) target.focus();
+    else replayRef.current?.focus();
+    focusRef.current = undefined;
+  }, []);
+
+  const startDriver = useCallback(() => {
     const steps = availableSteps();
-    if (!steps.length) return;
+    if (!steps.length) {
+      finish("skipped");
+      onSessionChange(false);
+      restoreFocus();
+      return;
+    }
     actionRef.current = undefined;
-    const finish = (action: TourAction) => {
-      if (actionRef.current) return;
-      actionRef.current = action;
-      writeOnboardingPreference(action);
-    };
     const skip = () => {
       finish("skipped");
       driverRef.current?.destroy();
@@ -131,9 +156,12 @@ export function OnboardingTour({ hydrated }: OnboardingTourProps) {
       onPopoverRender: (popover) => addSkipButton(popover, skip),
       onCloseClick: skip,
       onDestroyStarted: (_element, _step, options) => {
-        if (options.driver.isLastStep()) finish("completed");
-        else finish("skipped");
+        if (!actionRef.current) finish("skipped");
         options.driver.destroy();
+      },
+      onDestroyed: () => {
+        onSessionChange(false);
+        restoreFocus();
       },
       onDoneClick: (_element, _step, options) => {
         finish("completed");
@@ -142,25 +170,69 @@ export function OnboardingTour({ hydrated }: OnboardingTourProps) {
     });
     driverRef.current = instance;
     instance.drive();
-    if (initial) window.setTimeout(() => instance.refresh(), 0);
-  }, []);
+  }, [finish, onSessionChange, restoreFocus]);
 
   useEffect(() => {
-    if (!hydrated || readOnboardingPreference()) return;
-    const timer = window.setTimeout(() => start(true), 0);
+    if (!pendingStart) return;
+    const timer = window.setTimeout(() => {
+      setPendingStart(false);
+      startDriver();
+    }, 0);
     return () => window.clearTimeout(timer);
-  }, [hydrated, start]);
+  }, [pendingStart, startDriver]);
 
+  useEffect(() => {
+    if (hydrated && !readOnboardingPreference()) setWelcomeOpen(true);
+  }, [hydrated]);
   useEffect(() => () => driverRef.current?.destroy(), []);
 
+  const begin = (trigger: HTMLElement | null) => {
+    focusRef.current = trigger ?? replayRef.current ?? undefined;
+    setWelcomeOpen(false);
+    onSessionChange(true);
+    setPendingStart(true);
+  };
+  const skipWelcome = () => {
+    finish("skipped");
+    setWelcomeOpen(false);
+    replayRef.current?.focus();
+  };
+
   return (
-    <Button
-      aria-label="Открыть знакомство с DataTale"
-      className="onboarding-replay"
-      variant="tertiary"
-      onPress={() => start()}
-    >
-      Как это работает?
-    </Button>
+    <>
+      <Button
+        ref={replayRef}
+        aria-label="Открыть знакомство с DataTale"
+        className="onboarding-replay"
+        variant="tertiary"
+        onPress={() => begin(replayRef.current)}
+      >
+        Как это работает?
+      </Button>
+      {welcomeOpen && (
+        <section
+          aria-labelledby="onboarding-welcome-title"
+          className="onboarding-welcome"
+          role="dialog"
+        >
+          <h2 id="onboarding-welcome-title">Добро пожаловать в DataTale</h2>
+          <p>
+            За минуту покажем, как загрузить источник, прочитать анализ и задать
+            вопрос данным.
+          </p>
+          <div className="onboarding-welcome-actions">
+            <Button
+              ref={welcomeStartRef}
+              onPress={() => begin(welcomeStartRef.current)}
+            >
+              Начать знакомство
+            </Button>
+            <Button variant="tertiary" onPress={skipWelcome}>
+              Пропустить
+            </Button>
+          </div>
+        </section>
+      )}
+    </>
   );
 }

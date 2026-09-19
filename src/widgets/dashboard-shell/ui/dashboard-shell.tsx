@@ -9,11 +9,13 @@ import { ImportWorkspace } from "@/features/import-data";
 import { OnboardingTour } from "@/features/onboarding";
 import { AskDataPanel, createAskDataSend } from "@/features/query-report";
 import { ThemeControl } from "@/shared/ui/theme-control";
+import { OnboardingDemo } from "./onboarding-demo";
 
 export function DashboardShell() {
   const [mounted, setMounted] = useState(false);
   const [source, setSource] = useState<Dataset | TextSource>();
   const [workspaceVersion, setWorkspaceVersion] = useState(0);
+  const [onboardingActive, setOnboardingActive] = useState(false);
   useEffect(() => setMounted(true), []);
   return (
     <div className="page-shell" data-hydrated={mounted ? "true" : undefined}>
@@ -52,13 +54,17 @@ export function DashboardShell() {
             }}
           />
         )}
+        {onboardingActive && <OnboardingDemo />}
       </main>
       <footer>
         <span>DataTale / From data to a point of view</span>
         <span>
           <BarChart3 size={14} aria-hidden="true" /> Проверенный источник
         </span>
-        <OnboardingTour hydrated={mounted} />
+        <OnboardingTour
+          hydrated={mounted}
+          onSessionChange={setOnboardingActive}
+        />
       </footer>
     </div>
   );
