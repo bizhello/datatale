@@ -415,16 +415,29 @@ footer {
   border-radius: 4px 4px 2px 2px;
   background: color-mix(in srgb, var(--accent) 45%, transparent);
 }
-.liquid-mini-chart i:nth-child(1) { height: 14px; }
-.liquid-mini-chart i:nth-child(2) { height: 22px; }
-.liquid-mini-chart i:nth-child(3) { height: 19px; }
-.liquid-mini-chart i:nth-child(4) { height: 32px; background: var(--accent); }
+.liquid-mini-chart i:nth-child(1) {
+  height: 14px;
+}
+.liquid-mini-chart i:nth-child(2) {
+  height: 22px;
+}
+.liquid-mini-chart i:nth-child(3) {
+  height: 19px;
+}
+.liquid-mini-chart i:nth-child(4) {
+  height: 32px;
+  background: var(--accent);
+}
 .liquid-preview-note {
   margin: 20px 0 0;
 }
 @keyframes liquid-drift {
-  from { transform: translate3d(-1.5rem, -0.5rem, 0) scale(0.96); }
-  to { transform: translate3d(1.5rem, 1rem, 0) scale(1.04); }
+  from {
+    transform: translate3d(-1.5rem, -0.5rem, 0) scale(0.96);
+  }
+  to {
+    transform: translate3d(1.5rem, 1rem, 0) scale(1.04);
+  }
 }
 .section-heading {
   max-width: 720px;
