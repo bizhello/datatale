@@ -53,12 +53,13 @@ Use direct relative imports inside a slice and preserve its narrow public API. D
 | Input selection, dialogs, local filters | React useState, lifted to the nearest shared parent when needed |
 | Parse/analyze/cancel/retry transitions | Feature-owned useReducer with a discriminated state union |
 | Current accepted source and rendered report | Dashboard/widget composition plus feature-owned hooks |
+| Saved-report list/detail request lifecycle | Dashboard widget model hook with abort and request ownership guards |
 | Active chat messages and request lifecycle | `query-report` feature hook; persist completed results through the server boundary |
 | Theme | next-themes |
 | Tour completion/dismissal | Onboarding feature's versioned localStorage preference |
 | Durable source, report and message records | Server-side storage |
 
-Use one owner for each value. Do not maintain two live copies of the chat transcript. Clear private source/report/chat state when guest access ends or data is deleted. A future report-history UI may introduce TanStack Query only with its first real list/detail consumer.
+Use one owner for each value. Do not maintain two live copies of the chat transcript. Clear private source/report/chat state when guest access ends or data is deleted. The bounded guest history uses the existing widget model hook and native fetch lifecycle. TanStack Query remains unjustified until caching or cross-screen synchronization creates a second real consumer.
 
 Pass state through feature/widget composition before introducing context. Add narrowly scoped context only for a real shared subtree. Zustand is the preferred candidate if implementation demonstrates substantial cross-tree client state that these owners cannot handle cleanly; introduce it through a reviewed decision with a concrete consumer. The MVP does not currently require Zustand or Redux.
 
@@ -77,6 +78,7 @@ flowchart LR
   Receipt --> UI[Typed renderer registry]
   Receipt --> Save[Persist immutable source and report]
   Save --> Chat[Owner-scoped grounded chat]
+  Save --> History[Owner-scoped history and reopen]
 ```
 
 | Record | Ownership and contents |
@@ -101,13 +103,12 @@ Use a server-only secret and explicit TTL settings matching PRODUCT. Dev HTTP co
 POST/DELETE /api/guest            implemented
 POST        /api/analyze          implemented
 GET         /api/cron/cleanup     implemented, Bearer CRON_SECRET
-POST/GET    /api/reports          future history list/detail API
-GET/DELETE  /api/reports/:id      future report management API
+GET         /api/saved-analysis   implemented owner-scoped summaries
+GET         /api/saved-analysis/:id implemented validated report/transcript detail
 POST        /api/chat              implemented, owner-scoped grounded chat
-GET         /api/chat/history      future explicit history API
 ```
 
-Mutations require same-origin requests. `/api/analyze` revalidates the canonical source, hashes the IP only as an abuse signal, atomically claims quotas and an idempotency receipt, and validates replayed reports. The client creates the guest workspace before analysis and never receives its ID. `/api/chat` accepts only an analysis UUID, message UUID and question; it loads owner-scoped source/report/history and never trusts browser-supplied facts. A user message consumes one of ten workspace chat turns per UTC day; assistant messages and idempotent replays do not consume quota.
+Mutations require same-origin requests. `/api/analyze` revalidates the canonical source, hashes the IP only as an abuse signal, atomically claims quotas and an idempotency receipt, and validates replayed reports. The client creates the guest workspace before analysis and never receives its ID. Saved-analysis GET routes read the sealed cookie, require an active workspace, validate every persisted source/report/message boundary, return private uncached responses, and never create a workspace or claim AI quota. `/api/chat` accepts only an analysis UUID, message UUID and question; it loads owner-scoped source/report/history and never trusts browser-supplied facts. A user message consumes one of ten workspace chat turns per UTC day; assistant messages and idempotent replays do not consume quota.
 
 ## Failure and extension boundaries
 
