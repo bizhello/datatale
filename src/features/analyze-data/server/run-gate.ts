@@ -90,11 +90,7 @@ export class RunGate<Report = unknown> {
     private readonly config: RunGateConfig,
   ) {}
   claim(input: ClaimInput) {
-    const config = {
-      ...defaults,
-      ...this.config,
-      codeDailyLimit: this.config.codeDailyLimit ?? 10,
-    };
+    const config = { ...defaults, ...this.config };
     return validConfig(config)
       ? this.repository.claim(input, config)
       : Promise.resolve({ kind: "unavailable" } as const);

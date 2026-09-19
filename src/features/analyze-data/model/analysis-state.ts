@@ -14,6 +14,7 @@ export type AnalysisErrorCode =
   | "invalid-source"
   | "network"
   | "unknown";
+export type QuotaScope = "workspace" | "ip" | "code" | "global";
 
 export type AnalysisPhase = "session-setup" | "processing";
 
@@ -32,6 +33,7 @@ export type AnalysisState =
       error: AnalysisErrorCode;
       retryable: boolean;
       retryKey?: string;
+      quotaScope?: QuotaScope;
     };
 
 export type AnalysisAction =
@@ -44,6 +46,7 @@ export type AnalysisAction =
       error: AnalysisErrorCode;
       retryable: boolean;
       retryKey?: string;
+      quotaScope?: QuotaScope;
     }
   | { type: "cancel"; requestId: number }
   | { type: "reset" };
@@ -74,6 +77,7 @@ export function analysisReducer(
     error: action.error,
     retryable: action.retryable,
     ...(action.retryKey ? { retryKey: action.retryKey } : {}),
+    ...(action.quotaScope ? { quotaScope: action.quotaScope } : {}),
   };
 }
 

@@ -79,4 +79,16 @@ describe("analysis request lifecycle", () => {
       responseError(new Response(null, { status: 502 }), { code: "provider" }),
     ).toEqual({ code: "provider", retry: "new" });
   });
+
+  it.each(["workspace", "ip", "code", "global"] as const)(
+    "preserves the %s quota scope",
+    (scope) => {
+      expect(
+        responseError(new Response(null, { status: 429 }), {
+          code: "quota",
+          scope,
+        }),
+      ).toEqual({ code: "quota", retry: "none", quotaScope: scope });
+    },
+  );
 });

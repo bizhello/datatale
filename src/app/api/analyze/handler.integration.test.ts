@@ -130,6 +130,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     readWorkspace: async () => workspace,
     isWorkspaceActive: async () => true,
     hashIp: vi.fn(() => "hashed-ip"),
+    validCodeFingerprint: () => true,
     gate: () => new TestGate(),
     analyze,
     ...overrides,

@@ -13,19 +13,32 @@ import {
   type AnalysisErrorCode,
   analysisReducer,
   initialAnalysisState,
+  type QuotaScope,
 } from "./analysis-state";
 
-type AnalyzeResponse = { report?: unknown; code?: unknown };
+type AnalyzeResponse = { report?: unknown; code?: unknown; scope?: unknown };
 
 type RetryMode = "same" | "new" | "none";
 
 export function responseError(
   response: Response | undefined,
   value?: AnalyzeResponse,
-): { code: AnalysisErrorCode; retry: RetryMode } {
+): { code: AnalysisErrorCode; retry: RetryMode; quotaScope?: QuotaScope } {
   if (!response) return { code: "network", retry: "same" };
-  if (response.status === 429 || value?.code === "quota")
-    return { code: "quota", retry: "none" };
+  if (response.status === 429 || value?.code === "quota") {
+    const quotaScope =
+      value?.scope === "workspace" ||
+      value?.scope === "ip" ||
+      value?.scope === "code" ||
+      value?.scope === "global"
+        ? value.scope
+        : undefined;
+    return {
+      code: "quota",
+      retry: "none",
+      ...(quotaScope ? { quotaScope } : {}),
+    };
+  }
   if (value?.code === "timeout") return { code: "timeout", retry: "none" };
   if (value?.code === "unavailable")
     return { code: "unavailable", retry: "same" };
@@ -87,6 +100,7 @@ export function useAnalysis(source: Dataset | TextSource) {
             error: mapped.code,
             retryable: mapped.retry !== "none",
             ...(mapped.retry === "same" ? { retryKey: key } : {}),
+            ...(mapped.quotaScope ? { quotaScope: mapped.quotaScope } : {}),
           });
           return;
         }
@@ -109,6 +123,7 @@ export function useAnalysis(source: Dataset | TextSource) {
             error: mapped.code,
             retryable: mapped.retry !== "none",
             ...(mapped.retry === "same" ? { retryKey: key } : {}),
+            ...(mapped.quotaScope ? { quotaScope: mapped.quotaScope } : {}),
           });
           return;
         }

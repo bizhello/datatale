@@ -32,6 +32,7 @@ export function hasSafeAnalysisRuntime() {
       nonblank(process.env.RATE_LIMIT_SALT) &&
       positiveInteger(process.env.ANALYSIS_WORKSPACE_DAILY_LIMIT) &&
       positiveInteger(process.env.ANALYSIS_IP_DAILY_LIMIT) &&
+      positiveInteger(process.env.ANALYSIS_CODE_DAILY_LIMIT) &&
       positiveInteger(process.env.ANALYSIS_GLOBAL_DAILY_LIMIT),
   );
 }

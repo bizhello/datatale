@@ -3,7 +3,10 @@ import { Button } from "@heroui/react";
 import { useEffect, useState } from "react";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import { ReportDashboard } from "@/entities/report/ui";
-import { analysisErrorMessages } from "../model/analysis-state";
+import {
+  analysisErrorMessages,
+  type QuotaScope,
+} from "../model/analysis-state";
 import { useAnalysis } from "../model/use-analysis";
 import { AnalysisProgress } from "./analysis-progress";
 import { InviteAccessModal } from "./invite-access-modal";
@@ -19,7 +22,11 @@ export function AnalyzeWorkspace({ source, onDelete }: AnalyzeWorkspaceProps) {
   );
   const [accessOpen, setAccessOpen] = useState(false);
   useEffect(() => {
-    if (state.status === "error" && state.error === "quota")
+    if (
+      state.status === "error" &&
+      state.error === "quota" &&
+      (state.quotaScope === "workspace" || state.quotaScope === "ip")
+    )
       setAccessOpen(true);
   }, [state]);
   const deleteAll = async () => {
@@ -58,7 +65,7 @@ export function AnalyzeWorkspace({ source, onDelete }: AnalyzeWorkspaceProps) {
         <div className="error-state" role="alert">
           <div>
             <h2>Анализ не завершён</h2>
-            <p>{analysisErrorMessages[state.error]}</p>
+            <p>{errorMessage(state.error, state.quotaScope)}</p>
             {state.retryable && <Button onPress={retry}>Повторить</Button>}
           </div>
         </div>
@@ -90,4 +97,15 @@ export function AnalyzeWorkspace({ source, onDelete }: AnalyzeWorkspaceProps) {
       </Button>
     </section>
   );
+}
+
+function errorMessage(
+  error: keyof typeof analysisErrorMessages,
+  scope?: QuotaScope,
+) {
+  if (error !== "quota") return analysisErrorMessages[error];
+  if (scope === "code")
+    return "Лимит этого кода приглашения на сегодня исчерпан.";
+  if (scope === "global") return "Общий лимит анализов на сегодня исчерпан.";
+  return analysisErrorMessages.quota;
 }

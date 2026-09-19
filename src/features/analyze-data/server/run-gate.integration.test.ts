@@ -27,6 +27,7 @@ const setup = () => {
     gate: new RunGate(repository, {
       workspaceDailyLimit: 2,
       ipDailyLimit: 3,
+      codeDailyLimit: 10,
       globalDailyLimit: 4,
     }),
   };
@@ -149,6 +150,7 @@ describe("RunGate lifecycle", () => {
     const gate = new RunGate(new MemoryRunGateRepository(), {
       workspaceDailyLimit: 0,
       ipDailyLimit: 1,
+      codeDailyLimit: 10,
       globalDailyLimit: 1,
     });
     await expect(gate.claim(input())).resolves.toEqual({ kind: "unavailable" });

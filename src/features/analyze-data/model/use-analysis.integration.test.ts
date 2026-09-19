@@ -95,6 +95,27 @@ describe("useAnalysis HTTP lifecycle", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  it("preserves a terminal quota scope in client state", async () => {
+    vi.stubGlobal("crypto", { randomUUID: () => key });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+        .mockResolvedValueOnce(
+          Response.json({ code: "quota", scope: "code" }, { status: 429 }),
+        ),
+    );
+    const { result } = renderHook(() => useAnalysis(source));
+    await act(async () => result.current.run());
+    expect(result.current.state).toMatchObject({
+      status: "error",
+      error: "quota",
+      quotaScope: "code",
+      retryable: false,
+    });
+  });
+
   it("synchronously clears a completed report when the accepted source changes", async () => {
     vi.stubGlobal("crypto", { randomUUID: () => key });
     const fetch = vi

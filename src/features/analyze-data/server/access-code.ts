@@ -12,7 +12,12 @@ export function inviteFingerprint(code: string) {
 }
 
 export function isValidInviteCode(code: string) {
-  const candidate = Buffer.from(inviteFingerprint(code), "hex");
+  return isValidInviteFingerprint(inviteFingerprint(code));
+}
+
+export function isValidInviteFingerprint(fingerprint: string) {
+  if (!/^[a-f0-9]{64}$/i.test(fingerprint)) return false;
+  const candidate = Buffer.from(fingerprint, "hex");
   let matched = false;
   for (const configured of inviteCodeHashes()) {
     const expected = Buffer.from(configured, "hex");

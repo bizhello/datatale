@@ -20,6 +20,42 @@ const source: Dataset = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("analysis workspace deletion", () => {
+  it("opens invite access only for workspace quota and preserves the selected source", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+      .mockResolvedValueOnce(
+        Response.json({ code: "quota", scope: "workspace" }, { status: 429 }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    render(<AnalyzeWorkspace source={source} onDelete={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Запустить анализ" }));
+    expect(
+      await screen.findByRole("heading", { name: "Продолжить анализ" }),
+    ).toBeVisible();
+    expect(screen.getByLabelText("Код приглашения")).toBeVisible();
+  });
+
+  it("keeps code quota terminal and does not reopen the invite modal", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+      .mockResolvedValueOnce(
+        Response.json({ code: "quota", scope: "code" }, { status: 429 }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    render(<AnalyzeWorkspace source={source} onDelete={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Запустить анализ" }));
+    expect(
+      await screen.findByText(
+        "Лимит этого кода приглашения на сегодня исчерпан.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Продолжить анализ" }),
+    ).toBeNull();
+  });
+
   it("clears local-only input when no guest workspace exists", async () => {
     const onDelete = vi.fn();
     vi.stubGlobal(

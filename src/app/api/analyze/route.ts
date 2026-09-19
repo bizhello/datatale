@@ -7,6 +7,7 @@ import {
   analyzeSource,
   getRunGate,
   hashIp,
+  isValidInviteFingerprint,
 } from "@/features/analyze-data/server";
 import { hasSafeAnalysisRuntime } from "@/shared/config";
 import { createAnalyzeHandler } from "./handler";
@@ -19,6 +20,7 @@ export const POST = createAnalyzeHandler({
   readInviteCodeFingerprint,
   isWorkspaceActive: (id, now) => workspaceRepository.isActive(id, now),
   hashIp,
+  validCodeFingerprint: isValidInviteFingerprint,
   gate: getRunGate,
   analyze: analyzeSource,
 });

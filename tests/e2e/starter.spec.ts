@@ -174,7 +174,6 @@ test("shows honest indeterminate analysis progress while the server request is p
     .click();
   await page.getByRole("button", { name: "Продолжить к анализу" }).click();
   await page.getByRole("button", { name: "Запустить анализ" }).click();
-
   await expect(page.getByRole("status")).toHaveText("Выбор и проверка плана…");
   await expect(
     page.getByRole("progressbar", { name: "Ход анализа" }),
@@ -207,6 +206,80 @@ test("shows honest indeterminate analysis progress while the server request is p
   await expect(
     page.getByRole("button", { name: "Запустить снова" }),
   ).toBeVisible();
+});
+
+test("unlocks workspace quota with invite retry and preserves the source", async ({
+  page,
+}) => {
+  let analysisCalls = 0;
+  await page.route("**/api/guest", async (route) => {
+    await route.fulfill({ json: { expiresAt: "2026-10-19T00:00:00.000Z" } });
+  });
+  await page.route("**/api/analyze", async (route) => {
+    analysisCalls += 1;
+    if (analysisCalls === 1) {
+      await route.fulfill({
+        status: 429,
+        json: { code: "quota", scope: "workspace" },
+      });
+      return;
+    }
+    await route.fulfill({ json: { report: dashboardReport } });
+  });
+  await page.route("**/api/access", async (route) => {
+    const body = route.request().postDataJSON() as { code?: string };
+    await route.fulfill(
+      body.code === "wrong"
+        ? { status: 401, json: { code: "invalid-code" } }
+        : { json: { unlocked: true } },
+    );
+  });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Загрузить синтетический демо-набор" })
+    .click();
+  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
+  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Продолжить анализ" }),
+  ).toBeVisible();
+  await page.getByLabel("Код приглашения").fill("wrong");
+  await page.getByRole("button", { name: "Разблокировать анализ" }).click();
+  await expect(
+    page.getByText("Код не принят. Проверьте его и повторите."),
+  ).toBeVisible();
+  await page.getByLabel("Код приглашения").fill("valid-invite");
+  await page.getByRole("button", { name: "Разблокировать анализ" }).click();
+  await expect.poll(() => analysisCalls).toBe(2);
+  await expect(
+    page.getByRole("heading", { name: /Выручка выросла/ }),
+  ).toBeVisible();
+});
+
+test("keeps code quota terminal without opening invite modal", async ({
+  page,
+}) => {
+  await page.route("**/api/guest", async (route) => {
+    await route.fulfill({ json: { expiresAt: "2026-10-19T00:00:00.000Z" } });
+  });
+  await page.route("**/api/analyze", async (route) => {
+    await route.fulfill({
+      status: 429,
+      json: { code: "quota", scope: "code" },
+    });
+  });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Загрузить синтетический демо-набор" })
+    .click();
+  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
+  await page.getByRole("button", { name: "Запустить анализ" }).click();
+  await expect(
+    page.getByText("Лимит этого кода приглашения на сегодня исчерпан."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Продолжить анализ" }),
+  ).toHaveCount(0);
 });
 
 test("uploads a CSV in the browser and labels its bounded preview", async ({

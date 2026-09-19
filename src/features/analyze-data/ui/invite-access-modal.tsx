@@ -1,5 +1,12 @@
 "use client";
-import { Button, Modal } from "@heroui/react";
+import {
+  Button,
+  ErrorMessage,
+  Input,
+  Label,
+  Modal,
+  TextField,
+} from "@heroui/react";
 import type { FormEvent } from "react";
 import { useState } from "react";
 
@@ -47,22 +54,21 @@ export function InviteAccessModal({
                 Бесплатный анализ на сегодня уже использован. Введите код
                 приглашения, чтобы продолжить.
               </p>
-              <form onSubmit={submit}>
-                <label>
-                  <span>Код приглашения</span>
-                  <input
-                    required
-                    value={code}
-                    onChange={(event) => setCode(event.target.value)}
-                    autoComplete="off"
-                    aria-invalid={status === "error"}
-                  />
+              <form noValidate onSubmit={submit}>
+                <TextField
+                  isInvalid={status === "error"}
+                  value={code}
+                  onChange={setCode}
+                  isRequired
+                >
+                  <Label>Код приглашения</Label>
+                  <Input autoComplete="off" />
                   {status === "error" && (
-                    <span role="alert">
+                    <ErrorMessage>
                       Код не принят. Проверьте его и повторите.
-                    </span>
+                    </ErrorMessage>
                   )}
-                </label>
+                </TextField>
                 <Button type="submit" isDisabled={status === "submitting"}>
                   {status === "submitting"
                     ? "Проверяем…"

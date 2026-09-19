@@ -15,6 +15,7 @@ const safeEnvironment = {
   CRON_SECRET: "test-cron-secret",
   ANALYSIS_WORKSPACE_DAILY_LIMIT: "2",
   ANALYSIS_IP_DAILY_LIMIT: "3",
+  ANALYSIS_CODE_DAILY_LIMIT: "10",
   ANALYSIS_GLOBAL_DAILY_LIMIT: "4",
 } as const;
 
@@ -80,6 +81,7 @@ describe("analysis runtime guard", () => {
       "CRON_SECRET",
       "ANALYSIS_WORKSPACE_DAILY_LIMIT",
       "ANALYSIS_IP_DAILY_LIMIT",
+      "ANALYSIS_CODE_DAILY_LIMIT",
       "ANALYSIS_GLOBAL_DAILY_LIMIT",
     ])
       vi.stubEnv(name, "");
@@ -97,6 +99,7 @@ describe("analysis runtime guard", () => {
       "RATE_LIMIT_SALT",
       "ANALYSIS_WORKSPACE_DAILY_LIMIT",
       "ANALYSIS_IP_DAILY_LIMIT",
+      "ANALYSIS_CODE_DAILY_LIMIT",
       "ANALYSIS_GLOBAL_DAILY_LIMIT",
     ])
       vi.stubEnv(name, "");

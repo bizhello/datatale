@@ -46,6 +46,7 @@ type AnalyzeHandlerDependencies = Readonly<{
   readInviteCodeFingerprint?(): Promise<string | undefined>;
   isWorkspaceActive(id: string, now: Date): Promise<boolean>;
   hashIp(ip: string): string | undefined;
+  validCodeFingerprint?(fingerprint: string): boolean;
   gate(): AnalyzeGate;
   analyze(source: CanonicalSource): Promise<FinalReport>;
 }>;
@@ -184,7 +185,13 @@ export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
     let outcome: RunGateOutcome<FinalReport>;
     try {
       gate = dependencies.gate();
-      const codeFingerprint = await dependencies.readInviteCodeFingerprint?.();
+      const storedCodeFingerprint =
+        await dependencies.readInviteCodeFingerprint?.();
+      const codeFingerprint =
+        storedCodeFingerprint &&
+        (dependencies.validCodeFingerprint?.(storedCodeFingerprint) ?? true)
+          ? storedCodeFingerprint
+          : undefined;
       outcome = await gate.claim({
         workspaceId: workspace.id,
         ipHash,
