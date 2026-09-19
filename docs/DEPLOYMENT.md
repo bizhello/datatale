@@ -6,10 +6,10 @@
 
 Verified on 2026-09-19:
 
-- Vercel project `datatale` deploys `bizhello/datatale` from `main`. Production commit `fd464cb` is Ready; [datatale.bizhov.ru](https://datatale.bizhov.ru) and [datatale.vercel.app](https://datatale.vercel.app) return HTTPS 200.
+- Vercel project `datatale` deploys `bizhello/datatale` from `main`. Production commit `5a10043` is Ready; [datatale.bizhov.ru](https://datatale.bizhov.ru) and [datatale.vercel.app](https://datatale.vercel.app) return HTTPS 200.
 - `vercel.json` allows Git builds only for `main`. Pull-request and branch builds are reported as ignored; historical and canceled preview deployments were removed, leaving no preview deployments.
-- `bun run build:vercel` runs `bun run db:migrate` before `next build` only when `VERCEL_ENV=production` and `VERCEL_GIT_COMMIT_REF=main`. A production deployment logged `Applied 0 migrations` before a successful build, confirming the automatic guarded path on an already-current schema.
-- Production Neon `datatale-db` is connected in `iad1`; migrations `0001`–`0004` are applied. The next main deployment will apply `0005_strict_report_hero.sql`, which deletes reports written under the previous contract before enforcing the current hero and calculation-provenance shapes in the database.
+- `bun run build:vercel` runs `bun run db:migrate` before `next build` only when `VERCEL_ENV=production` and `VERCEL_GIT_COMMIT_REF=main`. Deployment `dpl_C3edY7uwV1LTXUMGGBsRpQac9pcx` logged `Applied 1 migration.` immediately before `$ next build` and reached Ready.
+- Production Neon `datatale-db` is connected in `iad1`; migrations `0001`–`0005` are applied. Migration `0005_strict_report_hero.sql` deleted reports written under the previous contract, removed the obsolete analysis-claim overload, and enabled database constraints for the current hero and calculation-provenance shapes.
 - Cloudflare is authoritative for DNS. The DNS-only `datatale` CNAME points to Vercel; apex, mail, nameservers, and unrelated records are unchanged.
 - Production uses the OpenAI-compatible gateway at `https://ai-gateway.spiro.vc/v1` with `gpt-5.6-terra`. Live Vercel requests completed table and text analysis and grounded chat successfully.
 - A post-merge table analysis returned HTTP 200 with three hero statements, three metrics, and three charts. Missing-data chat returned the exact refusal with HTTP 200. Desktop Chromium and mobile WebKit onboarding smoke verified the inert welcome, deterministic local demo, Escape/replay, unique IDs, and zero analysis requests.
