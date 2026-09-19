@@ -40,7 +40,7 @@ Production keeps both workspace and salted-IP anonymous limits at one analysis p
 
 ## Migrations
 
-`scripts/migrate.ts` reads ordered migration files, takes a PostgreSQL advisory lock, and stores SHA-256 checksums in `_datatale_migrations`. Each migration runs in its own transaction. The command fails closed on checksum drift, missing or unknown ledger entries, and an empty ledger over a non-empty schema.
+`scripts/migrate.ts` reads ordered migration files, takes a PostgreSQL advisory lock, and stores SHA-256 checksums in `_datatale_migrations`. The complete ordered migration batch runs in one transaction, so a later failure rolls back earlier changes from the same run. The command fails closed on checksum drift, missing or unknown ledger entries, and an empty ledger over a non-empty schema.
 
 Run migrations locally or during recovery with:
 
@@ -48,7 +48,7 @@ Run migrations locally or during recovery with:
 bun run db:migrate
 ```
 
-The Vercel wrapper is deliberately stricter than the command itself: only a production build from `main` may invoke it. Preview, non-main, local, and missing-marker builds continue directly to `next build`. Migration failure stops the deployment. Keep every schema change compatible with the currently serving release because migration completes before Vercel promotes the new build.
+The Vercel wrapper is deliberately stricter than the migration command itself: only a production build from `main` may invoke the migration. Vercel ignores Git builds from branch and pull-request refs before this wrapper runs. A manual or non-production invocation of `bun run build:vercel` skips migration and runs the ordinary Next.js build. Migration failure stops the production deployment. Keep every schema change compatible with the currently serving release because migration completes before Vercel promotes the new build.
 
 ## Retention and cleanup
 
