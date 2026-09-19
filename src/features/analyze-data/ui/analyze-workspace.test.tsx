@@ -20,6 +20,24 @@ const source: Dataset = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("analysis workspace deletion", () => {
+  it("clears local-only input when no guest workspace exists", async () => {
+    const onDelete = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ code: "expired" }, { status: 401 })),
+    );
+    render(<AnalyzeWorkspace source={source} onDelete={onDelete} />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Удалить все данные этого сеанса",
+      }),
+    );
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledOnce());
+    expect(screen.queryByText("Не удалось удалить данные")).toBeNull();
+  });
+
   it("keeps client state after failure and clears it only after a successful retry", async () => {
     const onDelete = vi.fn();
     const fetch = vi

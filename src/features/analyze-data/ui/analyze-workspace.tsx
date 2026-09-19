@@ -19,7 +19,8 @@ export function AnalyzeWorkspace({ source, onDelete }: AnalyzeWorkspaceProps) {
     setDeleteState("deleting");
     try {
       const response = await fetch("/api/guest", { method: "DELETE" });
-      if (!response.ok) throw new Error("Delete failed.");
+      if (!response.ok && response.status !== 401)
+        throw new Error("Delete failed.");
       cancel();
       onDelete();
     } catch {
