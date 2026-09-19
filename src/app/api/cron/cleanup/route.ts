@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { SqlRunGateRepository } from "@/features/analyze-data/server/run-gate-repository";
 import { hasSafeAnalysisRuntime } from "@/shared/config";
 
 export async function GET(request: Request) {
@@ -8,9 +9,9 @@ export async function GET(request: Request) {
   ) {
     return NextResponse.json({ code: "unauthorized" }, { status: 401 });
   }
-  // Repository cleanup is intentionally invoked only from an authenticated cron.
+  const deleted = await new SqlRunGateRepository().cleanup(new Date());
   return NextResponse.json(
-    { deleted: 0 },
+    { deleted },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
