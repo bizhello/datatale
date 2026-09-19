@@ -91,10 +91,10 @@ describe("OnboardingTour", () => {
         {targets()}
       </>,
     );
+    fireEvent.click(screen.getByRole("button", { name: "Пропустить" }));
     const replay = screen.getByRole("button", {
       name: "Открыть знакомство с DataTale",
     });
-    fireEvent.click(screen.getByRole("button", { name: "Пропустить" }));
     expect(window.localStorage.getItem(ONBOARDING_STORAGE_KEY)).toBe("skipped");
     fireEvent.click(replay);
     await waitFor(() => expect(driverState.instance?.drive).toHaveBeenCalled());

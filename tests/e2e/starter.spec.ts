@@ -5,6 +5,12 @@ import { createMultiSheetXlsx } from "../fixtures/import/xlsx";
 
 const analysisId = "00000000-0000-4000-8000-000000000009";
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() =>
+    window.localStorage.setItem("datatale:onboarding:v1", "skipped"),
+  );
+});
+
 const dashboardReport = {
   version: 1,
   hero: [
@@ -144,7 +150,9 @@ test("renders a fixture dashboard and expands charts without another analysis re
     name: "Развернуть По регионам",
   });
   await expandButton.click();
-  const dialog = page.getByRole("dialog").last();
+  const dialog = page.getByRole("dialog").filter({
+    hasText: "Основание графика",
+  });
   await expect(dialog).toBeVisible();
   await expect(
     dialog.getByRole("heading", { name: "Основание графика" }),

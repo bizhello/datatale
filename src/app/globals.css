@@ -112,8 +112,12 @@ footer {
 }
 
 .onboarding-replay {
-  color: var(--accent);
+  color: #102a73;
   font-size: 0.78rem;
+}
+
+.dark .onboarding-replay {
+  color: #eef2ff;
 }
 
 .onboarding-welcome {
@@ -135,24 +139,59 @@ footer {
   visibility: hidden;
 }
 
-.onboarding-welcome .onboarding-start {
+.onboarding-start.onboarding-start,
+.onboarding-start.onboarding-start:hover,
+.onboarding-start.onboarding-start[data-focused],
+.onboarding-start.onboarding-start[data-hovered] {
   background: #2447b8;
   color: #fff;
 }
 
-.dark .onboarding-welcome .onboarding-start {
-  background: #a9baff;
+.onboarding-skip-welcome.onboarding-skip-welcome,
+.onboarding-skip-welcome.onboarding-skip-welcome:hover,
+.onboarding-skip-welcome.onboarding-skip-welcome[data-focused],
+.onboarding-skip-welcome.onboarding-skip-welcome[data-hovered] {
+  color: #0b2865;
+}
+
+.onboarding-welcome-title.onboarding-welcome-title {
+  color: #17213a;
+}
+
+.onboarding-welcome-copy.onboarding-welcome-copy {
+  color: #46546d;
+}
+
+.dark .onboarding-start.onboarding-start,
+.dark .onboarding-start.onboarding-start:hover,
+.dark .onboarding-start.onboarding-start[data-focused],
+.dark .onboarding-start.onboarding-start[data-hovered] {
+  background: #d2d9ff;
   color: #111a35;
 }
 
+.dark .onboarding-skip-welcome.onboarding-skip-welcome,
+.dark .onboarding-skip-welcome.onboarding-skip-welcome:hover,
+.dark .onboarding-skip-welcome.onboarding-skip-welcome[data-focused],
+.dark .onboarding-skip-welcome.onboarding-skip-welcome[data-hovered] {
+  color: #eef2ff;
+}
+
+.dark .onboarding-welcome-title.onboarding-welcome-title {
+  color: #f2f4ff;
+}
+
+.dark .onboarding-welcome-copy.onboarding-welcome-copy {
+  color: #d3d9e7;
+}
+
 .onboarding-welcome h2 {
-  color: var(--foreground);
   font-family: var(--font-display), serif;
   margin: 0;
 }
 
 .onboarding-welcome p {
-  color: var(--muted);
+  margin: 0;
 }
 
 .onboarding-welcome-actions {

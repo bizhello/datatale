@@ -1,23 +1,53 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 const preferenceKey = "datatale:onboarding:v1";
 
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript((key) => {
-    if (!window.sessionStorage.getItem("onboarding-test-initialized")) {
-      window.localStorage.removeItem(key);
-      window.sessionStorage.setItem("onboarding-test-initialized", "true");
-    }
-  }, preferenceKey);
+test.beforeEach(async ({ page }, testInfo) => {
+  await page.addInitScript(
+    ({ key, marker, preserveOnReload }) => {
+      if (!preserveOnReload || !window.sessionStorage.getItem(marker)) {
+        window.localStorage.removeItem(key);
+        window.sessionStorage.setItem(marker, "true");
+      }
+    },
+    {
+      key: preferenceKey,
+      marker: `onboarding-test:${testInfo.title}`,
+      preserveOnReload: testInfo.title.includes("Done completes"),
+    },
+  );
 });
 
 test("shows the welcome, mounts stable demo targets, and restores focus after skip", async ({
   page,
 }) => {
   await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: "Добро пожаловать в DataTale" }),
-  ).toBeVisible();
+  await expect(page.locator(".page-shell")).toHaveAttribute(
+    "data-hydrated",
+    "true",
+  );
+  const welcome = page.getByRole("dialog", {
+    name: "Добро пожаловать в DataTale",
+  });
+  await expect(welcome).toHaveCount(1);
+  await expect(welcome).toBeVisible();
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate((value) => {
+      localStorage.setItem("theme", value);
+      document.documentElement.classList.toggle("dark", value === "dark");
+    }, theme);
+    await page.waitForTimeout(100);
+    const results = await new AxeBuilder({ page })
+      .include(".onboarding-welcome")
+      .analyze();
+    expect(
+      results.violations.filter(({ id }) => id === "color-contrast"),
+    ).toEqual([]);
+  }
+  await expect(page.locator(".page-shell")).toHaveAttribute("inert", "");
+  await page.mouse.click(10, 700);
+  await expect(welcome).toBeVisible();
   const replay = page.getByRole("button", {
     name: "Открыть знакомство с DataTale",
   });
@@ -164,6 +194,19 @@ test("replay restores a populated source and report after dismissal", async ({
     .getByRole("button", { name: "Открыть знакомство с DataTale" })
     .click();
   await expect(page.locator(".onboarding-demo-workspace")).toBeVisible();
+  const duplicateIds = await page.evaluate(() => {
+    const ids = [...document.querySelectorAll("[id]")].map(
+      (element) => element.id,
+    );
+    return ids.filter((id, index) => ids.indexOf(id) !== index);
+  });
+  expect(duplicateIds).toEqual([]);
+  const demoReport = page.locator(
+    ".onboarding-demo-workspace .report-dashboard",
+  );
+  const labelledBy = await demoReport.getAttribute("aria-labelledby");
+  expect(labelledBy).toBeTruthy();
+  await expect(page.locator(`[id="${labelledBy}"]`)).toBeVisible();
   await page.getByRole("button", { name: "Пропустить" }).last().click();
   await expect(page.locator(".onboarding-demo-workspace")).toHaveCount(0);
   await expect(

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@heroui/react";
+import { Button, Modal } from "@heroui/react";
 import { type DriveStep, driver, type PopoverDOM } from "driver.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -229,31 +229,46 @@ export function OnboardingTour({
       >
         Как это работает?
       </Button>
-      {welcomeOpen && (
-        <section
-          aria-labelledby="onboarding-welcome-title"
-          className="onboarding-welcome"
-          role="dialog"
-        >
-          <h2 id="onboarding-welcome-title">Добро пожаловать в DataTale</h2>
-          <p>
-            За минуту покажем, как загрузить источник, прочитать анализ и задать
-            вопрос данным.
-          </p>
-          <div className="onboarding-welcome-actions">
-            <Button
-              className="onboarding-start"
-              ref={welcomeStartRef}
-              onPress={() => begin(welcomeStartRef.current)}
-            >
-              Начать знакомство
-            </Button>
-            <Button variant="tertiary" onPress={skipWelcome}>
-              Пропустить
-            </Button>
-          </div>
-        </section>
-      )}
+      <Modal.Root
+        isOpen={welcomeOpen}
+        onOpenChange={(open) => {
+          if (open) setWelcomeOpen(true);
+        }}
+      >
+        <Modal.Backdrop isDismissable={false}>
+          <Modal.Container className="onboarding-welcome" size="sm">
+            <Modal.Dialog>
+              <Modal.Header>
+                <Modal.Heading className="onboarding-welcome-title">
+                  Добро пожаловать в DataTale
+                </Modal.Heading>
+              </Modal.Header>
+              <Modal.Body>
+                <p className="onboarding-welcome-copy">
+                  За минуту покажем, как загрузить источник, прочитать анализ и
+                  задать вопрос данным.
+                </p>
+                <div className="onboarding-welcome-actions">
+                  <Button
+                    className="onboarding-start"
+                    ref={welcomeStartRef}
+                    onPress={() => begin(welcomeStartRef.current)}
+                  >
+                    Начать знакомство
+                  </Button>
+                  <Button
+                    className="onboarding-skip-welcome"
+                    variant="tertiary"
+                    onPress={skipWelcome}
+                  >
+                    Пропустить
+                  </Button>
+                </div>
+              </Modal.Body>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal.Root>
     </>
   );
 }
