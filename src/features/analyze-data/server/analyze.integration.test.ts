@@ -108,6 +108,28 @@ describe("analysis orchestration", () => {
     expect(report.charts).toHaveLength(2);
     expect(report.evidence[0]?.coverage).toEqual({ included: 3, total: 3 });
   });
+  it("uses a decisive row beyond the browser preview for calculations", async () => {
+    const complete = structuredClone(table);
+    complete.rows.push(
+      ...Array.from({ length: 10 }, (_, index) => ({
+        id: `extra-${index + 1}`,
+        values: {
+          month: "2026-03-01",
+          region: "North",
+          channel: "Online",
+          revenue: index === 9 ? 999 : 1,
+        },
+        provenance: { sourceRowNumber: index + 5 },
+      })),
+    );
+    const call: ModelCall = async ({ stage }) =>
+      stage === "narrative" ? narrative : proposal;
+    const result = await analyzeSource(complete, { callModel: call });
+    expect(result.metrics.find((metric) => metric.id === "total")?.value).toBe(
+      1_068,
+    );
+    expect(result.evidence[0]?.coverage).toEqual({ included: 13, total: 13 });
+  });
   it("repairs once with concrete source errors and fails closed after a bad repair", async () => {
     const stages: string[] = [];
     const invalid = {

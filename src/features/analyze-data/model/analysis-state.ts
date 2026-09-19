@@ -7,7 +7,11 @@ export type AnalysisErrorCode =
   | "provider"
   | "timeout"
   | "invalid-report"
-  | "duplicate"
+  | "conflict"
+  | "in-flight"
+  | "indeterminate"
+  | "expired"
+  | "invalid-source"
   | "network"
   | "unknown";
 
@@ -21,7 +25,12 @@ export type AnalysisState =
     }
   | { status: "ready"; report: FinalReport }
   | { status: "cancelled" }
-  | { status: "error"; error: AnalysisErrorCode; retryKey?: string };
+  | {
+      status: "error";
+      error: AnalysisErrorCode;
+      retryable: boolean;
+      retryKey?: string;
+    };
 
 export type AnalysisAction =
   | { type: "start"; requestId: number; idempotencyKey: string }
@@ -30,6 +39,7 @@ export type AnalysisAction =
       type: "error";
       requestId: number;
       error: AnalysisErrorCode;
+      retryable: boolean;
       retryKey?: string;
     }
   | { type: "cancel"; requestId: number }
@@ -57,6 +67,7 @@ export function analysisReducer(
   return {
     status: "error",
     error: action.error,
+    retryable: action.retryable,
     ...(action.retryKey ? { retryKey: action.retryKey } : {}),
   };
 }
@@ -66,9 +77,16 @@ export const analysisErrorMessages: Record<AnalysisErrorCode, string> = {
   quota: "Лимит анализов на сегодня исчерпан. Попробуйте позже.",
   configuration: "Настройки AI-провайдера требуют проверки.",
   provider: "AI-провайдер не ответил корректно. Повторите попытку.",
-  timeout: "Анализ занял слишком много времени. Повторите попытку.",
+  timeout:
+    "Анализ занял слишком много времени, поэтому результат не подтверждён. Автоматический повтор отключён.",
   "invalid-report": "Провайдер вернул неполный отчёт. Данные не показаны.",
-  duplicate: "Этот анализ уже выполняется. Подождите или попробуйте позже.",
+  conflict: "Ключ запроса уже использован для другого источника.",
+  "in-flight":
+    "Этот анализ ещё выполняется. Попробуйте проверить результат позже.",
+  indeterminate:
+    "Провайдер уже начал анализ, но результат не подтверждён. Автоматический повтор отключён, чтобы не списать лимит дважды.",
+  expired: "Гостевой сеанс истёк. Запустите анализ ещё раз.",
+  "invalid-source": "Источник не прошёл серверную проверку.",
   network: "Не удалось подключиться к сервису анализа. Проверьте сеть.",
   unknown: "Не удалось выполнить анализ. Повторите попытку.",
 };

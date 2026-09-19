@@ -1,45 +1,22 @@
-import { NextResponse } from "next/server";
-import { datasetSchema, textSourceSchema } from "@/entities/dataset";
-import { AnalysisError, analyzeSource } from "@/features/analyze-data/server";
-import { hasSafeAnalysisRuntime, inputLimits } from "@/shared/config";
+import {
+  readGuestWorkspace,
+  SqlGuestWorkspaceRepository,
+} from "@/entities/guest-workspace/server";
+import {
+  analyzeSource,
+  getRunGate,
+  hashIp,
+} from "@/features/analyze-data/server";
+import { hasSafeAnalysisRuntime } from "@/shared/config";
+import { createAnalyzeHandler } from "./handler";
 
-export async function POST(request: Request) {
-  if (!hasSafeAnalysisRuntime())
-    return NextResponse.json(
-      { code: "unavailable" },
-      { status: 503, headers: { "Cache-Control": "private, no-store" } },
-    );
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin)
-    return NextResponse.json(
-      { code: "csrf" },
-      { status: 403, headers: { "Cache-Control": "private, no-store" } },
-    );
-  const body = await request.text();
-  if (body.length > inputLimits.canonicalSourceBytes)
-    return NextResponse.json({ code: "too-large" }, { status: 413 });
-  try {
-    const parsed: unknown = JSON.parse(body);
-    const object =
-      parsed && typeof parsed === "object"
-        ? (parsed as { source?: unknown })
-        : {};
-    const source = datasetSchema.safeParse(object.source).success
-      ? datasetSchema.parse(object.source)
-      : textSourceSchema.parse(object.source);
-    const report = await analyzeSource(source);
-    return NextResponse.json(
-      { report },
-      { headers: { "Cache-Control": "private, no-store" } },
-    );
-  } catch (error) {
-    const code = error instanceof AnalysisError ? error.code : "invalid-source";
-    return NextResponse.json(
-      { code },
-      {
-        status: code === "unavailable" ? 503 : 422,
-        headers: { "Cache-Control": "private, no-store" },
-      },
-    );
-  }
-}
+const workspaceRepository = new SqlGuestWorkspaceRepository();
+
+export const POST = createAnalyzeHandler({
+  runtimeSafe: hasSafeAnalysisRuntime,
+  readWorkspace: readGuestWorkspace,
+  isWorkspaceActive: (id, now) => workspaceRepository.isActive(id, now),
+  hashIp,
+  gate: getRunGate,
+  analyze: analyzeSource,
+});

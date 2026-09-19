@@ -40,7 +40,7 @@ export function AnalyzeWorkspace({ source, onDelete }: AnalyzeWorkspaceProps) {
           <div>
             <h2>Анализ не завершён</h2>
             <p>{analysisErrorMessages[state.error]}</p>
-            <Button onPress={retry}>Повторить</Button>
+            {state.retryable && <Button onPress={retry}>Повторить</Button>}
           </div>
         </div>
       )}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { analysisReducer, initialAnalysisState } from "./analysis-state";
+import { responseError } from "./use-analysis";
 
 describe("analysis request lifecycle", () => {
   it("rejects a late response from an earlier request", () => {
@@ -29,8 +30,29 @@ describe("analysis request lifecycle", () => {
         type: "error",
         requestId: 1,
         error: "timeout",
+        retryable: true,
         retryKey: "one",
       }),
     ).toMatchObject({ status: "error", retryKey: "one" });
+  });
+
+  it("reuses a key only for safe recovery and blocks indeterminate retry", () => {
+    expect(responseError(undefined)).toEqual({
+      code: "network",
+      retry: "same",
+    });
+    expect(
+      responseError(new Response(null, { status: 409 }), {
+        code: "in-flight",
+      }),
+    ).toEqual({ code: "in-flight", retry: "same" });
+    expect(
+      responseError(new Response(null, { status: 409 }), {
+        code: "indeterminate",
+      }),
+    ).toEqual({ code: "indeterminate", retry: "none" });
+    expect(
+      responseError(new Response(null, { status: 502 }), { code: "provider" }),
+    ).toEqual({ code: "provider", retry: "new" });
   });
 });

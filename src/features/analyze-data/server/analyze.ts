@@ -1,6 +1,6 @@
 import "server-only";
 import { generateText, Output } from "ai";
-import type { z } from "zod";
+import { z } from "zod";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import {
   type AnalysisProposal,
@@ -320,9 +320,11 @@ export async function analyzeSource(
     if (error instanceof AnalysisError) throw error;
     if (controller.signal.aborted)
       throw new AnalysisError("timeout", "Analysis deadline exceeded.");
+    if (error instanceof z.ZodError)
+      throw new AnalysisError("invalid-model-output", error.message);
     throw new AnalysisError(
-      "invalid-model-output",
-      error instanceof Error ? error.message : "Invalid model response.",
+      "provider",
+      error instanceof Error ? error.message : "Provider request failed.",
     );
   } finally {
     clearTimeout(timer);

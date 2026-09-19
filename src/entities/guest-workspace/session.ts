@@ -1,13 +1,14 @@
 import "server-only";
 import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
+import { analysisLimits } from "@/shared/config";
 import { type GuestWorkspace, guestWorkspaceSchema } from "./model/schema";
 
 type GuestSession = Partial<GuestWorkspace> & {
   destroy(): void;
   save(): Promise<void>;
 };
-const maxAge = 30 * 24 * 60 * 60;
+const maxAge = analysisLimits.workspaceDays * 24 * 60 * 60;
 function options() {
   const password = process.env.SESSION_PASSWORD;
   if (!password || password.length < 32) return undefined;
@@ -38,8 +39,20 @@ export async function readGuestWorkspace() {
     id: session.id,
     expiresAt: session.expiresAt,
   });
-  return parsed.success ? parsed.data : undefined;
+  return parsed.success && Date.parse(parsed.data.expiresAt) > Date.now()
+    ? parsed.data
+    : undefined;
 }
+
+export async function saveGuestWorkspace(workspace: GuestWorkspace) {
+  const session = await getGuestSession();
+  if (!session) return false;
+  session.id = workspace.id;
+  session.expiresAt = workspace.expiresAt;
+  await session.save();
+  return true;
+}
+
 export async function clearGuestSession() {
   const session = await getGuestSession();
   if (session) {

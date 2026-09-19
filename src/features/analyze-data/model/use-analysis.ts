@@ -11,18 +11,31 @@ import {
 
 type AnalyzeResponse = { report?: unknown; code?: unknown };
 
-function errorCode(
+type RetryMode = "same" | "new" | "none";
+
+export function responseError(
   response: Response | undefined,
   value?: AnalyzeResponse,
-): AnalysisErrorCode {
-  if (!response) return "network";
-  if (response.status === 429 || value?.code === "quota") return "quota";
-  if (response.status === 408 || value?.code === "timeout") return "timeout";
-  if (value?.code === "unavailable") return "unavailable";
-  if (value?.code === "configuration") return "configuration";
-  if (value?.code === "duplicate") return "duplicate";
-  if (value?.code === "provider") return "provider";
-  return "unknown";
+): { code: AnalysisErrorCode; retry: RetryMode } {
+  if (!response) return { code: "network", retry: "same" };
+  if (response.status === 429 || value?.code === "quota")
+    return { code: "quota", retry: "none" };
+  if (value?.code === "timeout") return { code: "timeout", retry: "none" };
+  if (value?.code === "unavailable")
+    return { code: "unavailable", retry: "same" };
+  if (value?.code === "configuration")
+    return { code: "configuration", retry: "none" };
+  if (value?.code === "conflict") return { code: "conflict", retry: "new" };
+  if (value?.code === "in-flight") return { code: "in-flight", retry: "same" };
+  if (value?.code === "indeterminate")
+    return { code: "indeterminate", retry: "none" };
+  if (value?.code === "expired") return { code: "expired", retry: "same" };
+  if (value?.code === "invalid-source")
+    return { code: "invalid-source", retry: "none" };
+  if (value?.code === "invalid-report")
+    return { code: "invalid-report", retry: "new" };
+  if (value?.code === "provider") return { code: "provider", retry: "new" };
+  return { code: "unknown", retry: "new" };
 }
 
 function idempotencyKey() {
@@ -43,6 +56,24 @@ export function useAnalysis(source: Dataset | TextSource) {
       controller.current = abortController;
       dispatch({ type: "start", requestId, idempotencyKey: key });
       try {
+        const bootstrap = await fetch("/api/guest", {
+          method: "POST",
+          signal: abortController.signal,
+        });
+        if (!bootstrap.ok) {
+          const value: AnalyzeResponse = await bootstrap
+            .json()
+            .catch(() => ({}));
+          const mapped = responseError(bootstrap, value);
+          dispatch({
+            type: "error",
+            requestId,
+            error: mapped.code,
+            retryable: mapped.retry !== "none",
+            ...(mapped.retry === "same" ? { retryKey: key } : {}),
+          });
+          return;
+        }
         const response = await fetch("/api/analyze", {
           method: "POST",
           headers: {
@@ -54,20 +85,24 @@ export function useAnalysis(source: Dataset | TextSource) {
         });
         const value: AnalyzeResponse = await response.json().catch(() => ({}));
         if (!response.ok) {
-          const code = errorCode(response, value);
+          const mapped = responseError(response, value);
           dispatch({
             type: "error",
             requestId,
-            error: code,
-            ...(code === "network" || code === "timeout" || code === "provider"
-              ? { retryKey: key }
-              : {}),
+            error: mapped.code,
+            retryable: mapped.retry !== "none",
+            ...(mapped.retry === "same" ? { retryKey: key } : {}),
           });
           return;
         }
         const parsed = finalReportSchema.safeParse(value.report);
         if (!parsed.success) {
-          dispatch({ type: "error", requestId, error: "invalid-report" });
+          dispatch({
+            type: "error",
+            requestId,
+            error: "invalid-report",
+            retryable: true,
+          });
           return;
         }
         dispatch({ type: "ready", requestId, report: parsed.data });
@@ -76,7 +111,13 @@ export function useAnalysis(source: Dataset | TextSource) {
           dispatch({ type: "cancel", requestId });
           return;
         }
-        dispatch({ type: "error", requestId, error: "network", retryKey: key });
+        dispatch({
+          type: "error",
+          requestId,
+          error: "network",
+          retryable: true,
+          retryKey: key,
+        });
       }
     },
     [source],
@@ -84,8 +125,11 @@ export function useAnalysis(source: Dataset | TextSource) {
 
   const cancel = useCallback(() => controller.current?.abort(), []);
   const retry = useCallback(() => {
-    if (state.status === "error") void run(state.retryKey);
-    else void run();
+    if (state.status === "error") {
+      if (state.retryable) void run(state.retryKey);
+      return;
+    }
+    void run();
   }, [run, state]);
   useEffect(() => () => controller.current?.abort(), []);
   return { state, run, cancel, retry };
