@@ -6,7 +6,10 @@ import type {
 } from "@/entities/report";
 
 type Point = { label: string; value: number };
-function aggregate(rows: Dataset["rows"], aggregation: Aggregation): number {
+export function aggregateRows(
+  rows: Dataset["rows"],
+  aggregation: Aggregation,
+): number {
   if (aggregation.kind === "count") return rows.length;
   const values = rows
     .map((row) => row.values[aggregation.field.fieldId])
@@ -33,7 +36,7 @@ export function calculateMetric(
   return {
     id: specification.id,
     label: specification.label,
-    value: aggregate(source.rows, specification.aggregation),
+    value: aggregateRows(source.rows, specification.aggregation),
     ...(unit ? { unit } : {}),
   };
 }
@@ -50,18 +53,27 @@ export function calculateChart(
   }
   const points = [...groups].map(([label, rows]) => ({
     label,
-    value: aggregate(rows, specification.aggregation),
+    value: aggregateRows(rows, specification.aggregation),
   }));
   if (specification.kind === "line")
     return points
       .sort((a, b) => a.label.localeCompare(b.label))
       .slice(0, specification.pointLimit);
-  return points
-    .sort((a, b) => b.value - a.value)
-    .slice(
-      0,
-      specification.kind === "bar"
-        ? specification.categoryLimit
-        : specification.segmentLimit,
-    );
+  const ordered = points.sort((a, b) => b.value - a.value);
+  if (specification.kind === "bar" && specification.topN) {
+    const selected = ordered.slice(0, specification.topN.count);
+    const other = ordered.slice(specification.topN.count);
+    if (other.length)
+      selected.push({
+        label: "Other",
+        value: other.reduce((sum, point) => sum + point.value, 0),
+      });
+    return selected;
+  }
+  return ordered.slice(
+    0,
+    specification.kind === "bar"
+      ? specification.categoryLimit
+      : specification.segmentLimit,
+  );
 }

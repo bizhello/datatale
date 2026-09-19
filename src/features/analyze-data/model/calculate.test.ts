@@ -54,6 +54,7 @@ describe("analysis calculations", () => {
         dimension: { fieldId: "month" },
         aggregation: { kind: "sum", field: { fieldId: "revenue" } },
         pointLimit: 24,
+        missingPeriodPolicy: "reject",
       }),
     ).toEqual([
       { label: "2026-01-01", value: 20 },

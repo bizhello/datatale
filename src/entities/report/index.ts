@@ -22,6 +22,7 @@ export type {
   LineChartSpecification,
   MetricSpecification,
   NumericAggregation,
+  TextExtractionResponse,
 } from "./model/schema";
 export {
   aggregationSchema,
@@ -36,5 +37,9 @@ export {
   lineChartSpecificationSchema,
   narrativeResponseSchema,
   numericAggregationSchema,
+  reportChartSchema,
+  reportEvidenceSchema,
+  reportFactSchema,
+  textExtractionResponseSchema,
 } from "./model/schema";
 export { ReportDashboard } from "./ui/report-dashboard";

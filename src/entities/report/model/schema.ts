@@ -20,26 +20,35 @@ const nonblankString = z
   .refine((value) => value.trim().length > 0, {
     message: "Value must contain a non-whitespace character.",
   });
+const idsAreUnique = (
+  items: Array<{ id: string }>,
+  context: z.RefinementCtx,
+  path: string,
+) => {
+  const ids = new Set<string>();
+  for (const [index, item] of items.entries()) {
+    if (ids.has(item.id))
+      context.addIssue({
+        code: "custom",
+        message: "IDs must be unique.",
+        path: [path, index, "id"],
+      });
+    ids.add(item.id);
+  }
+};
 
 export const fieldReferenceSchema = z
-  .object({
-    fieldId: nonblankString,
-  })
+  .object({ fieldId: nonblankString })
   .strict();
-
 export const countAggregationSchema = z
-  .object({
-    kind: z.literal(COUNT_AGGREGATION_KIND),
-  })
+  .object({ kind: z.literal(COUNT_AGGREGATION_KIND) })
   .strict();
-
 export const numericAggregationSchema = z
   .object({
     kind: z.enum(NUMERIC_AGGREGATION_KINDS),
     field: fieldReferenceSchema,
   })
   .strict();
-
 export const aggregationSchema = z.discriminatedUnion("kind", [
   countAggregationSchema,
   numericAggregationSchema,
@@ -52,21 +61,30 @@ const chartBaseSchema = z
     rationale: nonblankString,
   })
   .strict();
-
+const topNSchema = z
+  .object({
+    count: z
+      .number()
+      .int()
+      .min(1)
+      .max(BAR_MAX_CATEGORIES - 1),
+    includeOther: z.literal(true),
+  })
+  .strict();
 export const barChartSpecificationSchema = chartBaseSchema.extend({
   kind: z.literal(BAR_CHART_KIND),
   dimension: fieldReferenceSchema,
   aggregation: aggregationSchema,
   categoryLimit: z.number().int().min(1).max(BAR_MAX_CATEGORIES),
+  topN: topNSchema.optional(),
 });
-
 export const lineChartSpecificationSchema = chartBaseSchema.extend({
   kind: z.literal(LINE_CHART_KIND),
   dimension: fieldReferenceSchema,
   aggregation: aggregationSchema,
   pointLimit: z.number().int().min(LINE_MIN_POINTS).max(LINE_MAX_POINTS),
+  missingPeriodPolicy: z.literal("reject"),
 });
-
 export const donutChartSpecificationSchema = chartBaseSchema.extend({
   kind: z.literal(DONUT_CHART_KIND),
   dimension: fieldReferenceSchema,
@@ -82,45 +100,11 @@ export const donutChartSpecificationSchema = chartBaseSchema.extend({
     .min(DONUT_MIN_SEGMENTS)
     .max(DONUT_MAX_SEGMENTS),
 });
-
 export const chartSpecificationSchema = z.discriminatedUnion("kind", [
   barChartSpecificationSchema,
   lineChartSpecificationSchema,
   donutChartSpecificationSchema,
 ]);
-
-const chartedAnalysisPlanSchema = z
-  .object({
-    outcome: z.literal("charts"),
-    charts: z.array(chartSpecificationSchema).min(2).max(3),
-  })
-  .strict()
-  .superRefine((plan, context) => {
-    const chartIds = new Set<string>();
-    for (const [index, chart] of plan.charts.entries()) {
-      if (chartIds.has(chart.id)) {
-        context.addIssue({
-          code: "custom",
-          message: "Chart IDs must be unique within an analysis plan.",
-          path: ["charts", index, "id"],
-        });
-      }
-      chartIds.add(chart.id);
-    }
-  });
-
-const noChartAnalysisPlanSchema = z
-  .object({
-    outcome: z.literal("no-chart"),
-    reason: nonblankString,
-  })
-  .strict();
-
-export const analysisPlanSchema = z.discriminatedUnion("outcome", [
-  chartedAnalysisPlanSchema,
-  noChartAnalysisPlanSchema,
-]);
-
 export const metricSpecificationSchema = z
   .object({
     id: nonblankString,
@@ -129,44 +113,40 @@ export const metricSpecificationSchema = z
   })
   .strict();
 
-export const analysisProposalSchema = z
+const chartedAnalysisProposalSchema = z
   .object({
-    outcome: z.enum(["charts", "no-chart"]),
-    charts: z.array(chartSpecificationSchema).max(3).default([]),
+    outcome: z.literal("charts"),
+    charts: z.array(chartSpecificationSchema).min(2).max(3),
     metrics: z.array(metricSpecificationSchema).min(2).max(4),
-    reason: nonblankString.optional(),
   })
   .strict()
   .superRefine((proposal, context) => {
-    if (
-      proposal.outcome === "charts" &&
-      (proposal.charts.length < 2 || proposal.charts.length > 3)
-    )
-      context.addIssue({
-        code: "custom",
-        message: "Chart proposals require two or three charts.",
-        path: ["charts"],
-      });
-    if (proposal.outcome === "no-chart" && proposal.charts.length > 0)
-      context.addIssue({
-        code: "custom",
-        message: "No-chart proposals cannot include charts.",
-        path: ["charts"],
-      });
-    const ids = new Set<string>();
-    for (const [index, item] of [
-      ...proposal.metrics,
-      ...proposal.charts,
-    ].entries()) {
-      if (ids.has(item.id))
+    idsAreUnique(proposal.charts, context, "charts");
+    idsAreUnique(proposal.metrics, context, "metrics");
+    const ids = new Set(proposal.charts.map((chart) => chart.id));
+    for (const [index, metric] of proposal.metrics.entries())
+      if (ids.has(metric.id))
         context.addIssue({
           code: "custom",
           message: "Metric and chart IDs must be unique.",
-          path: [index],
+          path: ["metrics", index, "id"],
         });
-      ids.add(item.id);
-    }
   });
+const noChartAnalysisProposalSchema = z
+  .object({
+    outcome: z.literal("no-chart"),
+    reason: nonblankString,
+    metrics: z.array(metricSpecificationSchema).min(2).max(4),
+  })
+  .strict()
+  .superRefine((proposal, context) =>
+    idsAreUnique(proposal.metrics, context, "metrics"),
+  );
+export const analysisProposalSchema = z.discriminatedUnion("outcome", [
+  chartedAnalysisProposalSchema,
+  noChartAnalysisProposalSchema,
+]);
+export const analysisPlanSchema = analysisProposalSchema;
 
 export const reportEvidenceSchema = z
   .object({
@@ -174,9 +154,15 @@ export const reportEvidenceSchema = z
     kind: z.enum(["row-range", "quote"]),
     label: nonblankString,
     excerpt: nonblankString.optional(),
+    coverage: z
+      .object({
+        included: z.number().int().nonnegative(),
+        total: z.number().int().positive(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
-
 export const reportFactSchema = z
   .object({
     id: nonblankString,
@@ -186,7 +172,6 @@ export const reportFactSchema = z
     evidenceIds: z.array(nonblankString).min(1),
   })
   .strict();
-
 export const reportChartSchema = z
   .object({
     id: nonblankString,
@@ -204,24 +189,25 @@ export const reportChartSchema = z
     evidenceIds: z.array(nonblankString).min(1),
   })
   .strict();
-
 export const reportNarrativeItemSchema = z
   .object({
     text: nonblankString,
     factIds: z.array(nonblankString).default([]),
     evidenceIds: z.array(nonblankString).default([]),
+    kind: z
+      .enum(["observation", "hypothesis", "action"])
+      .default("observation"),
   })
   .strict()
   .refine(
     (item) => item.factIds.length + item.evidenceIds.length > 0,
     "Narrative must be grounded.",
   );
-
 export const finalReportSchema = z
   .object({
     version: z.literal(1),
     hero: z.array(reportNarrativeItemSchema).min(1).max(3),
-    metrics: z.array(reportFactSchema).min(1).max(4),
+    metrics: z.array(reportFactSchema).max(4),
     charts: z.array(reportChartSchema).max(3),
     evidence: z.array(reportEvidenceSchema).min(1),
     recommendations: z.array(reportNarrativeItemSchema).max(3),
@@ -241,7 +227,74 @@ export const finalReportSchema = z
         message: "Charted reports cannot have a no-chart reason.",
         path: ["noChartReason"],
       });
+    idsAreUnique(report.evidence, context, "evidence");
+    idsAreUnique(report.metrics, context, "metrics");
+    idsAreUnique(report.charts, context, "charts");
   });
+export const narrativeResponseSchema = z
+  .object({
+    hero: z
+      .array(
+        z
+          .object({
+            text: nonblankString,
+            factIds: z.array(nonblankString),
+            evidenceIds: z.array(nonblankString).default([]),
+            kind: z
+              .enum(["observation", "hypothesis", "action"])
+              .default("observation"),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(3),
+    recommendations: z
+      .array(
+        z
+          .object({
+            text: nonblankString,
+            factIds: z.array(nonblankString),
+            evidenceIds: z.array(nonblankString).default([]),
+            kind: z.literal("action").default("action"),
+          })
+          .strict(),
+      )
+      .max(3),
+  })
+  .strict();
+export const textExtractionResponseSchema = z
+  .object({
+    facts: z
+      .array(
+        z
+          .object({
+            id: nonblankString,
+            label: nonblankString,
+            value: z.number().finite(),
+            unit: z.string().optional(),
+            period: z.string().optional(),
+            paragraphIndex: z.number().int().positive(),
+            quote: nonblankString,
+          })
+          .strict(),
+      )
+      .max(4),
+    observations: z
+      .array(
+        z
+          .object({
+            id: nonblankString,
+            paragraphIndex: z.number().int().positive(),
+            quote: nonblankString,
+          })
+          .strict(),
+      )
+      .max(3),
+  })
+  .strict()
+  .superRefine((value, context) =>
+    idsAreUnique([...value.facts, ...value.observations], context, "facts"),
+  );
 
 export type FieldReference = z.infer<typeof fieldReferenceSchema>;
 export type CountAggregation = z.infer<typeof countAggregationSchema>;
@@ -259,22 +312,6 @@ export type AnalysisPlan = z.infer<typeof analysisPlanSchema>;
 export type MetricSpecification = z.infer<typeof metricSpecificationSchema>;
 export type AnalysisProposal = z.infer<typeof analysisProposalSchema>;
 export type FinalReport = z.infer<typeof finalReportSchema>;
-export const narrativeResponseSchema = z
-  .object({
-    hero: z
-      .array(
-        z
-          .object({ text: nonblankString, factIds: z.array(nonblankString) })
-          .strict(),
-      )
-      .min(1)
-      .max(3),
-    recommendations: z
-      .array(
-        z
-          .object({ text: nonblankString, factIds: z.array(nonblankString) })
-          .strict(),
-      )
-      .max(3),
-  })
-  .strict();
+export type TextExtractionResponse = z.infer<
+  typeof textExtractionResponseSchema
+>;
