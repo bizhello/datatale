@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:vercel": "bun run db:migrate && bun run build",
+    "build:vercel": "bun scripts/vercel-build.ts",
     "start": "next start",
     "lint": "biome check --error-on-warnings .",
     "format": "biome format --write .",
