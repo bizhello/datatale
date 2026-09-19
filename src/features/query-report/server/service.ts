@@ -24,11 +24,16 @@ const PROVIDER_OUTPUT_MAX_TOKENS = 700;
 const providerReferenceSchema = z
   .object({ id: z.string().min(1).max(160) })
   .strict();
+const providerClaimSchema = z
+  .object({
+    text: z.string().min(1).max(280),
+    references: z.array(providerReferenceSchema).min(1).max(4),
+  })
+  .strict();
 const providerResponseSchema = z
   .object({
     outcome: z.enum(["answered", "insufficient_data", "unsupported_operation"]),
-    answer: z.string().max(CHAT_ANSWER_MAX_LENGTH),
-    references: z.array(providerReferenceSchema).max(7),
+    claims: z.array(providerClaimSchema).max(6),
   })
   .strict();
 
@@ -45,7 +50,10 @@ export type ChatProvider = (request: {
 }) => Promise<unknown>;
 
 export type ChatDependencies = {
-  loadContext: (analysisId: string) => Promise<ChatContext | undefined>;
+  loadContext: (
+    analysisId: string,
+    signal: AbortSignal,
+  ) => Promise<ChatContext | undefined>;
   provider?: ChatProvider;
   timeoutMs?: number;
   signal?: AbortSignal;
@@ -89,6 +97,11 @@ function sourceEvidence(report: FinalReport, id: string) {
   return report.evidence.find((item) => item.id === id);
 }
 
+function reportReferenceId(report: FinalReport, id: string) {
+  const index = report.evidence.findIndex((item) => item.id === id);
+  return index >= 0 ? `evidence-${index}` : undefined;
+}
+
 type SourceReference = {
   id: string;
   values: Array<string | number | boolean>;
@@ -100,23 +113,25 @@ function sourceReferences(
   source: Dataset | TextSource,
   report: FinalReport,
 ): SourceReference[] {
-  const references: SourceReference[] = report.evidence.map((evidence) => ({
-    id: evidence.id,
-    values: [
-      ...(evidence.excerpt ? [evidence.excerpt] : []),
-      ...report.metrics
+  const references: SourceReference[] = report.evidence.map(
+    (evidence, index) => ({
+      id: `evidence-${index}`,
+      values: [
+        ...(evidence.excerpt ? [evidence.excerpt] : []),
+        ...report.metrics
+          .filter((fact) => fact.evidenceIds.includes(evidence.id))
+          .map((fact) => fact.value),
+      ],
+      ...(evidence.excerpt ? { excerpt: evidence.excerpt } : {}),
+      factIds: report.metrics
         .filter((fact) => fact.evidenceIds.includes(evidence.id))
-        .map((fact) => fact.value),
-    ],
-    ...(evidence.excerpt ? { excerpt: evidence.excerpt } : {}),
-    factIds: report.metrics
-      .filter((fact) => fact.evidenceIds.includes(evidence.id))
-      .map((fact) => fact.id),
-  }));
+        .map((fact) => fact.id),
+    }),
+  );
   if ("rows" in source) {
     for (const row of source.rows) {
       references.push({
-        id: `row-${row.id}`,
+        id: `row-${source.rows.indexOf(row)}`,
         values: Object.values(row.values).filter(
           (value): value is string | number | boolean => value !== null,
         ),
@@ -126,7 +141,7 @@ function sourceReferences(
   } else {
     for (const paragraph of source.paragraphs)
       references.push({
-        id: `paragraph-${paragraph.index}`,
+        id: `paragraph-${source.paragraphs.indexOf(paragraph)}`,
         values: [paragraph.text],
         excerpt: paragraph.text,
         factIds: [],
@@ -192,7 +207,7 @@ function deterministicFact(
     answer: `${fact.label}: ${numberText(fact.value)}${unit}.`,
     references: [
       {
-        id: evidence.id,
+        id: reportReferenceId(report, evidence.id) ?? evidence.id,
         ...(evidence.excerpt ? { excerpt: evidence.excerpt } : {}),
       },
     ],
@@ -238,6 +253,12 @@ function deterministicAggregation(
   });
   if (aggregation === "count" && columns.length > 1) return insufficient();
   const column = columns.length === 1 ? columns[0] : undefined;
+  if (
+    aggregation === "count" &&
+    columns.length === 0 &&
+    !/\b(row|record|rows|records|строк|запис)/u.test(lowerQuestion)
+  )
+    return insufficient();
   if (aggregation !== "count" && column?.scalarType !== "number")
     return insufficient();
   const values = column
@@ -265,7 +286,7 @@ function deterministicAggregation(
   return {
     outcome: "answered",
     answer: `${label}: ${numberText(value)}${column?.unit ? ` ${column.unit}` : ""}.`,
-    references: [{ id: evidence.id }],
+    references: [{ id: reportReferenceId(report, evidence.id) ?? evidence.id }],
   };
 }
 
@@ -276,70 +297,82 @@ function validateProviderResult(
 ): ChatResult {
   const value = providerResponseSchema.parse(output);
   if (value.outcome === "insufficient_data") return insufficient();
-  if (value.outcome === "unsupported_operation")
-    return unsupported(
-      value.answer || "Эта операция не поддерживается для данного отчета.",
+  if (value.outcome === "unsupported_operation") return unsupported();
+  if (value.claims.length === 0)
+    throw new Error("Provider answer has no grounded claims.");
+  const checkedClaims = value.claims.map((claim) => {
+    const resolved = claim.references.map((reference) => {
+      const sourceReference = references.find(
+        (candidate) => candidate.id === reference.id,
+      );
+      if (!sourceReference)
+        throw new Error("Provider referenced unknown source evidence.");
+      return sourceReference;
+    });
+    const answerNumbers = [...claim.text.matchAll(numericTokenPattern)].map(
+      (match) => {
+        const number = canonicalNumericToken(match[0]);
+        if (number === undefined || !Number.isFinite(number))
+          throw new Error("Ambiguous numeric claim.");
+        return number;
+      },
     );
-  if (!value.answer.trim() || value.references.length === 0)
-    throw new Error("Provider answer has no grounded references.");
-  const resolved = value.references.map((reference) => {
-    const sourceReference = references.find(
-      (candidate) => candidate.id === reference.id,
+    const referencedNumbers = resolved.flatMap((reference) =>
+      reference.values.flatMap((item) =>
+        typeof item === "number"
+          ? [item]
+          : typeof item === "string"
+            ? [...item.matchAll(numericTokenPattern)]
+                .map((match) => canonicalNumericToken(match[0]))
+                .filter((number): number is number => number !== undefined)
+            : [],
+      ),
     );
-    if (!sourceReference)
-      throw new Error("Provider referenced unknown source evidence.");
-    return sourceReference;
-  });
-  const answerNumbers = [...value.answer.matchAll(numericTokenPattern)]
-    .map((match) => canonicalNumericToken(match[0]))
-    .filter(
-      (number): number is number =>
-        number !== undefined && Number.isFinite(number),
-    );
-  const referencedNumbers = resolved.flatMap((reference) =>
-    reference.values.filter((item): item is number => typeof item === "number"),
-  );
-  if (
-    answerNumbers.some(
-      (number) =>
-        !referencedNumbers.some((candidate) => Object.is(candidate, number)),
+    if (
+      answerNumbers.some(
+        (number) =>
+          !referencedNumbers.some((candidate) => Object.is(candidate, number)),
+      )
     )
-  )
-    throw new Error(
-      "Provider introduced a number absent from referenced source values.",
+      throw new Error(
+        "Provider introduced a number absent from referenced source values.",
+      );
+    const textLower = claim.text.toLocaleLowerCase("ru-RU");
+    const supported = resolved.some(
+      (reference) =>
+        reference.factIds.some((factId) => {
+          const fact = report.metrics.find(
+            (candidate) => candidate.id === factId,
+          );
+          return Boolean(
+            fact &&
+              (textLower.includes(fact.label.toLocaleLowerCase("ru-RU")) ||
+                answerNumbers.some((number) => Object.is(number, fact.value))),
+          );
+        }) ||
+        reference.values.some(
+          (item) =>
+            typeof item === "string" &&
+            textLower.includes(item.toLocaleLowerCase("ru-RU")),
+        ),
     );
-  const answerLower = value.answer.toLocaleLowerCase("ru-RU");
-  const supportedText = resolved.some(
-    (reference) =>
-      reference.factIds.some((factId) => {
-        const fact = report.metrics.find(
-          (candidate) => candidate.id === factId,
-        );
-        return Boolean(
-          fact &&
-            (answerLower.includes(fact.label.toLocaleLowerCase("ru-RU")) ||
-              answerNumbers.some((number) => Object.is(number, fact.value))),
-        );
-      }) ||
-      (reference.excerpt
-        ? value.answer.includes(reference.excerpt)
-        : reference.values.some(
-            (item) =>
-              typeof item === "string" &&
-              answerLower.includes(item.toLocaleLowerCase("ru-RU")),
-          )),
-  );
-  if (!supportedText)
-    throw new Error(
-      "Provider answer is not supported by referenced facts or quotations.",
-    );
+    if (!supported)
+      throw new Error("Provider claim is not supported by its references.");
+    return {
+      text: claim.text,
+      references: resolved.map((reference) => ({
+        id: reference.id,
+        ...(reference.excerpt ? { excerpt: reference.excerpt } : {}),
+      })),
+    };
+  });
+  const answer = checkedClaims.map((claim) => claim.text).join(" ");
+  if (answer.length > CHAT_ANSWER_MAX_LENGTH)
+    throw new Error("Provider answer is too long.");
   return chatResultSchema.parse({
     outcome: "answered",
-    answer: value.answer,
-    references: resolved.map((reference) => ({
-      id: reference.id,
-      ...(reference.excerpt ? { excerpt: reference.excerpt } : {}),
-    })),
+    answer,
+    references: checkedClaims.flatMap((claim) => claim.references).slice(0, 7),
   });
 }
 
@@ -365,12 +398,15 @@ async function defaultProvider({
   return response.output;
 }
 
-export async function answerChat(
+async function answerChatCore(
   request: ChatRequest,
   dependencies: ChatDependencies,
 ): Promise<ChatResult> {
   const parsed = chatRequestSchema.parse(request);
-  const context = await dependencies.loadContext(parsed.analysisId);
+  const context = await dependencies.loadContext(
+    parsed.analysisId,
+    dependencies.signal ?? new AbortController().signal,
+  );
   if (!context || context.analysisId !== parsed.analysisId)
     return insufficient();
   const history = boundedHistory(context.history);
@@ -400,43 +436,34 @@ export async function answerChat(
     )
   )
     return direct;
-  if (
-    /\b(profit|прибыл|марж|затрат|расход|налог|profit|выруч|продаж)/u.test(
-      parsed.question.toLocaleLowerCase("ru-RU"),
-    )
-  ) {
-    return insufficient();
-  }
-  const controller = new AbortController();
-  const externalSignal = dependencies.signal;
-  const abortExternal = () => controller.abort();
-  if (externalSignal?.aborted) controller.abort();
-  externalSignal?.addEventListener("abort", abortExternal, { once: true });
-  const timer = setTimeout(
-    () => controller.abort(),
-    dependencies.timeoutMs ?? CHAT_TIMEOUT_MS,
-  );
+  const signal = dependencies.signal ?? new AbortController().signal;
   try {
     const provider = dependencies.provider ?? defaultProvider;
-    return validateProviderResult(
-      await provider({
-        prompt: JSON.stringify(sourceContext),
-        signal: controller.signal,
-      }),
-      context.report,
-      sourceReferences(context.source, context.report),
-    );
+    const output = await provider({
+      prompt: JSON.stringify(sourceContext),
+      signal,
+    });
+    try {
+      return validateProviderResult(
+        output,
+        context.report,
+        sourceReferences(context.source, context.report),
+      );
+    } catch (error) {
+      if (error instanceof ChatProviderError) throw error;
+      throw new ChatProviderError(
+        "invalid_provider_output",
+        error instanceof Error
+          ? error.message
+          : "Chat provider returned invalid output.",
+      );
+    }
   } catch (error) {
     if (error instanceof ChatProviderError) throw error;
-    if (externalSignal?.aborted)
+    if (signal.aborted)
       throw new ChatProviderError(
         "provider_aborted",
         "Chat request was cancelled.",
-      );
-    if (controller.signal.aborted)
-      throw new ChatProviderError(
-        "provider_timeout",
-        "Chat provider timed out.",
       );
     if (error instanceof z.ZodError)
       throw new ChatProviderError(
@@ -447,6 +474,48 @@ export async function answerChat(
       "provider_failure",
       error instanceof Error ? error.message : "Chat provider failed.",
     );
+  }
+}
+
+export async function answerChat(
+  request: ChatRequest,
+  dependencies: ChatDependencies,
+): Promise<ChatResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(),
+    dependencies.timeoutMs ?? CHAT_TIMEOUT_MS,
+  );
+  const abortExternal = () => controller.abort();
+  const externalSignal = dependencies.signal;
+  if (externalSignal?.aborted) controller.abort();
+  externalSignal?.addEventListener("abort", abortExternal, { once: true });
+  try {
+    if (controller.signal.aborted)
+      throw new ChatProviderError(
+        externalSignal?.aborted ? "provider_aborted" : "provider_timeout",
+        "Chat request was cancelled.",
+      );
+    return await answerChatCore(request, {
+      ...dependencies,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (
+      error instanceof ChatProviderError &&
+      error.code === "provider_aborted" &&
+      !externalSignal?.aborted
+    )
+      throw new ChatProviderError(
+        "provider_timeout",
+        "Chat provider timed out.",
+      );
+    if (controller.signal.aborted && !externalSignal?.aborted)
+      throw new ChatProviderError(
+        "provider_timeout",
+        "Chat provider timed out.",
+      );
+    throw error;
   } finally {
     clearTimeout(timer);
     externalSignal?.removeEventListener("abort", abortExternal);
