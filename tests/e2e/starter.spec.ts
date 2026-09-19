@@ -498,6 +498,7 @@ test("fits mobile and has no automated accessibility violations", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
+  await expect(page.getByText("ДЕМОНСТРАЦИОННЫЙ ПРИМЕР")).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

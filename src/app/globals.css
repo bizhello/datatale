@@ -313,6 +313,7 @@ footer {
 }
 .import-workspace {
   position: relative;
+  isolation: isolate;
   padding: clamp(44px, 8vw, 92px) 0;
 }
 .import-workspace::before,

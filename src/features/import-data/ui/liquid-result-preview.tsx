@@ -7,7 +7,7 @@ export function LiquidResultPreview() {
     <aside className="liquid-result-preview" aria-label="Пример результата">
       <div className="liquid-preview-glow" aria-hidden="true" />
       <div className="liquid-preview-heading">
-        <span className="eyebrow">ПРИМЕР РЕЗУЛЬТАТА</span>
+        <span className="eyebrow">ДЕМОНСТРАЦИОННЫЙ ПРИМЕР</span>
         <ArrowUpRight size={18} aria-hidden="true" />
       </div>
       <p className="liquid-preview-insight">
