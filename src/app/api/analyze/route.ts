@@ -24,6 +24,5 @@ export const POST = createAnalyzeHandler({
   validCodeFingerprint: isValidInviteFingerprint,
   gate: getRunGate,
   analyze: analyzeSource,
-  saveAnalysis: async (input) =>
-    Boolean(await savedAnalysisRepository.create(input)),
+  saveAnalysis: (input) => savedAnalysisRepository.create(input),
 });

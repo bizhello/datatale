@@ -139,7 +139,9 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     validCodeFingerprint: () => true,
     gate: () => new TestGate(),
     analyze,
-    saveAnalysis: vi.fn(async () => true),
+    saveAnalysis: vi.fn(async () => ({
+      expiresAt: new Date("2026-09-26T12:00:00.000Z"),
+    })),
     ...overrides,
   };
 }
@@ -252,7 +254,9 @@ describe("POST /api/analyze handler", () => {
   });
 
   it("persists the immutable source/report under the retry-safe analysis id", async () => {
-    const saveAnalysis = vi.fn(async () => true);
+    const saveAnalysis = vi.fn(async () => ({
+      expiresAt: new Date("2026-09-26T12:00:00.000Z"),
+    }));
     const gate = new TestGate();
     const handler = createAnalyzeHandler(
       dependencies({ gate: () => gate, saveAnalysis }),
@@ -263,6 +267,7 @@ describe("POST /api/analyze handler", () => {
     await expect(first.json()).resolves.toMatchObject({
       analysisId: key,
       report,
+      expiresAt: "2026-09-26T12:00:00.000Z",
     });
     expect(saveAnalysis).toHaveBeenCalledWith({
       analysisId: key,
@@ -273,13 +278,16 @@ describe("POST /api/analyze handler", () => {
 
     const replay = await handler(request());
     expect(replay.status).toBe(200);
-    await expect(replay.json()).resolves.toMatchObject({ analysisId: key });
+    await expect(replay.json()).resolves.toMatchObject({
+      analysisId: key,
+      expiresAt: "2026-09-26T12:00:00.000Z",
+    });
     expect(saveAnalysis).toHaveBeenCalledTimes(2);
   });
 
   it("fails closed when a completed report cannot be stored", async () => {
     const handler = createAnalyzeHandler(
-      dependencies({ saveAnalysis: async () => false }),
+      dependencies({ saveAnalysis: async () => undefined }),
     );
     const response = await handler(request());
     expect(response.status).toBe(503);

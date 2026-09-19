@@ -60,6 +60,25 @@ const report: FinalReport = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("useAnalysis HTTP lifecycle", () => {
+  it("rejects an analysis response without the persisted expiry", async () => {
+    vi.stubGlobal("crypto", { randomUUID: () => key });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+        .mockResolvedValueOnce(Response.json({ analysisId, report })),
+    );
+    const { result } = renderHook(() => useAnalysis(source));
+
+    await act(async () => result.current.run());
+
+    expect(result.current.state).toMatchObject({
+      status: "error",
+      error: "invalid-report",
+    });
+  });
+
   it("holds the approximate estimate at 95 until an early response is validated", async () => {
     vi.useFakeTimers();
     const removeAbortListener = vi.spyOn(
@@ -95,7 +114,13 @@ describe("useAnalysis HTTP lifecycle", () => {
       });
       act(() => vi.advanceTimersByTime(10_000));
       expect(result.current.state).toMatchObject({ progress: 95 });
-      resolveAnalysis?.(Response.json({ analysisId, report }));
+      resolveAnalysis?.(
+        Response.json({
+          analysisId,
+          report,
+          expiresAt: "2026-09-26T12:00:00.000Z",
+        }),
+      );
       await act(async () => {
         await Promise.resolve();
         await Promise.resolve();
@@ -145,7 +170,13 @@ describe("useAnalysis HTTP lifecycle", () => {
         await Promise.resolve();
         await Promise.resolve();
       });
-      resolveAnalysis?.(Response.json({ analysisId, report }));
+      resolveAnalysis?.(
+        Response.json({
+          analysisId,
+          report,
+          expiresAt: "2026-09-26T12:00:00.000Z",
+        }),
+      );
       await act(async () => {
         await Promise.resolve();
         await Promise.resolve();
@@ -236,11 +267,23 @@ describe("useAnalysis HTTP lifecycle", () => {
         status: "analyzing",
         progress: 5,
       });
-      resolveA?.(Response.json({ analysisId, report }));
+      resolveA?.(
+        Response.json({
+          analysisId,
+          report,
+          expiresAt: "2026-09-26T12:00:00.000Z",
+        }),
+      );
       await act(async () => runA);
       act(() => vi.advanceTimersByTime(990));
       expect(result.current.state).toMatchObject({ progress: 11 });
-      resolveB?.(Response.json({ analysisId, report }));
+      resolveB?.(
+        Response.json({
+          analysisId,
+          report,
+          expiresAt: "2026-09-26T12:00:00.000Z",
+        }),
+      );
       await act(async () => {
         await Promise.resolve();
         await Promise.resolve();
@@ -259,7 +302,13 @@ describe("useAnalysis HTTP lifecycle", () => {
     const fetch = vi
       .fn()
       .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
-      .mockResolvedValueOnce(Response.json({ analysisId, report }));
+      .mockResolvedValueOnce(
+        Response.json({
+          analysisId,
+          report,
+          expiresAt: "2026-09-26T12:00:00.000Z",
+        }),
+      );
     vi.stubGlobal("fetch", fetch);
     const { result } = renderHook(() => useAnalysis(source));
     await act(async () => result.current.run());
@@ -323,7 +372,13 @@ describe("useAnalysis HTTP lifecycle", () => {
     const fetch = vi
       .fn()
       .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
-      .mockResolvedValueOnce(Response.json({ analysisId, report }));
+      .mockResolvedValueOnce(
+        Response.json({
+          analysisId,
+          report,
+          expiresAt: "2026-09-26T12:00:00.000Z",
+        }),
+      );
     vi.stubGlobal("fetch", fetch);
     const replacement = { ...source, id: "replacement-source" };
     const { result, rerender } = renderHook(

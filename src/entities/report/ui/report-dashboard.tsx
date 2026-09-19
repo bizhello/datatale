@@ -5,9 +5,46 @@ import { useId, useState } from "react";
 import type { FinalReport } from "../model/schema";
 import { ChartVisual } from "./chart-visual";
 
-type ReportDashboardProps = { report: FinalReport; onboardingDemo?: boolean };
+type ReportDashboardProps = {
+  report: FinalReport;
+  expiresAt?: string;
+  onboardingDemo?: boolean;
+};
+
+function formatExpiry(expiresAt: string) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    dateStyle: "long",
+    timeStyle: "short",
+  }).format(new Date(expiresAt));
+}
+
+function formatDerivation(
+  calculation: FinalReport["metrics"][number]["calculation"],
+) {
+  if (!calculation) return "Указано в исходном тексте";
+  if (calculation.kind === "count") return "Количество принятых строк";
+  const labels: Record<Exclude<typeof calculation.kind, "count">, string> = {
+    sum: "Сумма",
+    average: "Среднее",
+    min: "Минимум",
+    max: "Максимум",
+  };
+  return `${labels[calculation.kind]} поля «${calculation.fieldLabel ?? "источника"}» по всем принятым строкам`;
+}
+
+function formatEvidenceKind(kind: FinalReport["evidence"][number]["kind"]) {
+  return kind === "row-range" ? "Строки таблицы" : "Абзац источника";
+}
+
+function formatEvidenceSummary(item: FinalReport["evidence"][number]) {
+  const coverage = item.coverage
+    ? ` · Покрытие: ${item.coverage.included.toLocaleString("ru-RU")} из ${item.coverage.total.toLocaleString("ru-RU")}`
+    : "";
+  return `${formatEvidenceKind(item.kind)} · ${item.label}${item.excerpt ? `: ${item.excerpt}` : ""}${coverage}`;
+}
 export function ReportDashboard({
   report,
+  expiresAt,
   onboardingDemo = false,
 }: ReportDashboardProps) {
   const [expanded, setExpanded] = useState<
@@ -24,6 +61,12 @@ export function ReportDashboard({
           {report.hero.map((item) => item.text).join(" ")}
         </h2>
       </div>
+      {expiresAt ? (
+        <p className="analysis-note">
+          Отчёт и вопросы хранятся до {formatExpiry(expiresAt)}. Просмотр не
+          продлевает срок.
+        </p>
+      ) : null}
       <div className="metric-grid">
         {report.metrics.map((metric) => (
           <article className="metric-card" key={metric.id}>
@@ -34,6 +77,7 @@ export function ReportDashboard({
               })}
             </strong>
             <small>{metric.unit ?? "по всем строкам"}</small>
+            <small>Расчёт: {formatDerivation(metric.calculation)}</small>
           </article>
         ))}
       </div>
@@ -87,10 +131,7 @@ export function ReportDashboard({
       <section className="evidence">
         <h3>Основание вывода</h3>
         {report.evidence.map((item) => (
-          <p key={item.id}>
-            <strong>{item.label}</strong>
-            {item.excerpt ? `: ${item.excerpt}` : ""}
-          </p>
+          <p key={item.id}>{formatEvidenceSummary(item)}</p>
         ))}
       </section>
       {report.recommendations.length > 0 && (
@@ -148,8 +189,7 @@ export function ReportDashboard({
                         );
                         return evidence ? (
                           <li key={evidence.id}>
-                            <strong>{evidence.label}</strong>
-                            {evidence.excerpt ? `: ${evidence.excerpt}` : ""}
+                            {formatEvidenceSummary(evidence)}
                           </li>
                         ) : null;
                       })}

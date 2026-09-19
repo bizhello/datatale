@@ -31,11 +31,17 @@ export type AnalysisState =
       status: "completing";
       requestId: number;
       analysisId: string;
+      expiresAt: string;
       report: FinalReport;
       phase: AnalysisPhase;
       progress: 100;
     }
-  | { status: "ready"; analysisId: string; report: FinalReport }
+  | {
+      status: "ready";
+      analysisId: string;
+      expiresAt: string;
+      report: FinalReport;
+    }
   | { status: "cancelled" }
   | {
       status: "error";
@@ -53,12 +59,14 @@ export type AnalysisAction =
       type: "complete";
       requestId: number;
       analysisId: string;
+      expiresAt: string;
       report: FinalReport;
     }
   | {
       type: "ready";
       requestId: number;
       analysisId: string;
+      expiresAt: string;
       report: FinalReport;
     }
   | {
@@ -104,6 +112,7 @@ export function analysisReducer(
       status: "completing",
       requestId: action.requestId,
       analysisId: action.analysisId,
+      expiresAt: action.expiresAt,
       report: action.report,
       phase: state.phase,
       progress: 100,
@@ -114,6 +123,7 @@ export function analysisReducer(
     return {
       status: "ready",
       analysisId: action.analysisId,
+      expiresAt: action.expiresAt,
       report: action.report,
     };
   if (state.status !== "analyzing") return state;
@@ -121,6 +131,7 @@ export function analysisReducer(
     return {
       status: "ready",
       analysisId: action.analysisId,
+      expiresAt: action.expiresAt,
       report: action.report,
     };
   if (action.type === "cancel") return { status: "cancelled" };

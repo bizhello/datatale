@@ -16,7 +16,11 @@ import { InviteAccessModal } from "./invite-access-modal";
 type AnalyzeWorkspaceProps = {
   source: Dataset | TextSource;
   onDelete: () => void;
-  renderReport?: (analysisId: string, report: FinalReport) => ReactNode;
+  renderReport?: (
+    analysisId: string,
+    report: FinalReport,
+    expiresAt: string,
+  ) => ReactNode;
 };
 export function AnalyzeWorkspace({
   source,
@@ -81,8 +85,8 @@ export function AnalyzeWorkspace({
         </div>
       )}
       {state.status === "ready" &&
-        (renderReport?.(state.analysisId, state.report) ?? (
-          <ReportDashboard report={state.report} />
+        (renderReport?.(state.analysisId, state.report, state.expiresAt) ?? (
+          <ReportDashboard report={state.report} expiresAt={state.expiresAt} />
         ))}
       <InviteAccessModal
         isOpen={accessOpen}

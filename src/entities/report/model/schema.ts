@@ -195,6 +195,13 @@ export const reportFactSchema = z
     label: labelString,
     value: z.number().finite(),
     unit: unitString.optional(),
+    calculation: z
+      .object({
+        kind: z.enum(["count", "sum", "average", "min", "max"]),
+        fieldLabel: labelString.optional(),
+      })
+      .strict()
+      .optional(),
     evidenceIds: z.array(identifierString).min(1).max(7),
   })
   .strict();

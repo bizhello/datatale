@@ -34,10 +34,18 @@ export function calculateMetric(
   const unit = numeric
     ? source.columns.find((column) => column.id === numeric.field.fieldId)?.unit
     : undefined;
+  const fieldLabel = numeric
+    ? source.columns.find((column) => column.id === numeric.field.fieldId)
+        ?.label
+    : undefined;
   return {
     id: specification.id,
     label: specification.label,
     value: aggregateRows(source.rows, specification.aggregation),
+    calculation: {
+      kind: specification.aggregation.kind,
+      ...(fieldLabel ? { fieldLabel } : {}),
+    },
     ...(unit ? { unit } : {}),
   };
 }
