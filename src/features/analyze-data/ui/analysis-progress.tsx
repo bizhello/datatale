@@ -9,24 +9,19 @@ type AnalysisProgressProps = {
   sourceKind: "table" | "text";
 };
 
-type ProgressStage = {
-  id: string;
-  label: string;
-};
-
-const tableStages: readonly ProgressStage[] = [
+const tableStages = [
   { id: "session", label: "Подготавливаем защищённый сеанс" },
   { id: "plan", label: "Выбор и проверка плана" },
   { id: "calculate", label: "Детерминированный расчёт" },
   { id: "narrative", label: "Формирование итогового повествования" },
-];
+] as const;
 
-const textStages: readonly ProgressStage[] = [
+const textStages = [
   { id: "session", label: "Подготавливаем защищённый сеанс" },
   { id: "extract", label: "Извлечение проверяемых фактов" },
   { id: "calculate", label: "Проверка расчётов" },
   { id: "narrative", label: "Формирование итогового повествования" },
-];
+] as const;
 
 export function AnalysisProgress({ phase, sourceKind }: AnalysisProgressProps) {
   const stages = sourceKind === "text" ? textStages : tableStages;

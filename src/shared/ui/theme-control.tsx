@@ -4,8 +4,7 @@ import { ToggleButton, ToggleButtonGroup, Tooltip } from "@heroui/react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-
-type ThemeMode = "light" | "dark" | "system";
+import type { ThemeMode } from "./theme-control.types";
 
 const themeOptions: ReadonlyArray<{
   icon: typeof Sun;
