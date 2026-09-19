@@ -44,6 +44,12 @@ Preview a labeled sample while showing full accepted row/column counts. Empty ce
 
 Cookie mechanisms: ARCHITECTURE.md. Cleanup: DEPLOYMENT.md.
 
+## Analysis access
+
+An anonymous workspace may run one AI analysis per UTC day. The same salted-IP trial cap applies across new workspaces, so deleting browser cookies does not reset the free call. IP hashes are abuse counters, not account identifiers or recovery keys, and expire with the quota buckets.
+
+After the free call, show the invite-code modal without clearing the accepted source. A valid high-entropy code grants a sealed session capability and shares an atomic ten-analysis UTC-day budget across every user of that code. Code and global exhaustion are terminal states for that day and must not reopen the unlock modal. Removing a configured code hash revokes existing capabilities. Raw codes and IP addresses are never persisted.
+
 ## Acceptance against the assignment
 
 | Requirement | Observable acceptance |
