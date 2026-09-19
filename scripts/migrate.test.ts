@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  applyMigrations,
-  type Migration,
-  readMigrations,
-} from "../../scripts/migrate";
+import { applyMigrations, type Migration, readMigrations } from "./migrate";
 
 const migration = (filename: string, sql: string): Migration => ({
   filename,

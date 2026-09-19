@@ -1,6 +1,7 @@
 import { Alert, Button, Label, ListBox, Select } from "@heroui/react";
 import { AlertTriangle, CheckCircle2, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import type { ReactNode } from "react";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import { isTextSource } from "../lib/source-guards";
 import type { ReadyState } from "../model/import-workspace-state";
@@ -10,14 +11,14 @@ type SourcePreviewProps = {
   state: ReadyState;
   onSheet: (value: string) => void;
   onClear: () => void;
-  onAnalyze?: (source: Dataset | TextSource) => void;
+  renderAction?: (source: Dataset | TextSource) => ReactNode;
 };
 
 export function SourcePreview({
   state,
   onSheet,
   onClear,
-  onAnalyze,
+  renderAction,
 }: SourcePreviewProps) {
   const prefersReducedMotion = useReducedMotion();
   const source = state.result.source;
@@ -112,19 +113,8 @@ export function SourcePreview({
       ) : (
         data && <TablePreview data={data} />
       )}
-      {onAnalyze ? (
-        <div className="analysis-action">
-          <p className="analysis-note">
-            Полный проверенный источник будет передан AI-провайдеру. Его правила
-            хранения действуют отдельно. Принятые данные, отчёт и чат хранятся в
-            этом гостевом пространстве 7 дней с момента анализа; просмотр не
-            продлевает срок. Исходный CSV или XLSX файл не сохраняется, а
-            счётчики безопасности удаляются не позднее чем через 48 часов.
-          </p>
-          <Button onPress={() => onAnalyze(source)}>
-            Продолжить к анализу
-          </Button>
-        </div>
+      {renderAction ? (
+        renderAction(source)
       ) : (
         <p className="analysis-note">
           Источник проверен. Анализ и сохранение отчёта появятся в следующем

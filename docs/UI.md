@@ -39,6 +39,8 @@ Provide a visible close button, Escape dismissal, focus containment/restoration 
 
 ## Loading, feedback and errors
 
+After a source is accepted, the analysis owner shows a compact source summary with a touch-sized replace control and an optional focus field. Launching freezes the normalized focus and moves the primary focus to progress. Completion moves focus to the report heading; failure moves it to the actionable alert. Invite-modal focus takes precedence over the background alert, and restored history stays ready without an analysis request. Source replacement aborts the active request and prevents stale results from returning.
+
 Use HeroUI Skeleton shaped like the final hero/metric/chart cards to minimize layout shift. Skeletons are placeholders, not the completed layout with invented values. Announce the current stage once; do not repeatedly read decorative skeletons or every streamed token to screen readers.
 
 Show named stages for unknown inference duration. Measured progress percentages require a measurable denominator; an explicitly labeled estimate may use a provisional baseline when it is clearly described as approximate. Make cancel/retry available where meaningful. Avoid artificial waiting to display an animation. Stable empty/error layouts explain the issue and next action without clearing a valid selected file unnecessarily.
@@ -49,7 +51,7 @@ Use restrained entrance transitions and button/dropzone feedback. A brief comple
 
 ## Guided tour
 
-Use Driver.js with a visible step count, Back/Next, Skip and close controls. Enable keyboard navigation and Escape dismissal. Use four stable demo targets: input, hero/evidence, charts and chat. Wait for the target to mount; if it is unavailable, end cleanly without blocking the page. Distinguish completion, explicit dismissal and lifecycle cleanup.
+Use Driver.js with a visible five-step sequence: the input choice cards, demo trigger, hero/evidence, charts and chat. Keep Back/Next, Skip, close, keyboard navigation and Escape dismissal. Wait for the target to mount; if it is unavailable, end cleanly without blocking the page. Distinguish completion, explicit dismissal and lifecycle cleanup.
 
 Style popovers with product tokens in both themes. Use brief spotlight/popover transitions; disable movement under reduced motion. Keep popovers inside the viewport at mobile widths and 200% zoom. Manage focus while open and restore it to the initiating control, or a stable workspace control, on exit. Verify keyboard behavior rather than assuming library defaults are sufficient.
 

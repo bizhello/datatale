@@ -327,6 +327,51 @@ describe("useAnalysis HTTP lifecycle", () => {
     });
   });
 
+  it("sends the frozen focus on the initial request and same-key retry", async () => {
+    vi.stubGlobal("crypto", { randomUUID: () => key });
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+      .mockResolvedValueOnce(
+        Response.json({ code: "unavailable" }, { status: 503 }),
+      )
+      .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+      .mockResolvedValueOnce(
+        Response.json({
+          analysisId,
+          report,
+          expiresAt: "2026-09-26T12:00:00.000Z",
+        }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    const { result } = renderHook(() =>
+      useAnalysis(source, undefined, "compare regions"),
+    );
+
+    await act(async () => result.current.run());
+    expect(result.current.state).toMatchObject({
+      status: "error",
+      error: "unavailable",
+      retryKey: key,
+    });
+    await act(async () => result.current.retry());
+
+    expect(JSON.parse(String(fetch.mock.calls[1]?.[1]?.body))).toEqual({
+      source,
+      focus: "compare regions",
+    });
+    expect(JSON.parse(String(fetch.mock.calls[3]?.[1]?.body))).toEqual({
+      source,
+      focus: "compare regions",
+    });
+    expect(fetch.mock.calls[1]?.[1]).toMatchObject({
+      headers: { "Idempotency-Key": key },
+    });
+    expect(fetch.mock.calls[3]?.[1]).toMatchObject({
+      headers: { "Idempotency-Key": key },
+    });
+  });
+
   it("does not retry an indeterminate provider-started request", async () => {
     vi.stubGlobal("crypto", { randomUUID: () => key });
     const fetch = vi
@@ -345,6 +390,24 @@ describe("useAnalysis HTTP lifecycle", () => {
     });
     act(() => result.current.retry());
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("restores a saved analysis without guest or analyze requests", () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const { result } = renderHook(() =>
+      useAnalysis(source, {
+        analysisId,
+        expiresAt: "2026-09-26T12:00:00.000Z",
+        report,
+      }),
+    );
+    expect(result.current.state).toMatchObject({
+      status: "ready",
+      analysisId,
+      report,
+    });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("preserves a terminal quota scope in client state", async () => {
@@ -415,6 +478,39 @@ describe("useAnalysis HTTP lifecycle", () => {
     rerender({ acceptedSource: replacement });
     expect(requestSignal?.aborted).toBe(true);
     expect(result.current.state).toEqual({ status: "idle" });
+  });
+
+  it("ignores a late response after the hook is unmounted", async () => {
+    vi.stubGlobal("crypto", { randomUUID: () => key });
+    let resolveAnalysis: ((response: Response) => void) | undefined;
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveAnalysis = resolve;
+          }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    const { result, unmount } = renderHook(() => useAnalysis(source));
+    let runPromise: Promise<void>;
+    act(() => {
+      runPromise = result.current.run();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    unmount();
+    resolveAnalysis?.(
+      Response.json({
+        analysisId,
+        report,
+        expiresAt: "2026-09-26T12:00:00.000Z",
+      }),
+    );
+    await expect(act(async () => runPromise)).resolves.toBeUndefined();
   });
 
   it("clears an analysis error when the accepted source changes", async () => {

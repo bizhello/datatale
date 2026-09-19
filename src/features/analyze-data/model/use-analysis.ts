@@ -10,6 +10,7 @@ import {
 import { z } from "zod";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import { finalReportSchema } from "@/entities/report";
+import type { AnalysisFocus } from "./analysis-focus";
 import {
   ANALYSIS_PROGRESS_CONFIG,
   estimateAnalysisProgress,
@@ -88,6 +89,7 @@ function idempotencyKey() {
 export function useAnalysis(
   source: Dataset | TextSource,
   restored?: RestoredAnalysis,
+  focus?: AnalysisFocus,
 ) {
   const [state, dispatch] = useReducer(analysisReducer, restored, initialState);
   const nextRequestId = useRef(0);
@@ -120,7 +122,7 @@ export function useAnalysis(
   }, [clearTimers, source]);
 
   const run = useCallback(
-    async (reuseKey?: string) => {
+    async (reuseKey?: string, requestedFocus = focus) => {
       controller.current?.abort();
       clearTimers();
       const requestId = ++nextRequestId.current;
@@ -187,7 +189,10 @@ export function useAnalysis(
             "Content-Type": "application/json",
             "Idempotency-Key": key,
           },
-          body: JSON.stringify({ source }),
+          body: JSON.stringify({
+            source,
+            ...(requestedFocus ? { focus: requestedFocus } : {}),
+          }),
           signal: abortController.signal,
         });
         const value: AnalyzeResponse = await response.json().catch(() => ({}));
@@ -279,7 +284,7 @@ export function useAnalysis(
         });
       }
     },
-    [clearTimers, source],
+    [clearTimers, focus, source],
   );
 
   const cancel = useCallback(() => {

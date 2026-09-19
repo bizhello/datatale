@@ -36,38 +36,50 @@ export function InputOptions({
           {...dropzone.getInputProps()}
           aria-label="Выбрать CSV или XLSX файл"
         />
-        <span className="input-icon">
-          <Upload aria-hidden="true" />
-        </span>
-        <h2>CSV или Excel</h2>
-        <p>Перетащите файл сюда или выберите его. До 2 МБ, до 5 000 строк.</p>
-        <Button type="button" variant="secondary" onPress={dropzone.open}>
-          <FileSpreadsheet /> Выбрать файл
-        </Button>
-        <small>XLS нужно сохранить как XLSX</small>
+        <div className="input-card-content">
+          <span className="input-icon">
+            <Upload aria-hidden="true" />
+          </span>
+          <div className="input-card-copy">
+            <h2>CSV или Excel</h2>
+            <p>
+              Перетащите файл сюда или выберите его. До 2 МБ, до 5 000 строк.
+            </p>
+            <small>XLS нужно сохранить как XLSX</small>
+          </div>
+        </div>
+        <div className="input-card-action">
+          <Button type="button" variant="secondary" onPress={dropzone.open}>
+            <FileSpreadsheet /> Выбрать файл
+          </Button>
+        </div>
       </div>
       <Surface className="text-input" id="onboarding-text-input">
-        <span className="input-icon">
-          <FileText aria-hidden="true" />
-        </span>
-        <h2>Или вставьте текст</h2>
-        <TextField
-          fullWidth
-          name="source-text"
-          value={text}
-          onChange={onChangeText}
-          variant="secondary"
-        >
-          <Label>Текст отчёта</Label>
-          <TextArea
-            id="source-text"
-            placeholder="Вставьте короткий отчёт или заметки…"
-          />
-          <Description>
-            {text.length.toLocaleString("ru-RU")} / 30 000
-          </Description>
-        </TextField>
-        <div className="text-actions">
+        <div className="input-card-content">
+          <span className="input-icon">
+            <FileText aria-hidden="true" />
+          </span>
+          <div className="input-card-copy">
+            <h2>Или вставьте текст</h2>
+            <TextField
+              fullWidth
+              name="source-text"
+              value={text}
+              onChange={onChangeText}
+              variant="secondary"
+            >
+              <Label>Текст отчёта</Label>
+              <TextArea
+                id="source-text"
+                placeholder="Вставьте короткий отчёт или заметки…"
+              />
+              <Description>
+                {text.length.toLocaleString("ru-RU")} / 30 000
+              </Description>
+            </TextField>
+          </div>
+        </div>
+        <div className="input-card-action text-actions">
           <Button variant="secondary" onPress={onAcceptText}>
             Проверить текст
           </Button>

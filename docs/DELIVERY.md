@@ -20,7 +20,7 @@ The release gate passes Biome, Steiger, strict TypeScript, the Turbopack product
 | Operations | Neon migrations, automatic guarded production migration, main-only Vercel deploys, Cloudflare DNS, HTTPS, and production smoke checks | done |
 | Onboarding | Accessible first-visit modal, deterministic local demo, skip/complete persistence, replay, focus restoration, mobile, theme, and reduced-motion behavior | done |
 | History/reopen | Owner-scoped summaries and strict detail hydration without another AI/quota claim; stale-response, expiry, and isolation guards | done |
-| Empty workspace | Explicitly labeled synthetic result preview with finite motion, reduced-motion fallback, and mobile/error-safe layout | done |
+| Empty workspace | Explicitly labeled liquid synthetic preview with finite motion, reduced-motion fallback, and mobile/error-safe layout | done |
 
 ## Release evidence
 
@@ -44,6 +44,12 @@ GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI
 | Guest history/reopen v1 | history executor | `ba0f2b5` | removed after integration | Saved-analysis read API, owner isolation, report/chat hydration, tests | deployed in `339d1c8` |
 | Liquid editorial first viewport | visual executor | `ba0f2b5` | removed after integration | Existing empty workspace presentation, responsive/reduced-motion tests | deployed in `339d1c8` |
 | Product-wave integration | conductor | `ba0f2b5` | removed after integration | Shared docs, integration, review, release | PR #21 merged and production Ready |
+
+## Active product wave
+
+| Task | Owner | Base | Worktree | Scope | State |
+| --- | --- | --- | --- | --- | --- |
+| Guided analysis transition | guided-analysis executor | `71e1602` | `../datatale-worktrees/guided-analysis` | Optional analysis focus, one-action launch, compact source state, accessible result transition | verified; final review |
 
 ## Remaining delivery artifact
 

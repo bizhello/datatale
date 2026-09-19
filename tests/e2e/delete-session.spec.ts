@@ -49,7 +49,7 @@ async function openAnalysis(page: Page) {
   await page
     .getByRole("button", { name: "Загрузить синтетический демо-набор" })
     .click();
-  await page.getByRole("button", { name: "Продолжить к анализу" }).click();
+  await page.getByRole("button", { name: "Запустить AI-анализ" }).click();
 }
 
 test("delete-all calls the private guest endpoint once and clears local state after success", async ({
@@ -72,13 +72,14 @@ test("delete-all calls the private guest endpoint once and clears local state af
   });
   await openAnalysis(page);
   await page
-    .getByRole("button", { name: "Удалить все данные этого сеанса" })
+    .getByRole("button", { name: "Удалить сохранённые данные" })
     .click();
+  await page.getByRole("button", { name: "Удалить всё" }).click();
   await expect(
     page.getByRole("button", { name: "Загрузить синтетический демо-набор" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Запустить анализ" }),
+    page.getByRole("button", { name: "Запустить AI-анализ" }),
   ).toHaveCount(0);
   expect(deleteCalls).toBe(1);
 });
@@ -112,14 +113,14 @@ test("failed delete-all keeps the report visible and exposes an actionable retry
     });
   });
   await openAnalysis(page);
-  await page.getByRole("button", { name: "Запустить анализ" }).click();
   const reportHeading = page.getByRole("heading", {
     name: /Проверенный отчёт остаётся видимым/,
   });
   await expect(reportHeading).toBeVisible();
   await page
-    .getByRole("button", { name: "Удалить все данные этого сеанса" })
+    .getByRole("button", { name: "Удалить сохранённые данные" })
     .click();
+  await page.getByRole("button", { name: "Удалить всё" }).click();
   await expect(page.getByText("Не удалось удалить данные")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Повторить удаление" }),

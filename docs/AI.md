@@ -30,6 +30,8 @@ Start with at most 12 visible bar categories, 2–6 donut segments and a bounded
 
 For text, extract explicitly stated quantities with exact source quotations before the narrative call. Signed/localized numeric tokens and standalone unit/period phrases must match the quotation exactly. If extraction finds nothing, use a bounded exact excerpt from the first paragraph as narrative evidence. Text analysis deliberately returns no charts in this feature; chart selection is enabled for suitable tables.
 
+The optional goal is normalized to at most 400 characters and is sent through an explicitly delimited `UNTRUSTED ANALYSIS PREFERENCE` section in planning, repair, extraction, and narrative prompts. It may prioritize supported questions, but cannot override instructions, introduce facts, or require unsupported fields. A blank goal omits the section.
+
 ## Prompt and schema ownership
 
 Analysis prompt assets are `features/analyze-data/server/prompts/table.md`, `text.md`, and `narrative.md`. The grounded chat prompt is owned by `features/query-report/server/prompts/chat.md`. Instructions are English and require Russian report copy.

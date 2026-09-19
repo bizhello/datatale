@@ -2,6 +2,11 @@
 import { Button, Modal, Tooltip } from "@heroui/react";
 import { Expand, X } from "lucide-react";
 import { useId, useState } from "react";
+import {
+  formatDerivation,
+  formatEvidenceSummary,
+  formatExpiry,
+} from "../lib/format";
 import type { FinalReport } from "../model/schema";
 import { ChartVisual } from "./chart-visual";
 
@@ -10,27 +15,6 @@ type ReportDashboardProps = {
   expiresAt?: string;
   onboardingDemo?: boolean;
 };
-
-function formatExpiry(expiresAt: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
-    dateStyle: "long",
-    timeStyle: "short",
-  }).format(new Date(expiresAt));
-}
-
-function formatDerivation(
-  calculation: FinalReport["metrics"][number]["calculation"],
-) {
-  if (calculation.kind === "direct-source") return "Указано в исходном тексте";
-  if (calculation.kind === "count") return "Количество принятых строк";
-  const labels: Record<Exclude<typeof calculation.kind, "count">, string> = {
-    sum: "Сумма",
-    average: "Среднее",
-    min: "Минимум",
-    max: "Максимум",
-  };
-  return `${labels[calculation.kind]} поля «${calculation.fieldLabel}» по всем принятым строкам`;
-}
 
 function formatChartDerivation(
   aggregation: FinalReport["charts"][number]["aggregation"],
@@ -46,16 +30,6 @@ function formatChartDerivation(
   return `${labels[aggregation.kind]} поля «${aggregation.fieldLabel}» по полю «${aggregation.dimensionLabel}»`;
 }
 
-function formatEvidenceKind(kind: FinalReport["evidence"][number]["kind"]) {
-  return kind === "row-range" ? "Строки таблицы" : "Абзац источника";
-}
-
-function formatEvidenceSummary(item: FinalReport["evidence"][number]) {
-  const coverage = item.coverage
-    ? ` · Покрытие: ${item.coverage.included.toLocaleString("ru-RU")} из ${item.coverage.total.toLocaleString("ru-RU")}`
-    : "";
-  return `${formatEvidenceKind(item.kind)} · ${item.label}${item.excerpt ? `: ${item.excerpt}` : ""}${coverage}`;
-}
 export function ReportDashboard({
   report,
   expiresAt,
@@ -71,7 +45,11 @@ export function ReportDashboard({
     <section className="report-dashboard" aria-labelledby={reportTitleId}>
       <div className="report-hero">
         <p className="eyebrow">ПРОВЕРЕННЫЙ АНАЛИЗ</p>
-        <h2 id={reportTitleId}>
+        <h2
+          id={reportTitleId}
+          data-analysis-report-heading="true"
+          tabIndex={-1}
+        >
           {report.hero.map((item) => item.text).join(" ")}
         </h2>
       </div>

@@ -1,14 +1,16 @@
 "use client";
-import { Button } from "@heroui/react";
+import { Button, Modal } from "@heroui/react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
-import type { Dataset, TextSource } from "@/entities/dataset";
+import { useEffect, useRef, useState } from "react";
+import {
+  type Dataset,
+  sourceDisplaySummary,
+  type TextSource,
+} from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
 import { ReportDashboard } from "@/entities/report/ui";
-import {
-  analysisErrorMessages,
-  type QuotaScope,
-} from "../model/analysis-state";
+import { errorMessage } from "../model/analysis-error";
+import type { AnalysisFocus } from "../model/analysis-focus";
 import { type RestoredAnalysis, useAnalysis } from "../model/use-analysis";
 import { AnalysisProgress } from "./analysis-progress";
 import { InviteAccessModal } from "./invite-access-modal";
@@ -16,6 +18,9 @@ import { InviteAccessModal } from "./invite-access-modal";
 type AnalyzeWorkspaceProps = {
   source: Dataset | TextSource;
   onDelete: () => void;
+  onReplace: () => void;
+  analysisFocus?: AnalysisFocus;
+  autoStart?: boolean;
   restoredAnalysis?: RestoredAnalysis;
   onAnalysisReady?: () => void;
   renderReport?: (
@@ -27,15 +32,25 @@ type AnalyzeWorkspaceProps = {
 export function AnalyzeWorkspace({
   source,
   onDelete,
+  onReplace,
+  analysisFocus,
+  autoStart = false,
   renderReport,
   restoredAnalysis,
   onAnalysisReady,
 }: AnalyzeWorkspaceProps) {
-  const { state, run, cancel, retry } = useAnalysis(source, restoredAnalysis);
+  const { state, run, cancel, retry } = useAnalysis(
+    source,
+    restoredAnalysis,
+    analysisFocus,
+  );
+  const progressRef = useRef<HTMLDivElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
   const [deleteState, setDeleteState] = useState<"idle" | "deleting" | "error">(
     "idle",
   );
   const [accessOpen, setAccessOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   useEffect(() => {
     if (state.status === "ready") onAnalysisReady?.();
   }, [onAnalysisReady, state.status]);
@@ -47,6 +62,34 @@ export function AnalyzeWorkspace({
     )
       setAccessOpen(true);
   }, [state]);
+  const stateError = state.status === "error" ? state.error : undefined;
+  const stateQuotaScope =
+    state.status === "error" ? state.quotaScope : undefined;
+  useEffect(() => {
+    if (state.status === "analyzing") progressRef.current?.focus();
+    if (
+      state.status === "error" &&
+      !(
+        stateError === "quota" &&
+        (stateQuotaScope === "workspace" || stateQuotaScope === "ip")
+      )
+    )
+      errorRef.current?.focus();
+    if (state.status === "ready")
+      document
+        .querySelector<HTMLElement>("[data-analysis-report-heading]")
+        ?.focus();
+  }, [stateError, stateQuotaScope, state.status]);
+  useEffect(() => {
+    if (!autoStart || restoredAnalysis || state.status !== "idle") return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) void run();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [autoStart, restoredAnalysis, run, state.status]);
   const deleteAll = async () => {
     setDeleteState("deleting");
     try {
@@ -65,20 +108,31 @@ export function AnalyzeWorkspace({
       id="onboarding-analysis-flow"
       tabIndex={-1}
     >
-      {(state.status === "idle" || state.status === "cancelled") && (
-        <Button onPress={() => void run()}>
-          {state.status === "cancelled"
-            ? "Запустить снова"
-            : "Запустить анализ"}
+      <div className="compact-source-summary">
+        <div>
+          <p className="eyebrow">ПРОВЕРЕННЫЙ ИСТОЧНИК</p>
+          <strong title={sourceDisplaySummary(source).name}>
+            {sourceDisplaySummary(source).name}
+          </strong>
+          <span>{sourceDisplaySummary(source).detail}</span>
+        </div>
+        <Button variant="secondary" onPress={onReplace}>
+          Заменить источник
         </Button>
+      </div>
+      {((state.status === "idle" && !autoStart) ||
+        state.status === "cancelled") && (
+        <Button onPress={() => void run()}>Запустить AI-анализ</Button>
       )}
       {(state.status === "analyzing" || state.status === "completing") && (
         <>
-          <AnalysisProgress
-            progress={state.progress}
-            phase={state.phase}
-            sourceKind={source.source.kind === "text" ? "text" : "table"}
-          />
+          <div ref={progressRef} tabIndex={-1}>
+            <AnalysisProgress
+              progress={state.progress}
+              phase={state.phase}
+              sourceKind={source.source.kind === "text" ? "text" : "table"}
+            />
+          </div>
           {state.status === "analyzing" && (
             <Button variant="secondary" onPress={cancel}>
               Отменить анализ
@@ -87,7 +141,7 @@ export function AnalyzeWorkspace({
         </>
       )}
       {state.status === "error" && (
-        <div className="error-state" role="alert">
+        <div className="error-state" role="alert" tabIndex={-1} ref={errorRef}>
           <div>
             <h2>Анализ не завершён</h2>
             <p>{errorMessage(state.error, state.quotaScope)}</p>
@@ -113,27 +167,60 @@ export function AnalyzeWorkspace({
           </div>
         </div>
       )}
-      <Button
-        className="delete-session"
-        variant="tertiary"
-        isDisabled={deleteState === "deleting"}
-        onPress={() => void deleteAll()}
+      <div className="analysis-danger-zone">
+        <p>
+          Удаление очистит все отчёты, чат и источник этого гостевого
+          пространства.
+        </p>
+        <Button
+          className="delete-session"
+          variant="tertiary"
+          isDisabled={deleteState === "deleting"}
+          onPress={() => setDeleteConfirmOpen(true)}
+        >
+          {deleteState === "deleting"
+            ? "Удаляем данные…"
+            : "Удалить сохранённые данные"}
+        </Button>
+      </div>
+      <Modal.Root
+        isOpen={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
       >
-        {deleteState === "deleting"
-          ? "Удаляем данные…"
-          : "Удалить все данные этого сеанса"}
-      </Button>
+        <Modal.Backdrop>
+          <Modal.Container size="sm">
+            <Modal.Dialog>
+              <Modal.Header>
+                <Modal.Heading>Удалить данные пространства?</Modal.Heading>
+                <Modal.CloseTrigger aria-label="Закрыть" />
+              </Modal.Header>
+              <Modal.Body>
+                <p>
+                  Будут удалены все текущие отчёты, сообщения чата и источник.
+                  Это действие нельзя отменить.
+                </p>
+                <div className="modal-actions">
+                  <Button
+                    variant="tertiary"
+                    onPress={() => setDeleteConfirmOpen(false)}
+                  >
+                    Отмена
+                  </Button>
+                  <Button
+                    className="destructive-action"
+                    onPress={() => {
+                      setDeleteConfirmOpen(false);
+                      void deleteAll();
+                    }}
+                  >
+                    Удалить всё
+                  </Button>
+                </div>
+              </Modal.Body>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal.Root>
     </section>
   );
-}
-
-function errorMessage(
-  error: keyof typeof analysisErrorMessages,
-  scope?: QuotaScope,
-) {
-  if (error !== "quota") return analysisErrorMessages[error];
-  if (scope === "code")
-    return "Лимит этого кода приглашения на сегодня исчерпан.";
-  if (scope === "global") return "Общий лимит анализов на сегодня исчерпан.";
-  return analysisErrorMessages.quota;
 }

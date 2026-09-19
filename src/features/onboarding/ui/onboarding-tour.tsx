@@ -1,8 +1,14 @@
 "use client";
 
 import { Button, Modal } from "@heroui/react";
-import { type DriveStep, driver, type PopoverDOM } from "driver.js";
+import { driver } from "driver.js";
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  addSkipButton,
+  availableSteps,
+  prefersReducedMotion,
+  type TourAction,
+} from "../lib/tour";
 import {
   readOnboardingPreference,
   writeOnboardingPreference,
@@ -12,96 +18,6 @@ type OnboardingTourProps = {
   hydrated: boolean;
   onSessionChange: (active: boolean) => void;
 };
-type TourAction = "completed" | "skipped";
-
-const tourSteps: ReadonlyArray<DriveStep> = [
-  {
-    element: "#onboarding-source",
-    popover: {
-      title: "Начните с источника",
-      description:
-        "Загрузите CSV или XLSX, либо вставьте текст. Файл проверяется в браузере до запуска анализа.",
-    },
-  },
-  {
-    element: ".dropzone",
-    popover: {
-      title: "Таблица или файл",
-      description: "Выберите файл или перетащите его в эту область.",
-    },
-  },
-  {
-    element: "#onboarding-text-input",
-    popover: {
-      title: "Можно вставить текст",
-      description: "Короткие отчёты и заметки подходят так же хорошо.",
-    },
-  },
-  {
-    element: "#onboarding-demo",
-    popover: {
-      title: "Попробуйте демо",
-      description:
-        "Синтетический набор покажет весь сценарий без подготовки файла.",
-    },
-  },
-  {
-    element: ".onboarding-demo-analysis",
-    popover: {
-      title: "Проверьте и запустите анализ",
-      description:
-        "После проверки источника здесь появляется готовый результат анализа.",
-    },
-  },
-  {
-    element: "#onboarding-theme",
-    popover: {
-      title: "Выберите тему",
-      description: "Переключите светлую, тёмную или системную тему.",
-    },
-  },
-  {
-    element: ".onboarding-demo-workspace .chart-heading button",
-    popover: {
-      title: "Изучайте диаграммы",
-      description:
-        "Разверните диаграмму, чтобы рассмотреть её и увидеть исходные значения.",
-    },
-  },
-  {
-    element: ".onboarding-demo-workspace [data-onboarding-ask]",
-    popover: {
-      title: "Спросите данные",
-      description:
-        "Задайте вопрос по готовому отчёту — ответ будет основан на его источнике.",
-    },
-  },
-];
-
-function availableSteps() {
-  return tourSteps.filter(
-    (step) =>
-      typeof step.element !== "string" ||
-      document.querySelector(step.element) !== null,
-  );
-}
-
-function prefersReducedMotion() {
-  return (
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
-function addSkipButton(popover: PopoverDOM, skip: () => void) {
-  const button = document.createElement("button");
-  button.className = "driver-popover-footer-btn onboarding-skip";
-  button.type = "button";
-  button.textContent = "Пропустить";
-  button.addEventListener("click", skip, { once: true });
-  popover.footerButtons.prepend(button);
-}
-
 export function OnboardingTour({
   hydrated,
   onSessionChange,

@@ -52,10 +52,8 @@ function chooseSheet(name: string, label: string) {
 describe("ImportWorkspace", () => {
   it("shows a local demonstration preview without importing data", () => {
     render(<ImportWorkspace />);
-    expect(screen.getByText("ДЕМОНСТРАЦИОННЫЙ ПРИМЕР")).toBeVisible();
-    expect(
-      screen.getByText("Синтетические данные · без AI-запроса"),
-    ).toBeVisible();
+    expect(screen.getByText("ПОСЛЕ ПРОВЕРКИ ИСТОЧНИКА")).toBeVisible();
+    expect(screen.getByText("Понятный отчёт из ваших данных.")).toBeVisible();
     expect(parser).not.toHaveBeenCalled();
   });
 

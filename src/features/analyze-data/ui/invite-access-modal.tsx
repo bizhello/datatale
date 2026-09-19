@@ -50,11 +50,11 @@ export function InviteAccessModal({
               <Modal.CloseTrigger aria-label="Закрыть" />
             </Modal.Header>
             <Modal.Body>
-              <p>
+              <p className="invite-modal-copy">
                 Бесплатный анализ на сегодня уже использован. Введите код
                 приглашения, чтобы продолжить.
               </p>
-              <form noValidate onSubmit={submit}>
+              <form className="invite-modal-form" noValidate onSubmit={submit}>
                 <TextField
                   isInvalid={status === "error"}
                   value={code}

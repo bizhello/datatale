@@ -1,19 +1,21 @@
 "use client";
 
 import { Button } from "@heroui/react";
+import { Sparkles } from "lucide-react";
+import type { ReactNode } from "react";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import { useImportWorkspace } from "../model/use-import-workspace";
+import { EmptyResultExplanation } from "./empty-result-explanation";
 import { ErrorState } from "./error-state";
 import { InputOptions } from "./input-options";
-import { LiquidResultPreview } from "./liquid-result-preview";
 import { LoadingState } from "./loading-state";
 import { SourcePreview } from "./source-preview";
 
 type ImportWorkspaceProps = {
-  onReady?: (source: Dataset | TextSource) => void;
+  renderReadyAction?: (source: Dataset | TextSource) => ReactNode;
 };
 
-export function ImportWorkspace({ onReady }: ImportWorkspaceProps) {
+export function ImportWorkspace({ renderReadyAction }: ImportWorkspaceProps) {
   const {
     state,
     acceptText,
@@ -43,7 +45,7 @@ export function ImportWorkspace({ onReady }: ImportWorkspaceProps) {
             запускаете AI-анализ.
           </p>
         </div>
-        {state.status === "empty" && <LiquidResultPreview />}
+        {state.status === "empty" && <EmptyResultExplanation />}
       </div>
       {state.status === "error" && (
         <ErrorState
@@ -67,9 +69,10 @@ export function ImportWorkspace({ onReady }: ImportWorkspaceProps) {
         <Button
           className="demo-button"
           id="onboarding-demo"
-          variant="ghost"
+          variant="secondary"
           onPress={showDemo}
         >
+          <Sparkles aria-hidden="true" />
           Загрузить синтетический демо-набор
         </Button>
       )}
@@ -81,7 +84,7 @@ export function ImportWorkspace({ onReady }: ImportWorkspaceProps) {
           state={state}
           onSheet={selectSheet}
           onClear={clear}
-          {...(onReady ? { onAnalyze: onReady } : {})}
+          {...(renderReadyAction ? { renderAction: renderReadyAction } : {})}
         />
       )}
     </section>
