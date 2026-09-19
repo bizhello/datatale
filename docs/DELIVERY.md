@@ -4,7 +4,7 @@ DataTale's production MVP delivers the complete assignment journey: CSV/XLSX/tex
 
 ## Current state
 
-All Must Have features and the optional first-visit tour are deployed. Production commit `fd464cb` is Ready. Production Neon contains migrations `0001`–`0004`; guarded production builds run the checksum-ledger migration runner before Next.js and a subsequent deployment logged `Applied 0 migrations` before building. Branch and pull-request Vercel deployments are disabled; historical and canceled preview deployments were removed, leaving no preview deployments.
+All Must Have features and the optional first-visit tour are deployed. Production commit `fd464cb` is Ready. The ordered migration set contains `0001`–`0005`; guarded production builds run the checksum-ledger migration runner before Next.js. Branch and pull-request Vercel deployments are disabled; historical and canceled preview deployments were removed, leaving no preview deployments.
 
 The release gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 231 Vitest tests, and 66 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. A post-merge production table run returned HTTP 200 with three hero statements, three metrics, and three charts; missing-data chat returned the exact refusal with HTTP 200. Desktop Chromium and mobile WebKit onboarding smoke passed with an inert welcome, local deterministic demo, Escape/replay, unique IDs, and zero `/api/analyze` calls.
 

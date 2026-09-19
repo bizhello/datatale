@@ -21,7 +21,7 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
-Open http://localhost:3000. Local input, preview, and onboarding need no secrets. Analysis and chat require the database, provider, session, salt, and quota variables in `.env.example`. Run `bun run db:migrate` to apply migrations `0001_ai_dashboard.sql` through `0004_chat_inference_leases.sql` in order to an isolated database. Vercel production builds run this guarded command automatically before `next build`; local builds never migrate. `CRON_SECRET` is required only for scheduled cleanup. The current UI does not reopen a saved analysis after refresh, although its owner-scoped server record remains available until the seven-day expiry.
+Open http://localhost:3000. Local input, preview, and onboarding need no secrets. Analysis and chat require the database, provider, session, salt, and quota variables in `.env.example`. Run `bun run db:migrate` to apply the ordered migration set through `0005_strict_report_hero.sql` to an isolated database. Vercel production builds run this guarded command automatically before `next build`; local builds never migrate. `CRON_SECRET` is required only for scheduled cleanup. The current UI does not reopen a saved analysis after refresh, although its owner-scoped server record remains available until the seven-day expiry.
 
 ```bash
 bun run check                       # lint, architecture, types, unit tests, production build
