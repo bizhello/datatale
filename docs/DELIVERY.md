@@ -53,7 +53,7 @@ The conductor fills this table before dispatch and updates it on each transition
 
 | Task / child ID | Owner | State | Base SHA / branch / worktree | Reserved write paths | Next action / blocker |
 | --- | --- | --- | --- | --- | --- |
-| — | — | — | — | — | No active assignment |
+| AI Dashboard (DT-01/04/06/07 vertical) | Executor: Terra medium; conductor: contracts/dependencies/docs/integration; reviewer: Sol medium | active | `1baf9ad4087c1704bda0e08d0d949a26ccfdc7e8` / `feat/ai-dashboard` / `../datatale-worktrees/ai-dashboard` | Executor: report/workspace entities, analyze-data, AI/DB server adapters, API routes, dashboard/import composition, migrations/config, related tests/styles; conductor: dependencies and canonical docs | Implement reviewed `.dev-tasks/ai-dashboard.md` checkpoints; production remains fail-closed until isolated DB, quotas, cron, and live evals pass |
 
 For each active task, add its filled assignment from WORKFLOW under this section. Keep only current handoff facts; remove superseded draft instructions after integration. Contract changes belong in canonical code/docs, not only in a session message.
 
