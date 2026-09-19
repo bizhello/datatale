@@ -4,7 +4,7 @@ DataTale's production MVP delivers the complete assignment journey: CSV/XLSX/tex
 
 ## Current state
 
-All Must Have features, the optional functional tour, owner-scoped history/reopen, and the guided analysis transition are deployed from production code release `cc583d1`. Migrations `0001`–`0005` remain current. The guarded production build runs the migration ledger before Next.js; the PR #24 rollout reached Ready. Branch and pull-request Vercel deployments remain disabled.
+All Must Have features, the optional functional tour, owner-scoped history/reopen, guided analysis transition, and quota-flow polish are deployed from production code release `4be7bba`. Migrations `0001`–`0005` remain current. The guarded production build runs the migration ledger before Next.js; the PR #25 rollout reached Ready. Branch and pull-request Vercel deployments remain disabled.
 
 The release gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 291 Vitest tests, and 72 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Production returns HTTPS 200 and renders the new input cards and empty-workspace explanation. A history read without a sealed guest cookie returns private, uncached `401 {"code":"expired"}` without creating a cookie. Earlier production probes verified a three-statement table report and the exact insufficient-data chat refusal.
 
@@ -35,6 +35,7 @@ The release gate passes Biome, Steiger, strict TypeScript, the Turbopack product
 | [#19](https://github.com/bizhello/datatale/pull/19) | Canonical report reliability across generation, persistence, replay, UI, and PostgreSQL | Independent review removed legacy payload acceptance, required metric/chart provenance, fixed XLSX request isolation and chat retry semantics, and verified migration `0005` before production build |
 | [#21](https://github.com/bizhello/datatale/pull/21) | Guest report history/reopen and liquid empty-workspace preview | Review corrected stale private-data restoration, fail-open rows, owner-isolation evidence, access-expiry races, indistinguishable labels, assistive feedback, infinite motion, and mobile layout; CI and production smoke passed |
 | [#24](https://github.com/bizhello/datatale/pull/24) | Guided analysis focus and UX correction | Review required direct lifecycle, idempotency, prompt, focus, replacement-cancellation, and mobile-overflow evidence; 291 Vitest and 72 Playwright cases passed before production smoke |
+| [#25](https://github.com/bizhello/datatale/pull/25) | Submission access-flow polish and pitch guide | Review verified visible 44 px invite input, modal close/reopen, terminal quota separation, HeroUI danger affordances, and documentation truth; CI and production smoke passed |
 
 GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI, component-ownership, HeroUI, and hydration history. [AI-WORKLOG.md](AI-WORKLOG.md) records the material AI-assisted mistakes and corrections used for the pitch.
 
@@ -46,6 +47,7 @@ GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI
 | Liquid editorial first viewport | visual executor | `ba0f2b5` | removed after integration | Existing empty workspace presentation, responsive/reduced-motion tests | deployed in `339d1c8` |
 | Product-wave integration | conductor | `ba0f2b5` | removed after integration | Shared docs, integration, review, release | PR #21 merged and production Ready |
 | Guided analysis transition | guided-analysis executor | `71e1602` | removed after integration | Optional analysis focus, one-action launch, compact source state, accessible result transition | deployed in `cc583d1` |
+| Submission polish | conductor + audit agents | `1df9bcb` | removed after integration | Quota recovery, destructive affordance, onboarding copy, pitch and release documentation | deployed in `4be7bba` |
 
 ## Remaining delivery artifact
 
