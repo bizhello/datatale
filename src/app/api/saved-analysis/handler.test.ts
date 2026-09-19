@@ -228,4 +228,67 @@ describe("saved analysis read handlers", () => {
     expect((await handlers.detail(request(), "bad-id")).status).toBe(404);
     expect(get).toHaveBeenCalledOnce();
   });
+
+  it("scopes list and known-id detail reads to the sealed workspace owner", async () => {
+    const secondWorkspace = {
+      id: "00000000-0000-4000-8000-000000000004",
+      expiresAt: workspace.expiresAt,
+    };
+    const summary = {
+      id: analysisId,
+      sourceKind: "text" as const,
+      createdAt: new Date("2026-09-19T12:00:00.000Z"),
+      expiresAt: new Date("2026-09-26T12:00:00.000Z"),
+    };
+    const stored = {
+      id: analysisId,
+      workspaceId: secondWorkspace.id,
+      source,
+      report,
+      createdAt: summary.createdAt,
+      lastAccessedAt: summary.createdAt,
+      expiresAt: summary.expiresAt,
+    };
+    const listSummaries = vi.fn(async (workspaceId: string) =>
+      workspaceId === secondWorkspace.id ? [summary] : [],
+    );
+    const get = vi.fn(async (workspaceId: string, id: string) =>
+      workspaceId === secondWorkspace.id && id === analysisId
+        ? stored
+        : undefined,
+    );
+    const messages = vi.fn(async () => []);
+    const handlersFor = (current: typeof workspace) =>
+      createSavedAnalysisHandlers({
+        runtimeSafe: () => true,
+        readWorkspace: vi.fn(async () => current),
+        isWorkspaceActive: vi.fn(async () => true),
+        repository: { listSummaries, get, messages },
+      });
+    const firstOwner = handlersFor(workspace);
+    const secondOwner = handlersFor(secondWorkspace);
+
+    await expect((await firstOwner.list(request())).json()).resolves.toEqual({
+      analyses: [],
+    });
+    await expect((await secondOwner.list(request())).json()).resolves.toEqual({
+      analyses: [
+        {
+          id: analysisId,
+          sourceKind: "text",
+          createdAt: summary.createdAt.toISOString(),
+          expiresAt: summary.expiresAt.toISOString(),
+        },
+      ],
+    });
+    expect((await firstOwner.detail(request(), analysisId)).status).toBe(404);
+    expect(messages).not.toHaveBeenCalled();
+    expect((await secondOwner.detail(request(), analysisId)).status).toBe(200);
+    expect(get).toHaveBeenNthCalledWith(1, workspace.id, analysisId);
+    expect(get).toHaveBeenNthCalledWith(2, secondWorkspace.id, analysisId);
+    expect(messages).toHaveBeenCalledWith({
+      workspaceId: secondWorkspace.id,
+      analysisId,
+    });
+  });
 });
