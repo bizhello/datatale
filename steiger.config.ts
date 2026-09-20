@@ -3,7 +3,6 @@ import { defineConfig } from "steiger";
 
 export default defineConfig([
   ...fsd.configs.recommended,
-  { ignores: ["**/.gitkeep"] },
   {
     // Import owns parsing/lifecycle invariants even with one dashboard consumer.
     // Keep this feature boundary; only the usage-count heuristic is disabled.
