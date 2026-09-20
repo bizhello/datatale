@@ -1,5 +1,11 @@
 # AI development evidence
 
+## Demo chart omission recovery · 2026-09-20
+
+A production run over the built-in four-month demo returned four checked metrics but no charts. The model treated Russian month names as non-temporal and selected `no-chart`, even though the same source supported separate categorical comparisons for revenue and orders. Shape and chart validators were correct, but the semantic boundary accepted the model's refusal without checking whether supported chart stories existed.
+
+The correction keeps chart selection with the model and strengthens the application-owned boundary. For a `no-chart` proposal, code now generates count and sum candidates, validates them through the existing chart semantics, deduplicates dimension/aggregation/measure stories, and requests the existing single repair when at least two are valid. Review caught missing count stories, duplicated prompt capability rules, and an initially quadratic candidate scan; all three were corrected before integration. Maximum 5,000-row/30-column probes complete in under 15 ms locally, and two live Spiro probes of the exact demo returned two Russian bar charts with no `noChartReason`.
+
 ## 2026-09-19 — production MVP release
 
 **Outcome:** [PR #12](https://github.com/bizhello/datatale/pull/12) through [PR #19](https://github.com/bizhello/datatale/pull/19) completed the production journey, release tooling, canonical report contract, onboarding, and reliability pass. The final gate passes 244 Vitest tests and 66 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit, plus Biome, Steiger, strict TypeScript, and the Turbopack production build.

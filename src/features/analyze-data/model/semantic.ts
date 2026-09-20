@@ -1,5 +1,6 @@
 import type { Dataset } from "@/entities/dataset";
 import type {
+  Aggregation,
   AnalysisProposal,
   ChartSpecification,
   MetricSpecification,
@@ -23,6 +24,9 @@ const valuesFor = (source: Dataset, id: string) =>
   source.rows.map((row) => row.values[id]);
 const field = (source: Dataset, id: string) =>
   source.columns.find((column) => column.id === id);
+const isCategoricalType = (
+  scalarType: Dataset["columns"][number]["scalarType"],
+) => scalarType === "string" || scalarType === "boolean";
 const aggregationIssues = (
   source: Dataset,
   specification: MetricSpecification | ChartSpecification,
@@ -66,6 +70,7 @@ function hasMissingCalendarPeriod(labels: string[]): boolean {
   const smallest = Math.min(...gaps);
   return gaps.some((gap) => gap > smallest);
 }
+
 function chartIssues(
   source: Dataset,
   chart: ChartSpecification,
@@ -107,7 +112,7 @@ function chartIssues(
       });
   }
   if (chart.kind === "bar") {
-    if (dimension.scalarType !== "string" && dimension.scalarType !== "boolean")
+    if (!isCategoricalType(dimension.scalarType))
       issues.push({
         path,
         message: "bar charts require a categorical dimension.",
@@ -123,7 +128,7 @@ function chartIssues(
       issues.push({ path, message: "too many visible categories." });
   }
   if (chart.kind === "donut") {
-    if (dimension.scalarType !== "string" && dimension.scalarType !== "boolean")
+    if (!isCategoricalType(dimension.scalarType))
       issues.push({
         path,
         message: "donut charts require a categorical dimension.",
@@ -162,6 +167,81 @@ function chartIssues(
   }
   return issues;
 }
+
+function chartStorySignature(chart: ChartSpecification) {
+  return `${chart.dimension.fieldId}:${chart.aggregation.kind}:${chart.aggregation.kind === "count" ? "" : chart.aggregation.field.fieldId}`;
+}
+
+function supportedChartStoryCount(source: Dataset): number {
+  const numericMeasures = source.columns.filter(
+    (column) =>
+      column.scalarType === "number" &&
+      valuesFor(source, column.id).some((value) => typeof value === "number"),
+  );
+  const stories = new Set<string>();
+  const accept = (candidate: ChartSpecification) => {
+    const signature = chartStorySignature(candidate);
+    if (
+      !stories.has(signature) &&
+      chartIssues(source, candidate, "candidate").length === 0
+    )
+      stories.add(signature);
+    return stories.size >= 2;
+  };
+  for (const dimension of source.columns) {
+    const kind = isCategoricalType(dimension.scalarType)
+      ? "bar"
+      : dimension.scalarType === "date"
+        ? "line"
+        : undefined;
+    if (!kind) continue;
+    const labelCount = new Set(
+      valuesFor(source, dimension.id)
+        .filter((value) => value !== null)
+        .map(String),
+    ).size;
+    const topN =
+      labelCount > BAR_MAX_CATEGORIES
+        ? { count: BAR_MAX_CATEGORIES - 1, includeOther: true as const }
+        : undefined;
+    const candidateFor = (aggregation: Aggregation): ChartSpecification =>
+      kind === "bar"
+        ? {
+            id: "candidate-bar",
+            kind,
+            title: "Candidate",
+            rationale: "Candidate",
+            dimension: { fieldId: dimension.id },
+            aggregation,
+            categoryLimit: BAR_MAX_CATEGORIES,
+            ...(topN ? { topN } : {}),
+          }
+        : {
+            id: "candidate-line",
+            kind,
+            title: "Candidate",
+            rationale: "Candidate",
+            dimension: { fieldId: dimension.id },
+            aggregation,
+            pointLimit: LINE_MAX_POINTS,
+            missingPeriodPolicy: "reject",
+          };
+    if (accept(candidateFor({ kind: "count" }))) return stories.size;
+    for (const measure of numericMeasures) {
+      if (
+        accept(
+          candidateFor({
+            kind: "sum",
+            field: { fieldId: measure.id },
+          }),
+        )
+      )
+        return stories.size;
+    }
+  }
+  return stories.size;
+}
+
 export function validateTableProposal(
   source: Dataset,
   proposal: AnalysisProposal,
@@ -169,13 +249,19 @@ export function validateTableProposal(
   const issues: SemanticIssue[] = [];
   for (const [index, metric] of proposal.metrics.entries())
     issues.push(...aggregationIssues(source, metric, `metrics.${index}`));
+  if (proposal.outcome === "no-chart" && supportedChartStoryCount(source) >= 2)
+    issues.push({
+      path: "outcome",
+      message:
+        "source supports at least two distinct chart stories accepted by the trusted catalog; return a charts outcome.",
+    });
   if (proposal.outcome === "charts")
     for (const [index, chart] of proposal.charts.entries())
       issues.push(...chartIssues(source, chart, `charts.${index}`));
   if (proposal.outcome === "charts") {
     const signatures = new Set<string>();
     for (const chart of proposal.charts) {
-      const signature = `${chart.dimension.fieldId}:${chart.aggregation.kind}:${chart.aggregation.kind === "count" ? "" : chart.aggregation.field.fieldId}`;
+      const signature = chartStorySignature(chart);
       if (signatures.has(signature))
         issues.push({
           path: "charts",

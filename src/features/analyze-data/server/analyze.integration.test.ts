@@ -153,6 +153,30 @@ describe("analysis orchestration", () => {
     );
     expect(result.evidence[0]?.coverage).toEqual({ included: 13, total: 13 });
   });
+  it("repairs a no-chart plan when the table supports multiple chart stories", async () => {
+    const stages: string[] = [];
+    const noChart = {
+      outcome: "no-chart" as const,
+      reason: "No useful chart.",
+      metrics: proposal.metrics,
+    };
+    const call: ModelCall = async ({ stage, prompt }) => {
+      stages.push(stage);
+      if (stage === "table-plan") return noChart;
+      if (stage === "table-repair") {
+        expect(prompt).toContain("at least two distinct chart stories");
+        return proposal;
+      }
+      return narrative;
+    };
+
+    const report = await analyzeSource(table, { callModel: call });
+
+    expect(stages).toEqual(["table-plan", "table-repair", "narrative"]);
+    expect(report.charts).toHaveLength(2);
+    expect(report.noChartReason).toBeUndefined();
+  });
+
   it("repairs once with concrete source errors and fails closed after a bad repair", async () => {
     const stages: string[] = [];
     const invalid = {
