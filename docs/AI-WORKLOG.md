@@ -14,7 +14,7 @@ Live Spiro probes found two issues that mocked tests missed. The text-chart prov
 
 The first production smoke after merge found one remaining gateway-specific failure: the table planner repeated `not_in_source` for an absent city instead of producing the verification query requested by the repair prompt, and its final refusal included required-schema references. The repair call now uses a query-only output schema, while final absence references and prose are discarded. A fresh live Spiro probe over a table containing Краснодар and Москва returned the canonical refusal for Владивосток after deterministic query execution.
 
-The integrated local gate passed Biome, Steiger, strict TypeScript, 395 Vitest tests, the Turbopack production build, and 81 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Production verification is intentionally recorded only after merge and deployment.
+The integrated release gate passed Biome, Steiger, strict TypeScript, 395 Vitest tests, the Turbopack production build, and 81 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. After deployment, production browser smoke verified text analysis and charts, derived and absent text questions, the real 4,500-row XLSX, the 560-row Краснодар answer, and the canonical refusal for absent Владивосток.
 
 ## Bounded arbitrary chat and structured-text repair · 2026-09-20
 
