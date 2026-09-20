@@ -27,12 +27,17 @@ export const CHAT_TIMEOUT_MS = 60_000;
 const MAX_DISTINCT_VALUES = 40;
 const MAX_PLAN_REPAIRS = 1;
 const PROVIDER_OUTPUT_MAX_TOKENS = 900;
+const CHAT_EVIDENCE_MAX_LENGTH = 1_000;
 
 /** Query validation and result shape are owned by the dataset entity. */
 export const sourceQueryPlanSchema = datasetQuerySchema;
 export type SourceQueryPlan = DatasetQuery;
 export type QueryResult = DatasetQueryResult;
-export type QueryResultReference = { id: string; excerpt?: string };
+export type QueryResultReference = {
+  id: string;
+  excerpt?: string;
+  numericValues?: number[];
+};
 export type QueryExecutor = {
   execute(
     dataset: Dataset,
@@ -261,9 +266,23 @@ function boundedHistory(history: ChatMessage[]) {
   }));
 }
 function rowExcerpt(row: { values: Record<string, unknown> }) {
-  return Object.entries(row.values)
-    .map(([key, value]) => `${key}: ${String(value)}`)
-    .join("; ");
+  return boundedEvidence(
+    Object.entries(row.values)
+      .map(([key, value]) => `${key}: ${String(value)}`)
+      .join("; "),
+  );
+}
+function boundedEvidence(value: string) {
+  return value.slice(0, CHAT_EVIDENCE_MAX_LENGTH);
+}
+const numericToken =
+  /(?<![\p{L}\d])[+\-−]?(?:\d+(?:[.,]\d+)?|\d*[.,]\d+)(?![\p{L}\d])/gu;
+function numericValues(value: string) {
+  return (
+    value
+      .match(numericToken)
+      ?.map((token) => Number(token.replace(",", ".").replace("−", "-"))) ?? []
+  );
 }
 function sourceReferences(
   source: Dataset | TextSource,
@@ -272,10 +291,12 @@ function sourceReferences(
     ? source.rows.map((row) => ({
         id: `row-${row.id}`,
         excerpt: rowExcerpt(row),
+        numericValues: numericValues(rowExcerpt(row)),
       }))
     : source.paragraphs.map((paragraph) => ({
         id: `paragraph-${paragraph.index}`,
-        excerpt: paragraph.text,
+        excerpt: boundedEvidence(paragraph.text),
+        numericValues: numericValues(boundedEvidence(paragraph.text)),
       }));
 }
 function columns(source: Dataset, question: string) {
@@ -315,32 +336,35 @@ function columns(source: Dataset, question: string) {
 function validateReferences(
   answer: string,
   references: Array<{ id: string; excerpt?: string | undefined }>,
-  evidence: Map<string, string>,
+  evidence: Map<string, QueryResultReference>,
   requiredId?: string,
 ) {
   if (references.length < 1 || references.length > 7)
     throw new Error("Answer must cite source references.");
   const seen = new Set<string>();
-  const result = references.map((reference) => {
+  const trusted = references.map((reference) => {
     if (seen.has(reference.id) || !evidence.has(reference.id))
       throw new Error("Answer cited unknown or duplicate source reference.");
     seen.add(reference.id);
     return {
       id: reference.id,
-      excerpt: evidence.get(reference.id) as string,
+      excerpt: evidence.get(reference.id)?.excerpt as string,
     };
   });
   if (requiredId && !seen.has(requiredId))
     throw new Error("Numeric answer must cite the query result reference.");
-  const evidenceText = result.map((reference) => reference.excerpt).join(" ");
-  const normalizeNumber = (value: string) => value.replace(",", ".");
-  for (const token of answer.match(/\d+(?:[.,]\d+)?/g) ?? [])
-    if (
-      !evidenceText.includes(normalizeNumber(token)) &&
-      !evidenceText.includes(token)
-    )
+  const evidenceNumbers = new Set(
+    trusted.flatMap(
+      (reference) => evidence.get(reference.id)?.numericValues ?? [],
+    ),
+  );
+  for (const value of numericValues(answer))
+    if (!evidenceNumbers.has(value))
       throw new Error("Answer contains a number absent from cited evidence.");
-  return result;
+  return trusted.map((reference) => ({
+    id: reference.id,
+    excerpt: evidence.get(reference.id)?.excerpt as string,
+  }));
 }
 function fieldId(field: string | { fieldId: string }) {
   return typeof field === "string" ? field : field.fieldId;
@@ -425,9 +449,29 @@ function resultReferences(
   const references: QueryResultReference[] = [
     {
       id: `query-${result.queryId}`,
-      excerpt: `Метрики: ${JSON.stringify(result.metrics)}; найдено строк: ${result.matchedRows}; просмотрено строк: ${result.scannedRows}.`,
+      excerpt: boundedEvidence(
+        `Метрики: ${JSON.stringify(result.metrics)}; найдено строк: ${result.matchedRows}; просмотрено строк: ${result.scannedRows}.`,
+      ),
+      numericValues: Object.values(result.metrics).filter(
+        (value): value is number => value !== null,
+      ),
     },
   ];
+  references[0]?.numericValues?.push(result.matchedRows, result.scannedRows);
+  for (const [index, group] of result.groups.entries()) {
+    references.push({
+      id: `group-${result.queryId}-${index}`,
+      excerpt: boundedEvidence(
+        `Группа ${String(group.key)}; метрики: ${JSON.stringify(group.metrics)}.`,
+      ),
+      numericValues: [
+        ...(typeof group.key === "number" ? [group.key] : []),
+        ...Object.values(group.metrics).filter(
+          (value): value is number => value !== null,
+        ),
+      ],
+    });
+  }
   const seen = new Set<string>();
   for (const reference of [
     ...result.rowReferences,
@@ -437,7 +481,12 @@ function resultReferences(
     const row = rows.get(reference.rowId);
     if (!row) continue;
     seen.add(reference.rowId);
-    references.push({ id: `row-${row.id}`, excerpt: rowExcerpt(row) });
+    const excerpt = rowExcerpt(row);
+    references.push({
+      id: `row-${row.id}`,
+      excerpt,
+      numericValues: numericValues(excerpt),
+    });
     if (references.length >= 100) break;
   }
   return references;
@@ -469,7 +518,7 @@ async function answerChatCore(
   const allowed = new Map(
     sourceReferences(context.source).map((reference) => [
       reference.id,
-      reference.excerpt ?? "",
+      reference,
     ]),
   );
   if (!("rows" in context.source)) {
@@ -483,7 +532,7 @@ async function answerChatCore(
         kind: "text",
         paragraphs: context.source.paragraphs.map((paragraph) => ({
           id: `paragraph-${paragraph.index}`,
-          text: paragraph.text,
+          text: boundedEvidence(paragraph.text),
         })),
         question: parsed.question,
         history,
@@ -601,7 +650,7 @@ async function answerChatCore(
   }
   const references = resultReferences(result, context.source);
   const finalAllowed = new Map(
-    references.map((reference) => [reference.id, reference.excerpt ?? ""]),
+    references.map((reference) => [reference.id, reference]),
   );
   const rawAnswer = await callProvider(
     provider,

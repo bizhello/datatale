@@ -288,6 +288,106 @@ describe("planned grounded chat", () => {
     ).rejects.toMatchObject({ code: "invalid_provider_output" });
   });
 
+  it.each([
+    ["В городе 3 кошки.", "В городе 30 кошек."],
+    ["В городе -3 кошки.", "В городе 3 кошки."],
+  ])(
+    "requires exact signed numeric evidence (%s)",
+    async (answer, sourceText) => {
+      const provider = vi
+        .fn()
+        .mockResolvedValue(wireAnswer(answer, [{ id: "paragraph-1" }]));
+      await expect(
+        answerChat(request, {
+          loadContext: async () =>
+            context({
+              ...text,
+              rawText: sourceText,
+              paragraphs: [{ index: 1, text: sourceText }],
+            }),
+          provider,
+        }),
+      ).rejects.toMatchObject({ code: "invalid_provider_output" });
+    },
+  );
+
+  it("bounds trusted excerpts in prompts and returned references", async () => {
+    const long = `Начало ${"x".repeat(1_100)} конец`;
+    const provider = vi.fn(async ({ prompt }: { prompt: string }) => {
+      const payload = JSON.parse(prompt);
+      expect(payload.paragraphs[0].text).toHaveLength(1_000);
+      return wireAnswer("Начало.", [{ id: "paragraph-1" }]);
+    });
+    const result = await answerChat(request, {
+      loadContext: async () =>
+        context({
+          ...text,
+          rawText: long,
+          paragraphs: [{ index: 1, text: long }],
+        }),
+      provider,
+    });
+    expect(result.outcome).toBe("answered");
+    if (result.outcome === "answered")
+      expect(result.references[0]?.excerpt).toHaveLength(1_000);
+  });
+
+  it("exposes grouped aggregate evidence as a citable trusted reference", async () => {
+    const executor = {
+      execute: vi.fn(async () => ({
+        queryId: "grouped",
+        rows: [],
+        groups: [
+          {
+            key: "A",
+            metrics: { sum: 30, average: 15 },
+            rowReferences: [],
+          },
+        ],
+        metrics: {},
+        matchedRows: 2,
+        scannedRows: 2,
+        returnedRows: 0,
+        truncated: false,
+        rowReferences: [],
+      })),
+    };
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(
+        wireQuery({
+          queryId: "grouped",
+          groupBy: "city",
+          metrics: [{ id: "sum", aggregation: "sum", fieldId: "sales" }],
+          select: [],
+          limit: 10,
+        }),
+      )
+      .mockImplementationOnce(async ({ prompt }: { prompt: string }) => {
+        expect(JSON.parse(prompt).references).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              id: "group-grouped-0",
+              excerpt: 'Группа A; метрики: {"sum":30,"average":15}.',
+            }),
+          ]),
+        );
+        return wireAnswer("Группа A: сумма 30, среднее 15.", [
+          { id: "group-grouped-0" },
+        ]);
+      });
+    await expect(
+      answerChat(
+        { ...request, question: "Сумма и среднее по городам" },
+        {
+          loadContext: async () => context(dataset),
+          provider,
+          queryExecutor: executor,
+        },
+      ),
+    ).resolves.toMatchObject({ outcome: "answered" });
+  });
+
   it("returns a technical result when the provider emits malformed output", async () => {
     await expect(
       answerChat(request, {
