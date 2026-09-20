@@ -299,8 +299,34 @@ function sourceReferences(
         numericValues: numericValues(boundedEvidence(paragraph.text)),
       }));
 }
-function columns(source: Dataset, question: string) {
-  const normalizedQuestion = question.toLocaleLowerCase("ru-RU").trim();
+const russianWordEndings =
+  /(ами|ями|ого|ему|ому|ее|ие|ые|ой|ий|ый|ая|яя|ое|ее|ие|ые|ам|ям|ом|ем|ым|им|ах|ях|ов|ев|ей|ью|ою|ею|ов|ев|ью|ю|я|а|ы|и|е|о|у|э|ь|й)$/u;
+function normalizedWords(value: string) {
+  return (
+    value
+      .toLocaleLowerCase("ru-RU")
+      .replaceAll("ё", "е")
+      .match(/[\p{L}\p{N}]+/gu)
+      ?.map((word) => word.replace(russianWordEndings, ""))
+      .filter((word) => word.length >= 3) ?? []
+  );
+}
+function valueMentionedInQuestion(value: string, question: string) {
+  const normalizedValue = value.toLocaleLowerCase("ru-RU");
+  const normalizedQuestion = question.toLocaleLowerCase("ru-RU");
+  if (
+    normalizedQuestion.includes(normalizedValue) ||
+    normalizedValue.includes(normalizedQuestion)
+  )
+    return true;
+  const questionWords = new Set(normalizedWords(question));
+  return normalizedWords(value).some((word) => questionWords.has(word));
+}
+function columns(source: Dataset, question: string, history: ChatMessage[]) {
+  const candidateText = [
+    question,
+    ...history.map((message) => message.content),
+  ].join(" ");
   return source.columns.map((column) => {
     const counts = new Map<string | number | boolean, number>();
     for (const value of source.rows.map((row) => row.values[column.id])) {
@@ -314,8 +340,7 @@ function columns(source: Dataset, question: string) {
     const questionCandidates = values.filter(
       (value): value is string =>
         typeof value === "string" &&
-        (normalizedQuestion.includes(value.toLocaleLowerCase("ru-RU")) ||
-          value.toLocaleLowerCase("ru-RU").includes(normalizedQuestion)),
+        valueMentionedInQuestion(value, candidateText),
     );
     const candidates = [...new Set([...questionCandidates, ...frequent])].slice(
       0,
@@ -571,7 +596,7 @@ async function answerChatCore(
     return unsupported("Операции с таблицей временно недоступны.");
   const profile = {
     kind: "dataset",
-    columns: columns(context.source, parsed.question),
+    columns: columns(context.source, parsed.question, history),
     rowCount: context.source.rows.length,
     question: parsed.question,
     history,

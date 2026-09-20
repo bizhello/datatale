@@ -42,12 +42,15 @@ const dataset: Dataset = {
     },
   ],
 };
-function context(source: Dataset | TextSource): ChatContext {
+function context(
+  source: Dataset | TextSource,
+  history: ChatContext["history"] = [],
+): ChatContext {
   return {
     analysisId: request.analysisId,
     source,
     report: report as never,
-    history: [],
+    history,
   };
 }
 const emptyWire = {
@@ -445,5 +448,89 @@ describe("planned grounded chat", () => {
         },
       ),
     ).resolves.toMatchObject({ outcome: "clarification" });
+  });
+
+  it("keeps a rare inflected category and history referent available to the planner", async () => {
+    const large: Dataset = {
+      ...dataset,
+      rows: [
+        ...Array.from({ length: 4_999 }, (_, index) => ({
+          id: `r-${index}`,
+          values: { city: `City-${index % 40}`, sales: index },
+          provenance: { sourceRowNumber: index + 2 },
+        })),
+        {
+          id: "r-tula",
+          values: { city: "Тула", sales: 5_000 },
+          provenance: { sourceRowNumber: 5_001 },
+        },
+      ],
+    };
+    const provider = vi.fn(async ({ prompt }: { prompt: string }) => {
+      const profile = JSON.parse(prompt);
+      expect(profile.columns[0].values).toHaveLength(40);
+      expect(profile.columns[0].values).toContain("Тула");
+      return {
+        ...emptyWire,
+        outcome: "clarification",
+        message: "Уточните город.",
+      };
+    });
+
+    await answerChat(
+      { ...request, question: "Расскажи о продажах в Туле" },
+      {
+        loadContext: async () => context(large),
+        provider,
+        queryExecutor: { execute: vi.fn() },
+      },
+    );
+    await answerChat(
+      { ...request, question: "А сколько там?" },
+      {
+        loadContext: async () =>
+          context(large, [
+            { role: "user", content: "Расскажи о продажах в Туле" },
+          ]),
+        provider,
+        queryExecutor: { execute: vi.fn() },
+      },
+    );
+    expect(provider).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not promote an unrelated category from the tail into candidates", async () => {
+    const large: Dataset = {
+      ...dataset,
+      rows: [
+        ...Array.from({ length: 79 }, (_, index) => ({
+          id: `r-${index}`,
+          values: { city: `City-${index}`, sales: index },
+          provenance: { sourceRowNumber: index + 2 },
+        })),
+        {
+          id: "r-tula",
+          values: { city: "Тула", sales: 80 },
+          provenance: { sourceRowNumber: 81 },
+        },
+      ],
+    };
+    const provider = vi.fn(async ({ prompt }: { prompt: string }) => {
+      const profile = JSON.parse(prompt);
+      expect(profile.columns[0].values).not.toContain("Тула");
+      return {
+        ...emptyWire,
+        outcome: "clarification",
+        message: "Уточните город.",
+      };
+    });
+    await answerChat(
+      { ...request, question: "Какая погода завтра?" },
+      {
+        loadContext: async () => context(large),
+        provider,
+        queryExecutor: { execute: vi.fn() },
+      },
+    );
   });
 });
