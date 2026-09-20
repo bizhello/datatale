@@ -5,10 +5,10 @@ export {
   type ChatContext,
   type ChatDependencies,
   type ChatProvider,
+  ChatProviderError,
   type QueryExecutor,
   type QueryResult,
   type QueryResultReference,
   type SourceQueryPlan,
   sourceQueryPlanSchema,
-  ChatProviderError,
 } from "./server/service";

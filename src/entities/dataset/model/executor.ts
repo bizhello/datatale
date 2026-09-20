@@ -191,6 +191,16 @@ export function executeDatasetQuery(
       return metricOrder.direction === "asc" ? comparison : -comparison;
     });
   }
+  const fieldOrder = query.orderBy.find((order) => order.fieldId);
+  if (fieldOrder && query.groupBy) {
+    groupResults = groupResults.sort((a, b) => {
+      if (a.key === b.key) return 0;
+      if (a.key === null) return 1;
+      if (b.key === null) return -1;
+      const comparison = String(a.key).localeCompare(String(b.key));
+      return fieldOrder.direction === "asc" ? comparison : -comparison;
+    });
+  }
   const orderValue = (
     row: DatasetRow,
     order: NormalizedDatasetQuery["orderBy"][number],
