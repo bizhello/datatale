@@ -30,6 +30,7 @@ describe("calculateObservationCharts", () => {
       (id) => `e-${id}`,
     );
     expect(charts[0]?.kind).toBe("bar");
+    expect(charts[0]?.aggregation.dimensionLabel).toBe("Категория");
     expect(charts[0]?.points).toEqual([
       { label: "dogs", value: 5 },
       { label: "cats", value: 3 },
@@ -46,6 +47,7 @@ describe("calculateObservationCharts", () => {
       (id) => `e-${id}`,
     );
     expect(charts[0]?.kind).toBe("line");
+    expect(charts[0]?.aggregation.dimensionLabel).toBe("Период");
     expect(charts[0]?.points).toEqual([
       { label: "January", value: 100 },
       { label: "February", value: 150 },

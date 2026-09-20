@@ -62,7 +62,7 @@ export function calculateObservationCharts(
       aggregation: {
         kind: "count",
         dimensionFieldId: "subject",
-        dimensionLabel: "Source subject",
+        dimensionLabel: "Категория",
       },
       observationIds: species.map((item) => item.id),
       points: species.map((item) => ({
@@ -158,7 +158,7 @@ export function calculateObservationCharts(
       aggregation: {
         kind: "count",
         dimensionFieldId: "period",
-        dimensionLabel: "Source period",
+        dimensionLabel: "Период",
       },
       observationIds: series.map((item) => item.id),
       points: [...series]
