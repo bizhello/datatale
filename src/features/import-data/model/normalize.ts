@@ -187,7 +187,7 @@ export function normalizeTable(
     inputLimits.canonicalSourceBytes
   )
     throw new ImportError(
-      "Нормализованный источник превышает допустимый размер 1 МБ.",
+      `Нормализованный источник превышает допустимый размер ${inputLimits.canonicalSourceBytes / 1024 / 1024} МБ.`,
       "source-limit",
     );
   return { source: dataset, warnings: uniqueWarnings(warnings) };
