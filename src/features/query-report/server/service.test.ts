@@ -233,49 +233,25 @@ describe("grounded chat service", () => {
     });
   });
 
-  it("answers the suggested summary question from checked hero conclusions", async () => {
-    const provider = vi.fn(async ({ prompt }: { prompt: string }) => {
-      const providerContext = z
-        .object({
-          claims: z.array(
-            z.object({
-              id: z.string(),
-              text: z.string(),
-              references: z.array(z.string()),
-              kind: z.string(),
-            }),
-          ),
-        })
-        .passthrough()
-        .parse(JSON.parse(prompt));
-
-      expect(providerContext.claims).toEqual(
-        expect.arrayContaining([
-          {
-            id: "hero-0",
-            text: "Revenue was checked.",
-            references: ["evidence-0"],
-            kind: "observation",
-          },
-          {
-            id: "hero-1",
-            text: "Revenue is confirmed by all rows.",
-            references: ["evidence-0"],
-            kind: "observation",
-          },
-        ]),
-      );
-      return {
-        outcome: "answered" as const,
-        claimIds: ["hero-0", "hero-1"],
-      };
-    });
+  it("answers the suggested summary from checked hero conclusions without serializing a large table", async () => {
+    const provider = vi.fn();
+    const largeSource: Dataset = {
+      ...source,
+      rows: Array.from({ length: 4_500 }, (_, index) => ({
+        id: `row-${index}`,
+        values: { region: `Region ${index}`, revenue: index },
+        provenance: { sourceRowNumber: index + 2 },
+      })),
+    };
 
     await expect(
       answerChat(
         { ...request, question: "Какие главные выводы?" },
         {
-          loadContext: async (_analysisId, _signal) => context,
+          loadContext: async (_analysisId, _signal) => ({
+            ...context,
+            source: largeSource,
+          }),
           provider,
         },
       ),
@@ -284,13 +260,13 @@ describe("grounded chat service", () => {
       answer: "Revenue was checked. Revenue is confirmed by all rows.",
       references: [{ id: "evidence-0" }],
     });
-    expect(provider).toHaveBeenCalledOnce();
+    expect(provider).not.toHaveBeenCalled();
   });
 
   it("rejects an unknown narrative claim selected by the provider", async () => {
     await expect(
       answerChat(
-        { ...request, question: "Какие главные выводы?" },
+        { ...request, question: "Which observation concerns revenue?" },
         {
           loadContext: async (_analysisId, _signal) => context,
           provider: async () => ({

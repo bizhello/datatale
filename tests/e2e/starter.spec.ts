@@ -112,6 +112,20 @@ const dashboardReport = {
   ],
 };
 
+const largeAxisDashboardReport = {
+  ...dashboardReport,
+  charts: [
+    {
+      ...dashboardReport.charts[0],
+      points: [
+        { label: "Самара", value: 353_185_060.81 },
+        { label: "Екатеринбург", value: 350_117_433.29 },
+      ],
+    },
+    ...dashboardReport.charts.slice(1),
+  ],
+};
+
 function xlsxWithInvalidFirstSheet() {
   const archive = unzipSync(createMultiSheetXlsx());
   archive["xl/worksheets/sheet1.xml"] = strToU8(
@@ -255,7 +269,11 @@ test("renders a fixture dashboard and expands charts without another analysis re
   await page.route("**/api/analyze", async (route) => {
     requests.push("analyze");
     await route.fulfill({
-      json: { analysisId, report: dashboardReport, expiresAt: reportExpiresAt },
+      json: {
+        analysisId,
+        report: largeAxisDashboardReport,
+        expiresAt: reportExpiresAt,
+      },
     });
   });
   await page.goto("/");
@@ -303,6 +321,25 @@ test("renders a fixture dashboard and expands charts without another analysis re
   await expect(
     chartCards.first().locator(".recharts-legend-wrapper"),
   ).toBeVisible();
+  const axisGeometry = await chartCards
+    .first()
+    .locator(".chart-visual")
+    .evaluate((visual) => {
+      const visualLeft = visual.getBoundingClientRect().left;
+      const ticks = [
+        ...visual.querySelectorAll<SVGTextElement>(
+          ".recharts-cartesian-axis-tick-value",
+        ),
+      ].filter((tick) => tick.getAttribute("text-anchor") === "end");
+      return {
+        labels: ticks.map((tick) => tick.textContent ?? ""),
+        leftEdges: ticks.map((tick) => tick.getBoundingClientRect().left),
+        visualLeft,
+      };
+    });
+  expect(axisGeometry.leftEdges.length).toBeGreaterThan(0);
+  for (const left of axisGeometry.leftEdges)
+    expect(left).toBeGreaterThanOrEqual(axisGeometry.visualLeft);
   const expandButton = page.getByRole("button", {
     name: "Развернуть По регионам",
   });

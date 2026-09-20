@@ -1,5 +1,19 @@
 import type { FinalReport } from "../model/schema";
 
+const compactAxisNumber = new Intl.NumberFormat("ru-RU", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+const regularAxisNumber = new Intl.NumberFormat("ru-RU", {
+  maximumFractionDigits: 2,
+});
+
+export function formatChartAxisValue(value: number) {
+  return Math.abs(value) >= 10_000
+    ? compactAxisNumber.format(value)
+    : regularAxisNumber.format(value);
+}
+
 export function formatExpiry(expiresAt: string) {
   return new Intl.DateTimeFormat("ru-RU", {
     dateStyle: "long",
