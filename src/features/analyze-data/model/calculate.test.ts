@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Dataset } from "@/entities/dataset";
-import { calculateChart, calculateMetric } from "./calculate";
+import { aggregateRows, calculateChart, calculateMetric } from "./calculate";
 import { profileSource } from "./profile";
 
 const source: Dataset = {
@@ -54,6 +54,22 @@ describe("analysis calculations", () => {
       profileSource(source).fields.find((field) => field.id === "region"),
     ).toMatchObject({ distinct: 2, missing: 0 });
   });
+
+  it("does not expose accumulated floating-point noise in decimal totals", () => {
+    const rows: Dataset["rows"] = Array.from({ length: 4_500 }, (_, index) => ({
+      id: String(index + 1),
+      values: { revenue: 0.1 },
+      provenance: { sourceRowNumber: index + 2 },
+    }));
+
+    expect(
+      aggregateRows(rows, {
+        kind: "sum",
+        field: { fieldId: "revenue" },
+      }),
+    ).toBe(450);
+  });
+
   it("aggregates grouped values and puts time points in chronological order", () => {
     expect(
       calculateChart(source, {
