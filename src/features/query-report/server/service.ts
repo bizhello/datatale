@@ -101,7 +101,33 @@ type SourceReference = {
   factIds: string[];
 };
 
-type CanonicalClaim = { id: string; text: string; references: string[] };
+type CanonicalClaim = {
+  id: string;
+  text: string;
+  references: string[];
+  kind: "fact" | "source" | FinalReport["hero"][number]["kind"];
+};
+
+function narrativeReferenceIds(
+  item: FinalReport["hero"][number],
+  report: FinalReport,
+) {
+  const evidenceIds = [
+    ...item.evidenceIds,
+    ...item.factIds.flatMap(
+      (factId) =>
+        report.metrics.find((fact) => fact.id === factId)?.evidenceIds ?? [],
+    ),
+  ];
+  return [
+    ...new Set(
+      evidenceIds.flatMap((id) => {
+        const referenceId = reportReferenceId(report, id);
+        return referenceId ? [referenceId] : [];
+      }),
+    ),
+  ];
+}
 
 function sourceReferences(
   source: Dataset | TextSource,
@@ -163,6 +189,17 @@ function canonicalClaims(
         id: `fact-${index}`,
         text: `${fact.label}: ${formatCell(fact.value, fact.unit)}.`,
         references: [evidenceId],
+        kind: "fact",
+      });
+  }
+  for (const [index, item] of report.hero.entries()) {
+    const references = narrativeReferenceIds(item, report);
+    if (references.length > 0)
+      claims.push({
+        id: `hero-${index}`,
+        text: item.text,
+        references,
+        kind: item.kind,
       });
   }
   if ("rows" in source) {
@@ -173,6 +210,7 @@ function canonicalClaims(
           id: `cell-${rowIndex}-${columnIndex}`,
           text: `${column.label}: ${formatCell(row.values[column.id] ?? null, column.unit)}.`,
           references: [referenceId],
+          kind: "source",
         });
       }
     }
@@ -182,6 +220,7 @@ function canonicalClaims(
         id: `paragraph-${index}`,
         text: paragraph.text,
         references: [`paragraph-${index}`],
+        kind: "source",
       });
   }
   return claims;

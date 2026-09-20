@@ -36,12 +36,12 @@ const report: FinalReport = {
     {
       text: "Revenue was checked.",
       factIds: ["revenue"],
-      evidenceIds: ["rows-all"],
+      evidenceIds: [],
       kind: "observation",
     },
     {
       text: "Revenue is confirmed by all rows.",
-      factIds: ["revenue"],
+      factIds: [],
       evidenceIds: ["rows-all"],
       kind: "observation",
     },
@@ -172,6 +172,75 @@ describe("grounded chat service", () => {
       answer: "Revenue: 200 RUB.",
       references: [{ id: "evidence-0" }],
     });
+  });
+
+  it("answers the suggested summary question from checked hero conclusions", async () => {
+    const provider = vi.fn(async ({ prompt }: { prompt: string }) => {
+      const providerContext = z
+        .object({
+          claims: z.array(
+            z.object({
+              id: z.string(),
+              text: z.string(),
+              references: z.array(z.string()),
+              kind: z.string(),
+            }),
+          ),
+        })
+        .passthrough()
+        .parse(JSON.parse(prompt));
+
+      expect(providerContext.claims).toEqual(
+        expect.arrayContaining([
+          {
+            id: "hero-0",
+            text: "Revenue was checked.",
+            references: ["evidence-0"],
+            kind: "observation",
+          },
+          {
+            id: "hero-1",
+            text: "Revenue is confirmed by all rows.",
+            references: ["evidence-0"],
+            kind: "observation",
+          },
+        ]),
+      );
+      return {
+        outcome: "answered" as const,
+        claimIds: ["hero-0", "hero-1"],
+      };
+    });
+
+    await expect(
+      answerChat(
+        { ...request, question: "Какие главные выводы?" },
+        {
+          loadContext: async (_analysisId, _signal) => context,
+          provider,
+        },
+      ),
+    ).resolves.toEqual({
+      outcome: "answered",
+      answer: "Revenue was checked. Revenue is confirmed by all rows.",
+      references: [{ id: "evidence-0" }],
+    });
+    expect(provider).toHaveBeenCalledOnce();
+  });
+
+  it("rejects an unknown narrative claim selected by the provider", async () => {
+    await expect(
+      answerChat(
+        { ...request, question: "Какие главные выводы?" },
+        {
+          loadContext: async (_analysisId, _signal) => context,
+          provider: async () => ({
+            outcome: "answered",
+            claimIds: ["hero-99"],
+          }),
+        },
+      ),
+    ).rejects.toMatchObject({ code: "invalid_provider_output" });
   });
 
   it("rejects provider timeouts and invalid output distinctly", async () => {

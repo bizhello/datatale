@@ -253,3 +253,11 @@ The table, text, narrative, and grounded-chat prompts were rebuilt after compari
 The review also exposed a stateless-repair defect: the second table-planning call was told to repair the previous proposal but received only the semantic error and source. It now receives the complete rejected proposal, concrete errors, trusted capability catalog, and source context. Free-form reports are serialized as one untrusted data value so multiline role-like text cannot visually merge into application instructions. Contract and integration regressions cover the prompt sections, exact repair object, injection-like text serialization, and grounded chat outcomes.
 
 `bun run check` passed Biome, Steiger, strict TypeScript, 301 Vitest tests, and the production build. A real local Spiro smoke with `gpt-5.6-terra` completed table and text analysis in approximately 26 seconds: the table returned two hero items, two metrics, and three compatible charts; the text returned two hero items, two quotation-backed metrics, three evidence items, and one recommendation. A repeat two-paragraph text probe mapped both quotations to the correct canonical paragraph indices. The credential was supplied from the existing shell environment and was neither printed nor committed.
+
+## 2026-09-20 — grounded report-summary chat
+
+**Observed failure:** the suggested question `Какие главные выводы?` reached Ask the Data but returned the exact missing-information refusal. The grounded selector received checked metrics and source cells, but the visible validated hero conclusions were absent from its canonical claim catalog.
+
+**Correction:** the server now exposes hero items as typed canonical claims and derives their references from both direct evidence IDs and referenced checked facts. The model remains a claim selector; application code still builds the answer from validated stored text and rejects unknown claim IDs. The selector prompt uses observation claims for general summaries and keeps hypotheses/actions from being presented as observed facts.
+
+**Evidence:** a regression using the exact Russian question proves both narrative reference paths and fail-closed unknown IDs. A live local Spiro probe with `gpt-5.6-terra` selected both supplied observation IDs for the exact question. The existing local credential was neither printed nor committed.
