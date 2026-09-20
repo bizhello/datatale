@@ -4,7 +4,7 @@ DataTale's production MVP delivers the complete assignment journey: CSV/XLSX/tex
 
 ## Current state
 
-All Must Have features, the optional functional tour, owner-scoped history/reopen, guided analysis transition, and quota-flow polish are deployed from production code release `4be7bba`. The reproducible reviewer showcase is published in repository release `68ec1e1`. Migrations `0001`–`0005` remain current. The guarded production build runs the migration ledger before Next.js; the PR #26 rollout reached Ready. Branch and pull-request Vercel deployments remain disabled.
+All Must Have features, the optional functional tour, owner-scoped history/reopen, guided analysis transition, quota-flow polish, saved-report recovery, Russian analysis copy, production-shell cleanup, and strengthened AI prompt contracts are deployed from production release `9e73d0f`. Migrations `0001`–`0005` remain current. The guarded production build runs the migration ledger before Next.js; the PR #31 rollout reached Ready. Branch and pull-request Vercel deployments remain disabled.
 
 The release gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 301 Vitest tests, and 72 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Production returns HTTPS 200 and renders the new input cards and empty-workspace explanation. A history read without a sealed guest cookie returns private, uncached `401 {"code":"expired"}` without creating a cookie. Earlier production probes verified a three-statement table report and the exact insufficient-data chat refusal.
 
@@ -37,8 +37,11 @@ The release gate passes Biome, Steiger, strict TypeScript, the Turbopack product
 | [#24](https://github.com/bizhello/datatale/pull/24) | Guided analysis focus and UX correction | Review required direct lifecycle, idempotency, prompt, focus, replacement-cancellation, and mobile-overflow evidence; 291 Vitest and 72 Playwright cases passed before production smoke |
 | [#25](https://github.com/bizhello/datatale/pull/25) | Submission access-flow polish and pitch guide | Review verified visible 44 px invite input, modal close/reopen, terminal quota separation, HeroUI danger affordances, and documentation truth; CI and production smoke passed |
 | [#26](https://github.com/bizhello/datatale/pull/26) | Reproducible submission showcase | Review corrected an unsupported grouped chat prompt and over-specific chart expectations; the checked demo fixture, README screenshot, 292 Vitest tests, 72 browser scenarios, hosted CI, and production deployment passed |
+| [#27](https://github.com/bizhello/datatale/pull/27) | Saved-report recovery and Russian analysis copy | Normalized nullable database results so saved reports reopen and accept follow-up chat; verified Russian metric/chart copy, responsive spacing, 295 Vitest tests, and 72 browser scenarios |
+| [#29](https://github.com/bizhello/datatale/pull/29) | Production-shell and chart-follow-up correction | Removed mixed-language and ambiguous footer copy, fixed responsive trust-cue layout, and answered chart extrema only when complete deterministic evidence exists; 299 Vitest tests, 72 browser scenarios, and manual production QA passed |
+| [#31](https://github.com/bizhello/datatale/pull/31) | Structured grounded AI prompt contracts | Added explicit decision and trust boundaries for planning, text extraction, narrative, repair, and chat; 301 Vitest tests, 72 browser scenarios, live Spiro table/text probes, and exact-commit review passed |
 
-GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI, component-ownership, HeroUI, and hydration history. [AI-WORKLOG.md](AI-WORKLOG.md) records the material AI-assisted mistakes and corrections used for the pitch.
+Documentation-only PRs #28 and #30 record the corresponding production rollouts and manual QA. GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI, component-ownership, HeroUI, and hydration history. [AI-WORKLOG.md](AI-WORKLOG.md) records the material AI-assisted mistakes and corrections used for the pitch.
 
 ## Completed product wave
 
@@ -49,6 +52,7 @@ GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI
 | Product-wave integration | conductor | `ba0f2b5` | removed after integration | Shared docs, integration, review, release | PR #21 merged and production Ready |
 | Guided analysis transition | guided-analysis executor | `71e1602` | removed after integration | Optional analysis focus, one-action launch, compact source state, accessible result transition | deployed in `cc583d1` |
 | Submission polish | conductor + audit agents | `1df9bcb` | removed after integration | Quota recovery, destructive affordance, onboarding copy, pitch and release documentation | deployed in `4be7bba` |
+| Final production stabilization | conductor + audit agents | `cf9e3c2` | removed after integration | Saved-report recovery, Russian output, responsive spacing, footer and chart follow-ups, structured prompts, live-provider probes | deployed in `9e73d0f` |
 
 ## Remaining delivery artifact
 

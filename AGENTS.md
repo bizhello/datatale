@@ -17,7 +17,7 @@ Read README.md for actual implementation status, DECISIONS.md for accepted choic
 - Reuse domain-neutral utilities and UI through `shared/lib`, `shared/config` and `shared/ui`; search before duplicating. Keep entity invariants in their owning entity and reuse its public API.
 - Keep calculations pure, application orchestration in features, HTTP concerns in Route Handlers, and rendering in UI modules. Do not put business rules in components or app/api.
 - TypeScript strict; derive boundary types from Zod. No unexplained `any`, `@ts-ignore`, disabled checks, or assertions used to bypass validation.
-- Create directories when implementation needs them. Existing `.gitkeep` files are temporary scaffolding, not evidence of completed features or tests.
+- Create directories only when implementation needs them; do not add `.gitkeep` scaffolding.
 
 ## Product invariants
 
