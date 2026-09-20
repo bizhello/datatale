@@ -48,6 +48,24 @@ function compareValues(a: Scalar, b: Scalar): number {
   if (typeof a === "number" && typeof b === "number") return a - b;
   return String(a).localeCompare(String(b));
 }
+function validateFilter(filter: DatasetQueryFilter, dataset: Dataset): void {
+  const field = column(dataset, filter.fieldId);
+  const values = Array.isArray(filter.value) ? filter.value : [filter.value];
+  if (Array.isArray(filter.value) && filter.operator !== "in")
+    fail("The in operator requires an array value.");
+  if (!Array.isArray(filter.value) && filter.operator === "in")
+    fail("The in operator requires an array value.");
+  for (const value of values)
+    if (!compatible(value, field.scalarType))
+      fail(`Value for "${filter.fieldId}" does not match its column type.`);
+  if (
+    filter.operator === "contains" &&
+    (filter.value === null ||
+      Array.isArray(filter.value) ||
+      typeof filter.value !== "string")
+  )
+    fail("contains requires a non-null string field and value.");
+}
 function matches(
   row: DatasetRow,
   filter: DatasetQueryFilter,
@@ -150,6 +168,7 @@ export function executeDatasetQuery(
     column(dataset, fieldId(selectedField));
   if (query.groupBy) column(dataset, fieldId(query.groupBy));
   for (const filter of query.filters) column(dataset, filter.fieldId);
+  for (const filter of query.filters) validateFilter(filter, dataset);
   for (const metric of query.metrics)
     if (metric.fieldId) column(dataset, metric.fieldId);
   for (const order of query.orderBy) {

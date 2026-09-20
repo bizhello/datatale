@@ -58,6 +58,18 @@ describe("executeDatasetQuery", () => {
     expect(result.matchedRows).toBe(1);
   });
 
+  it("validates every filter before scanning earlier zero-match filters", () => {
+    expect(() =>
+      executeDatasetQuery(syntheticDatasetFixture, {
+        queryId: "validate-all-filters",
+        filters: [
+          { fieldId: "note", operator: "eq", value: "no match" },
+          { fieldId: "revenue", operator: "eq", value: "not a number" },
+        ],
+      }),
+    ).toThrow(/does not match/);
+  });
+
   it("supports contains, grouping, and every aggregate with nulls ignored", () => {
     const dataset = {
       ...syntheticDatasetFixture,

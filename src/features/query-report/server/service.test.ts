@@ -189,7 +189,7 @@ describe("planned grounded chat", () => {
         wireQuery({
           queryId: "chat",
           filters: [],
-          groupBy: null,
+          groupBy: "",
           select: ["unknown"],
           metrics: [],
           orderBy: [],
@@ -217,6 +217,8 @@ describe("planned grounded chat", () => {
         },
       ),
     ).rejects.toMatchObject({ code: "invalid_provider_output" });
+    expect(provider).toHaveBeenCalledTimes(3);
+    expect(executor.execute).toHaveBeenCalledOnce();
   });
 
   it("keeps genuinely absent, ambiguous, and unsupported outcomes distinct", async () => {
@@ -268,6 +270,24 @@ describe("planned grounded chat", () => {
     ).resolves.toMatchObject({ outcome: "answered" });
   });
 
+  it("rejects a numeric claim absent from trusted cited evidence", async () => {
+    const provider = vi.fn().mockResolvedValue({
+      ...wireAnswer("В городе 999 кошек.", [{ id: "paragraph-1" }]),
+      references: [{ id: "paragraph-1", excerpt: "В городе 3 кошки." }],
+    });
+    await expect(
+      answerChat(request, {
+        loadContext: async () =>
+          context({
+            ...text,
+            rawText: "В городе 3 кошки.",
+            paragraphs: [{ index: 1, text: "В городе 3 кошки." }],
+          }),
+        provider,
+      }),
+    ).rejects.toMatchObject({ code: "invalid_provider_output" });
+  });
+
   it("returns a technical result when the provider emits malformed output", async () => {
     await expect(
       answerChat(request, {
@@ -276,6 +296,24 @@ describe("planned grounded chat", () => {
         queryExecutor: { execute: vi.fn() },
       }),
     ).rejects.toMatchObject({ code: "invalid_provider_output" });
+  });
+
+  it("maps an aborted provider to timeout", async () => {
+    const provider = vi.fn(
+      ({ signal }: { signal: AbortSignal }) =>
+        new Promise<never>((_, reject) => {
+          signal.addEventListener("abort", () => reject(new Error("aborted")), {
+            once: true,
+          });
+        }),
+    );
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(text),
+        provider,
+        timeoutMs: 10,
+      }),
+    ).rejects.toMatchObject({ code: "provider_timeout" });
   });
 
   it("uses bounded top categorical candidates for high-cardinality profiles", async () => {

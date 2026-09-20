@@ -23,7 +23,7 @@ import {
 import type { FinalReport } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
 
-export const CHAT_TIMEOUT_MS = 30_000;
+export const CHAT_TIMEOUT_MS = 60_000;
 const MAX_DISTINCT_VALUES = 40;
 const MAX_PLAN_REPAIRS = 1;
 const PROVIDER_OUTPUT_MAX_TOKENS = 900;
@@ -313,6 +313,7 @@ function columns(source: Dataset, question: string) {
   });
 }
 function validateReferences(
+  answer: string,
   references: Array<{ id: string; excerpt?: string | undefined }>,
   evidence: Map<string, string>,
   requiredId?: string,
@@ -331,6 +332,14 @@ function validateReferences(
   });
   if (requiredId && !seen.has(requiredId))
     throw new Error("Numeric answer must cite the query result reference.");
+  const evidenceText = result.map((reference) => reference.excerpt).join(" ");
+  const normalizeNumber = (value: string) => value.replace(",", ".");
+  for (const token of answer.match(/\d+(?:[.,]\d+)?/g) ?? [])
+    if (
+      !evidenceText.includes(normalizeNumber(token)) &&
+      !evidenceText.includes(token)
+    )
+      throw new Error("Answer contains a number absent from cited evidence.");
   return result;
 }
 function fieldId(field: string | { fieldId: string }) {
@@ -394,7 +403,19 @@ async function callProvider(
   prompt: unknown,
   signal: AbortSignal,
 ) {
-  return provider({ prompt: JSON.stringify(prompt), signal });
+  try {
+    return await provider({ prompt: JSON.stringify(prompt), signal });
+  } catch (error) {
+    if (signal.aborted)
+      throw new ChatProviderError(
+        "provider_aborted",
+        "Chat request was cancelled.",
+      );
+    throw new ChatProviderError(
+      "provider_failure",
+      error instanceof Error ? error.message : "Chat provider failed.",
+    );
+  }
 }
 function resultReferences(
   result: DatasetQueryResult,
@@ -475,12 +496,18 @@ async function answerChatCore(
         return chatResultSchema.parse({
           outcome: "answered",
           answer: output.answer,
-          references: validateReferences(output.references, allowed),
+          references: validateReferences(
+            output.answer,
+            output.references,
+            allowed,
+          ),
         });
       if (output.outcome === "clarification")
         return clarification(output.message);
       if (output.outcome === "unsupported_operation")
         return unsupported(output.message);
+      if (output.outcome === "query")
+        throw new Error("Query outcome is invalid for a text answer.");
       return notInSource();
     } catch (error) {
       throw new ChatProviderError(
@@ -504,6 +531,7 @@ async function answerChatCore(
   try {
     intent = decodeOutcome(await callProvider(provider, profile, signal));
   } catch (error) {
+    if (error instanceof ChatProviderError) throw error;
     throw new ChatProviderError(
       "invalid_provider_output",
       error instanceof Error
@@ -519,10 +547,11 @@ async function answerChatCore(
     );
   if (intent.outcome === "unsupported_operation")
     return unsupported(intent.message);
-  let query: DatasetQuery = decodeQuery(intent);
+  let query: DatasetQuery;
+  let candidate = intent;
   for (let attempt = 0; ; attempt += 1) {
     try {
-      query = validateQuery(query, context.source);
+      query = validateQuery(decodeQuery(candidate), context.source);
       break;
     } catch (error) {
       if (attempt >= MAX_PLAN_REPAIRS)
@@ -531,22 +560,21 @@ async function answerChatCore(
           error instanceof Error ? error.message : "Invalid query plan.",
         );
       try {
-        query = decodeQuery(
-          decodeOutcome(
-            await callProvider(
-              provider,
-              {
-                kind: "repair",
-                question: parsed.question,
-                profile,
-                invalidQuery: query,
-                error: error instanceof Error ? error.message : "Invalid query",
-              },
-              signal,
-            ),
+        candidate = decodeOutcome(
+          await callProvider(
+            provider,
+            {
+              kind: "repair",
+              question: parsed.question,
+              profile,
+              invalidQuery: candidate,
+              error: error instanceof Error ? error.message : "Invalid query",
+            },
+            signal,
           ),
         );
       } catch (repairError) {
+        if (repairError instanceof ChatProviderError) throw repairError;
         throw new ChatProviderError(
           "invalid_provider_output",
           repairError instanceof Error
@@ -602,6 +630,7 @@ async function answerChatCore(
         outcome: "answered",
         answer: output.answer,
         references: validateReferences(
+          output.answer,
           output.references,
           finalAllowed,
           Object.keys(result.metrics).length > 0
@@ -613,6 +642,8 @@ async function answerChatCore(
       return clarification(output.message);
     if (output.outcome === "unsupported_operation")
       return unsupported(output.message);
+    if (output.outcome === "query")
+      throw new Error("Query outcome is invalid for a final answer.");
     return notInSource();
   } catch (error) {
     throw new ChatProviderError(
