@@ -29,6 +29,8 @@ HeroUI v3 has no mandatory HeroUIProvider. A next-themes ThemeProvider has a sep
 
 Check 360/390/768/1280/1440 CSS px, a 320px smoke, landscape and 200% zoom. The document must not overflow horizontally. Long filenames, Russian labels and large numbers must not break the layout. Resize the chart container, not just its outer card. Verify the mobile keyboard separately; desktop resizing is not enough.
 
+Chart axes use compact localized ticks when full numeric labels would consume the plot area; tooltips and semantic tables retain the complete value. Reserve explicit Y-axis width and verify rendered tick bounds against the chart container with large positive and negative values.
+
 ## Expanded chart view
 
 Each chart card has a top-right Lucide expand button with an accessible label including the chart title and a tooltip. Keep it visible on touch devices and provide an approximately 44px hit target.
