@@ -66,8 +66,9 @@ export type AnalysisStage =
   | "text-extraction"
   | "narrative";
 export const MODEL_CALL_TIMEOUT_MS = 45_000;
-export const TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS = 60_000;
-export const ANALYSIS_TIMEOUT_MS = 105_000;
+export const TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS = 75_000;
+export const ANALYSIS_TIMEOUT_MS = 165_000;
+export const DEFAULT_TEXT_EXTRACTION_MODEL = "gpt-5.6-luna";
 export const MODEL_OUTPUT_TOKEN_LIMITS: Readonly<
   Record<AnalysisStage, number>
 > = {
@@ -451,8 +452,11 @@ export function textExtractionFromProviderOutput(output: unknown) {
 }
 
 function defaultCallModel(): ModelCall {
-  const model = getAnalysisModel();
-  if (!model)
+  const primaryModel = getAnalysisModel();
+  const textExtractionModel = getAnalysisModel(
+    process.env.AI_TEXT_MODEL?.trim() || DEFAULT_TEXT_EXTRACTION_MODEL,
+  );
+  if (!primaryModel || !textExtractionModel)
     throw new AnalysisError("unavailable", "Analysis is not configured.");
   return async ({
     stage,
@@ -462,6 +466,8 @@ function defaultCallModel(): ModelCall {
     decodeProviderOutput = (output) => output,
     signal,
   }) => {
+    const model =
+      stage === "text-extraction" ? textExtractionModel : primaryModel;
     const response = await generateText({
       model,
       output: Output.object({ schema: providerSchema }),

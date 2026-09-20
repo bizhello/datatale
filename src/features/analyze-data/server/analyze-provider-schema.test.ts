@@ -6,6 +6,7 @@ vi.mock("server-only", () => ({}));
 import {
   ANALYSIS_TIMEOUT_MS,
   analysisProposalFromProviderOutput,
+  DEFAULT_TEXT_EXTRACTION_MODEL,
   MODEL_CALL_TIMEOUT_MS,
   MODEL_OUTPUT_TOKEN_LIMITS,
   narrativeFromProviderOutput,
@@ -87,8 +88,9 @@ const providerProposal = {
 describe("provider-facing structured output", () => {
   it("keeps a bounded timeout budget for the three-stage repair flow", () => {
     expect(MODEL_CALL_TIMEOUT_MS).toBe(45_000);
-    expect(TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS).toBe(60_000);
-    expect(ANALYSIS_TIMEOUT_MS).toBe(105_000);
+    expect(TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS).toBe(75_000);
+    expect(ANALYSIS_TIMEOUT_MS).toBe(165_000);
+    expect(DEFAULT_TEXT_EXTRACTION_MODEL).toBe("gpt-5.6-luna");
     expect(ANALYSIS_TIMEOUT_MS).toBeLessThanOrEqual(
       TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS + MODEL_CALL_TIMEOUT_MS * 2,
     );
