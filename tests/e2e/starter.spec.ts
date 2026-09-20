@@ -700,6 +700,45 @@ test("fits mobile and has no automated accessibility violations", async ({
   await expect(
     page.getByText("Данные превращаются в понятную историю"),
   ).toBeVisible();
+  const mobileLayout = await page.evaluate(() => {
+    const bounds = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) throw new Error(`Missing ${selector}.`);
+      const rect = element.getBoundingClientRect();
+      return {
+        left: rect.left,
+        right: rect.right,
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      };
+    };
+    return {
+      viewport: window.innerWidth,
+      inputGrid: bounds(".input-grid"),
+      upload: bounds(".dropzone"),
+      text: bounds(".text-input"),
+      demo: bounds(".demo-button"),
+      footer: bounds("footer"),
+      footerActions: bounds(".footer-actions"),
+    };
+  });
+  for (const section of [
+    mobileLayout.inputGrid,
+    mobileLayout.upload,
+    mobileLayout.text,
+    mobileLayout.demo,
+  ]) {
+    expect(section.left).toBeGreaterThanOrEqual(0);
+    expect(section.right).toBeLessThanOrEqual(mobileLayout.viewport);
+    expect(section.scrollWidth).toBeLessThanOrEqual(section.clientWidth);
+  }
+  expect(mobileLayout.footerActions.left).toBeCloseTo(
+    mobileLayout.footer.left,
+    0,
+  );
+  expect(mobileLayout.footerActions.right).toBeLessThanOrEqual(
+    mobileLayout.footer.right,
+  );
   const footerTrustAlignment = await page
     .locator(".footer-trust")
     .evaluate((trust) => {
