@@ -25,7 +25,9 @@ export const REPORT_PERIOD_MAX_LENGTH = 96;
 export const REPORT_QUOTE_MAX_LENGTH = 1_000;
 export const REPORT_NO_CHART_REASON_MAX_LENGTH = 300;
 export const REPORT_MAX_SERIALIZED_BYTES = 24 * 1_024;
-export const REPORT_MAX_TEXT_OBSERVATIONS = 32;
+export const REPORT_MAX_TEXT_OBSERVATIONS = 24;
+export const REPORT_MAX_TEXT_CHART_GROUPS = 3;
+export const REPORT_MAX_TEXT_CHART_OBSERVATIONS = 24;
 
 const boundedNonblankString = (maxLength: number) =>
   z
@@ -255,6 +257,20 @@ export const textObservationSchema = z
     quote: quoteString,
   })
   .strict();
+export const textChartGroupSchema = z
+  .object({
+    id: identifierString,
+    kind: z.enum(["bar", "line"]),
+    title: titleString,
+    rationale: rationaleString,
+    observationIds: z
+      .array(identifierString)
+      .min(2)
+      .max(REPORT_MAX_TEXT_CHART_OBSERVATIONS),
+    derivation: z.enum(["direct", "current-target", "baseline-change"]),
+    operation: z.enum(["none", "increase", "decrease"]).default("none"),
+  })
+  .strict();
 export const reportChartSchema = z
   .object({
     id: identifierString,
@@ -299,6 +315,10 @@ export const finalReportSchema = z
     observations: z
       .array(textObservationSchema)
       .max(REPORT_MAX_TEXT_OBSERVATIONS)
+      .optional(),
+    chartGroups: z
+      .array(textChartGroupSchema)
+      .max(REPORT_MAX_TEXT_CHART_GROUPS)
       .optional(),
     charts: z.array(reportChartSchema).max(3),
     evidence: z.array(reportEvidenceSchema).min(1).max(7),
@@ -364,22 +384,6 @@ export const narrativeResponseSchema = z
   .strict();
 export const textExtractionResponseSchema = z
   .object({
-    facts: z
-      .array(
-        z
-          .object({
-            id: identifierString,
-            label: labelString,
-            subject: labelString,
-            value: z.number().finite(),
-            unit: unitString,
-            period: periodString,
-            paragraphIndex: z.number().int().positive(),
-            quote: quoteString,
-          })
-          .strict(),
-      )
-      .max(4),
     observations: z
       .array(
         z
@@ -396,10 +400,14 @@ export const textExtractionResponseSchema = z
           .strict(),
       )
       .max(REPORT_MAX_TEXT_OBSERVATIONS),
+    chartGroups: z
+      .array(textChartGroupSchema)
+      .max(REPORT_MAX_TEXT_CHART_GROUPS)
+      .default([]),
   })
   .strict()
   .superRefine((value, context) =>
-    idsAreUnique([...value.facts, ...value.observations], context, "facts"),
+    idsAreUnique(value.observations, context, "observations"),
   );
 
 export type FieldReference = z.infer<typeof fieldReferenceSchema>;
@@ -426,3 +434,4 @@ export type TextExtractionResponse = z.infer<
   typeof textExtractionResponseSchema
 >;
 export type TextObservation = z.infer<typeof textObservationSchema>;
+export type TextChartGroup = z.input<typeof textChartGroupSchema>;

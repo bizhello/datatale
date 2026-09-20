@@ -1,4 +1,4 @@
-import type { TextObservation } from "@/entities/report";
+import type { TextChartGroup, TextObservation } from "@/entities/report";
 
 export type ObservationChart = {
   id: string;
@@ -15,8 +15,14 @@ export type ObservationChart = {
   evidenceIds: string[];
 };
 
-const monthRank = new Map(
-  [
+function compatible(observations: TextObservation[]): boolean {
+  return (
+    observations.length >= 2 &&
+    new Set(observations.map((item) => item.unit)).size === 1
+  );
+}
+function monthRank(period: string): number {
+  const months = [
     "январь",
     "февраль",
     "март",
@@ -29,147 +35,93 @@ const monthRank = new Map(
     "октябрь",
     "ноябрь",
     "декабрь",
-  ].map((month, index) => [month, index]),
-);
-function periodRank(period: string): number {
-  const month = monthRank.get(
+  ];
+  const value = months.indexOf(
     period.toLocaleLowerCase("ru-RU").split(/\s+/u)[0] ?? "",
   );
-  return month === undefined ? Number.MAX_SAFE_INTEGER : month;
+  return value < 0 ? Number.MAX_SAFE_INTEGER : value;
 }
 
-/** Builds only additive, same-concept observation series; targets stay separate. */
+/** Builds points only for explicit model-proposed groups after compatibility checks. */
 export function calculateObservationCharts(
   observations: TextObservation[],
+  groups: TextChartGroup[],
   evidenceId: (observationId: string) => string,
 ): ObservationChart[] {
-  const snapshots = observations.filter(
-    (observation) => observation.role === "snapshot",
+  const byId = new Map(
+    observations.map((observation) => [observation.id, observation]),
   );
   const charts: ObservationChart[] = [];
-  const species = snapshots.filter(
-    (observation) => observation.period === null,
-  );
-  const speciesCompatible =
-    species.length >= 2 && new Set(species.map((item) => item.unit)).size === 1;
-  if (speciesCompatible) {
-    charts.push({
-      id: "observations-by-subject",
-      kind: "bar",
-      title: "Наблюдения по категориям",
-      rationale:
-        "Сравнивает явно указанные категории с совместимой единицей измерения.",
-      aggregation: {
-        kind: "count",
-        dimensionFieldId: "subject",
-        dimensionLabel: "Категория",
-      },
-      observationIds: species.map((item) => item.id),
-      points: species.map((item) => ({
-        label: item.subject,
-        value: item.value,
-      })),
-      evidenceIds: species.map((item) => evidenceId(item.id)),
-    });
-  }
-  const targets = observations.filter(
-    (observation) => observation.role === "target",
-  );
-  const target = targets[0];
-  if (target && speciesCompatible) {
-    charts.push({
-      id: "observations-current-target",
-      kind: "bar",
-      title: "Текущее значение и цель",
-      rationale:
-        "Цель показана отдельно и не включена в категории текущих наблюдений.",
-      aggregation: {
-        kind: "count",
-        dimensionFieldId: "target",
-        dimensionLabel: "Цель",
-      },
-      observationIds: [...species.map((item) => item.id), target.id],
-      points: [
+  for (const group of groups) {
+    const selected = group.observationIds.map((id) => byId.get(id));
+    if (selected.some((observation) => observation === undefined)) continue;
+    const items = selected as TextObservation[];
+    if (!compatible(items)) continue;
+    if (group.kind === "line") {
+      if (
+        items.some((item) => item.period === null) ||
+        new Set(items.map((item) => item.subject)).size !== 1
+      )
+        continue;
+      items.sort(
+        (left, right) =>
+          monthRank(left.period as string) - monthRank(right.period as string),
+      );
+    }
+    let points: Array<{ label: string; value: number }>;
+    if (group.derivation === "current-target") {
+      const target = items.find((item) => item.role === "target");
+      const snapshots = items.filter((item) => item.role === "snapshot");
+      if (!target || snapshots.length < 1) continue;
+      points = [
         {
           label: "Текущее значение (расчёт)",
-          value: species.reduce((sum, item) => sum + item.value, 0),
+          value: snapshots.reduce((sum, item) => sum + item.value, 0),
         },
         { label: "Цель", value: target.value },
-      ],
-      evidenceIds: [...species, target].map((item) => evidenceId(item.id)),
-    });
-  }
-  for (const subject of new Set(observations.map((item) => item.subject))) {
-    const baseline =
-      observations
-        .filter((item) => item.subject === subject && item.role === "snapshot")
-        .findLast((item) => item.period !== null) ??
-      observations.find(
-        (item) => item.subject === subject && item.role === "snapshot",
-      );
-    const change = observations.find(
-      (item) => item.subject === subject && item.role === "change",
-    );
-    if (
-      !baseline ||
-      !change ||
-      (baseline.unit !== change.unit &&
-        baseline.unit !== null &&
-        change.unit !== null)
-    )
-      continue;
-    charts.push({
-      id: `observations-change-${charts.length}`,
-      kind: "bar",
-      title: `${subject}: база и изменение`,
-      rationale:
-        "Итог рассчитан из явно указанной базы и изменения с сохранением их источников.",
-      aggregation: {
-        kind: "count",
-        dimensionFieldId: "role",
-        dimensionLabel: "Роль наблюдения",
-      },
-      observationIds: [baseline.id, change.id],
-      points: [
+      ];
+    } else if (group.derivation === "baseline-change") {
+      const baseline = items.find((item) => item.role === "snapshot");
+      const change = items.find((item) => item.role === "change");
+      if (
+        !baseline ||
+        !change ||
+        group.operation === "none" ||
+        new Set(items.map((item) => item.subject)).size !== 1
+      )
+        continue;
+      points = [
         { label: "База", value: baseline.value },
         { label: "Изменение", value: change.value },
-        { label: "Итого (расчёт)", value: baseline.value + change.value },
-      ],
-      evidenceIds: [evidenceId(baseline.id), evidenceId(change.id)],
-    });
-  }
-  const seriesBySubject = new Map<string, TextObservation[]>();
-  for (const observation of snapshots.filter((item) => item.period !== null)) {
-    const key = `${observation.subject}\u0000${observation.unit ?? ""}`;
-    seriesBySubject.set(key, [
-      ...(seriesBySubject.get(key) ?? []),
-      observation,
-    ]);
-  }
-  for (const series of seriesBySubject.values()) {
-    const periods = new Set(series.map((item) => item.period));
-    if (series.length < 2 || periods.size < 2) continue;
+        {
+          label: "Итого (расчёт)",
+          value:
+            baseline.value +
+            (group.operation === "decrease" ? -change.value : change.value),
+        },
+      ];
+    } else {
+      points = items.map((item) => ({
+        label: group.kind === "line" ? (item.period as string) : item.subject,
+        value: item.value,
+      }));
+    }
+    const evidenceIds = items.slice(0, 7).map((item) => evidenceId(item.id));
+    if (evidenceIds.some((id) => id.length === 0)) continue;
     charts.push({
-      id: `observations-over-time-${charts.length}`,
-      kind: "line",
-      title: `${series[0]?.subject ?? "Наблюдение"}: динамика`,
-      rationale:
-        "Показывает явные наблюдения одного предмета по указанным периодам.",
+      id: group.id,
+      kind: group.kind,
+      title: group.title,
+      rationale: group.rationale,
       aggregation: {
         kind: "count",
-        dimensionFieldId: "period",
-        dimensionLabel: "Период",
+        dimensionFieldId: "observation",
+        dimensionLabel: "Источник",
       },
-      observationIds: series.map((item) => item.id),
-      points: [...series]
-        .sort(
-          (left, right) =>
-            periodRank(left.period as string) -
-            periodRank(right.period as string),
-        )
-        .map((item) => ({ label: item.period as string, value: item.value })),
-      evidenceIds: series.map((item) => evidenceId(item.id)),
+      observationIds: items.map((item) => item.id),
+      points,
+      evidenceIds,
     });
   }
-  return charts.slice(0, 3);
+  return charts;
 }

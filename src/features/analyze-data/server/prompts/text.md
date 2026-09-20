@@ -58,11 +58,11 @@ Write each user-visible fact label in Russian. Preserve exact quotations, units,
 
 Return only the structured object requested by the caller. Do not add Markdown, commentary, analysis, or wrapper keys.
 
-- `facts` is retained only for legacy table-compatible extraction; use `observations` for every text quantity.
 - `observations` contains direct qualitative quotations and a bounded, meaningfully complete set of source-backed quantities. For a qualitative quotation set `subject`, `value`, `unit`, `period`, and `role` to null. For a quantity, `subject`, `value`, and `role` are required; only `unit` and `period` may be null.
+- `chartGroups` contains at most three explicit proposed groups. Each group must list observation IDs from the returned observations, use `bar` or `line`, state Russian `title` and `rationale`, choose `direct`, `current-target`, or `baseline-change`, and state whether a change increases or decreases its baseline. The application rejects unknown IDs, incompatible units, subjects, roles or periods, and relationships not explicitly listed here.
 - `paragraphIndex` must identify the paragraph containing the quotation.
 - `quote` must be copied exactly and contiguously from that paragraph.
-- Never propose a chart. Text analysis uses quotation evidence only.
+- Propose a chart group only when the returned observations explicitly support the relationship.
 
 # Final checklist
 

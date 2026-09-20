@@ -17,6 +17,7 @@ import {
   narrativeResponseSchema,
   REPORT_ID_MAX_LENGTH,
   REPORT_LABEL_MAX_LENGTH,
+  REPORT_MAX_TEXT_CHART_GROUPS,
   REPORT_MAX_TEXT_OBSERVATIONS,
   REPORT_NARRATIVE_MAX_LENGTH,
   REPORT_NO_CHART_REASON_MAX_LENGTH,
@@ -200,22 +201,6 @@ export const providerNarrativeResponseSchema = z
   .strict();
 export const providerTextExtractionResponseSchema = z
   .object({
-    facts: z
-      .array(
-        z
-          .object({
-            id: providerIdentifierString,
-            label: providerLabelString,
-            subject: providerLabelString,
-            value: z.number().finite(),
-            unit: providerUnitString,
-            period: providerPeriodString,
-            paragraphIndex: z.number().int().positive(),
-            quote: providerQuoteString,
-          })
-          .strict(),
-      )
-      .max(4),
     observations: z
       .array(
         z
@@ -232,6 +217,25 @@ export const providerTextExtractionResponseSchema = z
           .strict(),
       )
       .max(REPORT_MAX_TEXT_OBSERVATIONS),
+    chartGroups: z
+      .array(
+        z
+          .object({
+            id: providerIdentifierString,
+            kind: z.enum(["bar", "line"]),
+            title: providerTitleString,
+            rationale: providerRationaleString,
+            observationIds: z
+              .array(providerIdentifierString)
+              .min(2)
+              .max(REPORT_MAX_TEXT_OBSERVATIONS),
+            derivation: z.enum(["direct", "current-target", "baseline-change"]),
+            operation: z.enum(["none", "increase", "decrease"]).default("none"),
+          })
+          .strict(),
+      )
+      .max(REPORT_MAX_TEXT_CHART_GROUPS)
+      .default([]),
   })
   .strict();
 
@@ -735,7 +739,7 @@ function crossesFactBoundary(
   return false;
 }
 
-function quoteFactContext(
+function _quoteFactContext(
   quote: string,
   value: number,
   subject: string,
@@ -788,11 +792,11 @@ function quoteFactContext(
   };
 }
 
-function absoluteRange(range: TextRange, quoteStart: number): TextRange {
+function _absoluteRange(range: TextRange, quoteStart: number): TextRange {
   return { start: quoteStart + range.start, end: quoteStart + range.end };
 }
 
-function rangesOverlap(left: TextRange, right: TextRange) {
+function _rangesOverlap(left: TextRange, right: TextRange) {
   return left.start < right.end && right.start < left.end;
 }
 
@@ -842,7 +846,6 @@ async function analyzeText(
     extraction = await extract(repairPrompt(extractionPrompt, error));
   }
   const evidenceByQuote = new Map<string, string>();
-  const acceptedSubjectsByOccurrence = new Map<string, TextRange[]>();
   const evidence = [] as Array<{
     id: string;
     kind: "quote";
@@ -853,10 +856,11 @@ async function analyzeText(
     id: string,
     paragraphIndex: number,
     quote: string,
-  ) => {
+  ): string | undefined => {
     const key = `${paragraphIndex}:${quote}`;
     const existing = evidenceByQuote.get(key);
     if (existing) return existing;
+    if (evidence.length >= 7) return undefined;
     const evidenceId = `quote-${id}`;
     evidenceByQuote.set(key, evidenceId);
     evidence.push({
@@ -877,69 +881,6 @@ async function analyzeText(
     paragraphIndex: number;
     quote: string;
   }>;
-  const facts = extraction.facts
-    .map((fact) => {
-      const paragraph = source.paragraphs.find(
-        (candidate) => candidate.index === fact.paragraphIndex,
-      );
-      const quoteStart = paragraph?.text.indexOf(fact.quote) ?? -1;
-      if (!paragraph || quoteStart < 0) return undefined;
-      const factContext =
-        quoteHasValue(fact.quote, fact.value) &&
-        quoteHasExactPhrase(fact.quote, fact.subject) &&
-        quoteHasExactPhrase(fact.quote, fact.unit) &&
-        quoteHasExactPhrase(fact.quote, fact.period) &&
-        quoteFactContext(
-          fact.quote,
-          fact.value,
-          fact.subject,
-          fact.unit,
-          fact.period,
-        );
-      // A provider can preserve the source quote while slightly paraphrasing a
-      // numeric field. Keep the exact quote as evidence, but never promote the
-      // ungrounded number to a metric.
-      if (!factContext) {
-        addQuoteEvidence(fact.id, fact.paragraphIndex, fact.quote);
-        return undefined;
-      }
-      const absoluteContext = {
-        number: absoluteRange(factContext.number, quoteStart),
-        period: absoluteRange(factContext.period, quoteStart),
-        subject: absoluteRange(factContext.subject, quoteStart),
-        unit: absoluteRange(factContext.unit, quoteStart),
-      };
-      const occurrenceKey = JSON.stringify([
-        fact.paragraphIndex,
-        absoluteContext.number,
-        absoluteContext.unit,
-      ]);
-      const acceptedSubjects = acceptedSubjectsByOccurrence.get(occurrenceKey);
-      if (
-        acceptedSubjects?.some((subjectRange) =>
-          rangesOverlap(subjectRange, absoluteContext.subject),
-        )
-      )
-        return undefined;
-      acceptedSubjectsByOccurrence.set(occurrenceKey, [
-        ...(acceptedSubjects ?? []),
-        absoluteContext.subject,
-      ]);
-      const evidenceId = addQuoteEvidence(
-        fact.id,
-        fact.paragraphIndex,
-        fact.quote,
-      );
-      return {
-        id: fact.id,
-        label: fact.label,
-        value: fact.value,
-        calculation: { kind: "direct-source" as const },
-        ...(fact.unit ? { unit: fact.unit } : {}),
-        evidenceIds: [evidenceId],
-      };
-    })
-    .filter((fact): fact is NonNullable<typeof fact> => fact !== undefined);
   for (const observation of extraction.observations) {
     const paragraph = source.paragraphs.find(
       (candidate) => candidate.index === observation.paragraphIndex,
@@ -958,6 +899,12 @@ async function analyzeText(
         observation.period === null ||
         quoteHasExactPhrase(observation.quote, observation.period))
     ) {
+      const observationEvidenceId = addQuoteEvidence(
+        observation.id,
+        observation.paragraphIndex,
+        observation.quote,
+      );
+      if (!observationEvidenceId) continue;
       checkedObservations.push({
         id: observation.id,
         subject: observation.subject,
@@ -969,11 +916,12 @@ async function analyzeText(
         quote: observation.quote,
       });
     }
-    addQuoteEvidence(
-      observation.id,
-      observation.paragraphIndex,
-      observation.quote,
-    );
+    if (observation.subject === null)
+      addQuoteEvidence(
+        observation.id,
+        observation.paragraphIndex,
+        observation.quote,
+      );
   }
   if (!evidence.length) {
     const paragraph = source.paragraphs[0];
@@ -989,8 +937,6 @@ async function analyzeText(
       excerpt: boundedExactExcerpt(paragraph.text),
     });
   }
-  const factIds = new Set(facts.map((fact) => fact.id));
-  const evidenceIds = new Set(evidence.map((item) => item.id));
   const observationEvidence = new Map(
     checkedObservations.map((observation) => [
       observation.id,
@@ -998,14 +944,25 @@ async function analyzeText(
         observation.id,
         observation.paragraphIndex,
         observation.quote,
-      ),
+      ) ?? "",
     ]),
   );
+  const facts = checkedObservations.slice(0, 4).map((observation) => ({
+    id: observation.id,
+    label: observation.subject,
+    value: observation.value,
+    ...(observation.unit ? { unit: observation.unit } : {}),
+    calculation: { kind: "direct-source" as const },
+    evidenceIds: [observationEvidence.get(observation.id) ?? "quote-source"],
+  }));
+  const factIds = new Set(facts.map((fact) => fact.id));
+  const evidenceIds = new Set(evidence.map((item) => item.id));
   const charts = calculateObservationCharts(
     checkedObservations,
-    (observationId) => observationEvidence.get(observationId) ?? "quote-source",
+    extraction.chartGroups,
+    (observationId) => observationEvidence.get(observationId) ?? "",
   );
-  const checkedNarrativePrompt = `${narrativePrompt}\n\nChecked facts, source-backed observations, and evidence only:\n${JSON.stringify({ facts, observations: checkedObservations, evidence })}${focusContext(focus)}`;
+  const checkedNarrativePrompt = `${narrativePrompt}\n\nChecked facts, source-backed observations, calculated chart series, and evidence only:\n${JSON.stringify({ facts, observations: checkedObservations, charts, evidence })}\nEvery chart point is deterministic code output. Explain calculated current totals or change totals only when their chart provenance supports it; never invent a value or relationship.${focusContext(focus)}`;
   const narrate = (prompt: string) =>
     callModel({
       stage: "narrative",

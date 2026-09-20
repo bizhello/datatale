@@ -296,7 +296,6 @@ describe("provider-facing structured output", () => {
   it("accepts nullable-period source observations with explicit roles", () => {
     expect(
       textExtractionFromProviderOutput({
-        facts: [],
         observations: [
           {
             id: "dogs",
@@ -309,8 +308,22 @@ describe("provider-facing structured output", () => {
             quote: "There were 5 dogs.",
           },
         ],
+        chartGroups: [
+          {
+            id: "animals",
+            kind: "bar",
+            title: "Животные",
+            rationale: "Сравнение",
+            observationIds: ["dogs", "cats"],
+            derivation: "direct",
+            operation: "none",
+          },
+        ],
       }),
-    ).toMatchObject({ observations: [{ subject: "dogs", role: "snapshot" }] });
+    ).toMatchObject({
+      observations: [{ subject: "dogs", role: "snapshot" }],
+      chartGroups: [{ observationIds: ["dogs", "cats"] }],
+    });
   });
 
   it("keeps qualitative quotations without inventing numeric fields", () => {

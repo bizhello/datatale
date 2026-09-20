@@ -27,6 +27,16 @@ describe("calculateObservationCharts", () => {
         observation("parrot", "parrot", 1),
         observation("target", "target", 20, null, "target"),
       ],
+      [
+        {
+          id: "animals",
+          kind: "bar",
+          title: "Животные",
+          rationale: "Сравнение",
+          observationIds: ["dogs", "cats", "parrot"],
+          derivation: "direct",
+        },
+      ],
       (id) => `e-${id}`,
     );
     expect(charts[0]?.kind).toBe("bar");
@@ -43,6 +53,16 @@ describe("calculateObservationCharts", () => {
       [
         observation("jan", "Revenue", 100, "January"),
         observation("feb", "Revenue", 150, "February"),
+      ],
+      [
+        {
+          id: "revenue",
+          kind: "line",
+          title: "Динамика",
+          rationale: "Периоды",
+          observationIds: ["jan", "feb"],
+          derivation: "direct",
+        },
       ],
       (id) => `e-${id}`,
     );
@@ -64,19 +84,34 @@ describe("calculateObservationCharts", () => {
         observation("cats-yesterday", "cats", 3, "yesterday"),
         observation("cats-change", "cats", 2, "today", "change"),
       ],
+      [
+        {
+          id: "target",
+          kind: "bar",
+          title: "Цель",
+          rationale: "Разрыв",
+          observationIds: ["dogs", "cats", "parrot", "target"],
+          derivation: "current-target",
+        },
+        {
+          id: "change",
+          kind: "bar",
+          title: "Изменение",
+          rationale: "Расчёт",
+          observationIds: ["cats-yesterday", "cats-change"],
+          derivation: "baseline-change",
+          operation: "increase",
+        },
+      ],
       (id) => `e-${id}`,
     );
-    const target = charts.find(
-      (chart) => chart.id === "observations-current-target",
-    );
+    const target = charts.find((chart) => chart.id === "target");
     expect(target?.points).toContainEqual({
       label: "Текущее значение (расчёт)",
       value: 9,
     });
     expect(target?.points).not.toContainEqual({ label: "total", value: 20 });
-    const change = charts.find((chart) =>
-      chart.id.includes("observations-change"),
-    );
+    const change = charts.find((chart) => chart.id === "change");
     expect(change?.points).toContainEqual({
       label: "Итого (расчёт)",
       value: 5,
@@ -89,7 +124,22 @@ describe("calculateObservationCharts", () => {
       observation("a", "dogs", 5),
       { ...observation("b", "revenue", 10), unit: "RUB" },
     ];
-    expect(calculateObservationCharts(mixed, (id) => id)).toEqual([]);
-    expect(calculateObservationCharts([], (id) => id)).toEqual([]);
+    expect(
+      calculateObservationCharts(
+        mixed,
+        [
+          {
+            id: "mixed",
+            kind: "bar",
+            title: "Mixed",
+            rationale: "Mixed",
+            observationIds: ["a", "b"],
+            derivation: "direct",
+          },
+        ],
+        (id) => id,
+      ),
+    ).toEqual([]);
+    expect(calculateObservationCharts([], [], (id) => id)).toEqual([]);
   });
 });
