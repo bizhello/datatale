@@ -64,6 +64,11 @@ const emptyWire = {
   metrics: [],
   orderBy: [],
   limit: 0,
+  calculationKind: "none",
+  calculationReferenceIds: [],
+  calculationValues: [],
+  calculationResult: 0,
+  calculationUnit: "",
 };
 type WireQueryPatch = {
   queryId?: string;
@@ -314,12 +319,37 @@ describe("planned grounded chat", () => {
     },
   );
 
+  it("validates a text sum from cited typed operands", async () => {
+    const provider = vi.fn().mockResolvedValue({
+      ...wireAnswer("Всего 5 животных.", [{ id: "paragraph-1" }]),
+      calculationKind: "sum",
+      calculationReferenceIds: ["paragraph-1", "paragraph-1"],
+      calculationValues: [3, 2],
+      calculationResult: 5,
+      calculationUnit: "",
+    });
+    await expect(
+      answerChat(request, {
+        loadContext: async () =>
+          context({
+            ...text,
+            rawText: "3 кошки и 2 собаки.",
+            paragraphs: [{ index: 1, text: "3 кошки и 2 собаки." }],
+          }),
+        provider,
+      }),
+    ).resolves.toMatchObject({
+      outcome: "answered",
+      answer: "Всего 5 животных.",
+    });
+  });
+
   it("bounds trusted excerpts in prompts and returned references", async () => {
     const long = `Начало ${"x".repeat(1_100)} конец`;
     const provider = vi.fn(async ({ prompt }: { prompt: string }) => {
       const payload = JSON.parse(prompt);
       expect(payload.paragraphs[0].text).toHaveLength(1_000);
-      return wireAnswer("Начало.", [{ id: "paragraph-1" }]);
+      return wireAnswer("Начало.", [{ id: "paragraph-1-1" }]);
     });
     const result = await answerChat(request, {
       loadContext: async () =>
@@ -333,6 +363,25 @@ describe("planned grounded chat", () => {
     expect(result.outcome).toBe("answered");
     if (result.outcome === "answered")
       expect(result.references[0]?.excerpt).toHaveLength(1_000);
+  });
+
+  it("keeps answerable facts from the end of a long paragraph", async () => {
+    const long = `${"x".repeat(1_000)} В городе 7 кошек.`;
+    const provider = vi.fn(async ({ prompt }: { prompt: string }) => {
+      expect(JSON.parse(prompt).paragraphs).toHaveLength(2);
+      return wireAnswer("В городе 7 кошек.", [{ id: "paragraph-1-2" }]);
+    });
+    await expect(
+      answerChat(request, {
+        loadContext: async () =>
+          context({
+            ...text,
+            rawText: long,
+            paragraphs: [{ index: 1, text: long }],
+          }),
+        provider,
+      }),
+    ).resolves.toMatchObject({ outcome: "answered" });
   });
 
   it("exposes grouped aggregate evidence as a citable trusted reference", async () => {

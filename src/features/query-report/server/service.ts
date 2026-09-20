@@ -19,9 +19,15 @@ import {
   type DatasetQueryResult,
   datasetQuerySchema,
   type TextSource,
+  validateDatasetQuery,
 } from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
+import {
+  type ArithmeticInput,
+  type NumericEvidence,
+  validateArithmetic,
+} from "./arithmetic";
 
 export const CHAT_TIMEOUT_MS = 60_000;
 const MAX_DISTINCT_VALUES = 40;
@@ -37,6 +43,7 @@ export type QueryResultReference = {
   id: string;
   excerpt?: string;
   numericValues?: number[];
+  numericEvidence?: NumericEvidence[];
 };
 export type QueryExecutor = {
   execute(
@@ -165,6 +172,18 @@ const providerEnvelopeSchema = z
       )
       .max(20),
     limit: z.number().int().min(0).max(100),
+    calculationKind: z.enum([
+      "none",
+      "sum",
+      "difference",
+      "ratio",
+      "percentage_of",
+      "percentage_change",
+    ]),
+    calculationReferenceIds: z.array(z.string().max(160)).max(2),
+    calculationValues: z.array(z.number().finite()).max(2),
+    calculationResult: z.number().finite(),
+    calculationUnit: z.string().max(80),
   })
   .strict();
 type ProviderEnvelope = z.output<typeof providerEnvelopeSchema>;
@@ -204,7 +223,12 @@ function decodeQuery(input: ProviderEnvelope): DatasetQuery {
     !input.limit ||
     input.answer ||
     input.message ||
-    input.references.length
+    input.references.length ||
+    input.calculationKind !== "none" ||
+    input.calculationReferenceIds.length ||
+    input.calculationValues.length ||
+    input.calculationResult !== 0 ||
+    input.calculationUnit
   )
     throw new Error("Query outcome contains invalid sentinels.");
   return datasetQuerySchema.parse({
@@ -230,6 +254,15 @@ function decodeQuery(input: ProviderEnvelope): DatasetQuery {
 }
 function decodeOutcome(raw: unknown): ProviderEnvelope {
   const output = providerEnvelopeSchema.parse(raw);
+  if (
+    output.outcome !== "answer" &&
+    (output.calculationKind !== "none" ||
+      output.calculationReferenceIds.length > 0 ||
+      output.calculationValues.length > 0 ||
+      output.calculationResult !== 0 ||
+      output.calculationUnit !== "")
+  )
+    throw new Error("Non-answer outcome contains calculation fields.");
   if (
     output.outcome === "answer" &&
     (!output.answer.trim() || output.references.length === 0)
@@ -288,16 +321,52 @@ function sourceReferences(
   source: Dataset | TextSource,
 ): QueryResultReference[] {
   return "rows" in source
-    ? source.rows.map((row) => ({
-        id: `row-${row.id}`,
-        excerpt: rowExcerpt(row),
-        numericValues: numericValues(rowExcerpt(row)),
-      }))
-    : source.paragraphs.map((paragraph) => ({
-        id: `paragraph-${paragraph.index}`,
-        excerpt: boundedEvidence(paragraph.text),
-        numericValues: numericValues(boundedEvidence(paragraph.text)),
-      }));
+    ? source.rows.map((row) => {
+        const excerpt = rowExcerpt(row);
+        const numericEvidence = source.columns.flatMap((column) => {
+          const value = row.values[column.id];
+          return typeof value === "number"
+            ? [{ value, ...(column.unit ? { unit: column.unit } : {}) }]
+            : [];
+        });
+        return {
+          id: `row-${row.id}`,
+          excerpt,
+          numericValues: numericEvidence.map((item) => item.value),
+          numericEvidence,
+        };
+      })
+    : textEvidence(source).map((paragraph) => {
+        const excerpt = paragraph.text;
+        const values = numericValues(excerpt);
+        return {
+          id: paragraph.id,
+          excerpt,
+          numericValues: values,
+          numericEvidence: values.map((value) => ({ value })),
+        };
+      });
+}
+function textEvidence(source: TextSource) {
+  return source.paragraphs.flatMap((paragraph) => {
+    const chunks: Array<{ id: string; text: string }> = [];
+    for (
+      let offset = 0;
+      offset < paragraph.text.length;
+      offset += CHAT_EVIDENCE_MAX_LENGTH
+    ) {
+      const chunk = paragraph.text.slice(
+        offset,
+        offset + CHAT_EVIDENCE_MAX_LENGTH,
+      );
+      const suffix =
+        paragraph.text.length <= CHAT_EVIDENCE_MAX_LENGTH
+          ? ""
+          : `-${Math.floor(offset / CHAT_EVIDENCE_MAX_LENGTH) + 1}`;
+      chunks.push({ id: `paragraph-${paragraph.index}${suffix}`, text: chunk });
+    }
+    return chunks;
+  });
 }
 const russianWordEndings =
   /(ами|ями|ого|ему|ому|ее|ие|ые|ой|ий|ый|ая|яя|ое|ее|ие|ые|ам|ям|ом|ем|ым|им|ах|ях|ов|ев|ей|ью|ою|ею|ов|ев|ью|ю|я|а|ы|и|е|о|у|э|ь|й)$/u;
@@ -363,6 +432,7 @@ function validateReferences(
   references: Array<{ id: string; excerpt?: string | undefined }>,
   evidence: Map<string, QueryResultReference>,
   requiredId?: string,
+  arithmetic?: ArithmeticInput,
 ) {
   if (references.length < 1 || references.length > 7)
     throw new Error("Answer must cite source references.");
@@ -383,8 +453,16 @@ function validateReferences(
       (reference) => evidence.get(reference.id)?.numericValues ?? [],
     ),
   );
+  const derivedValue = arithmetic
+    ? validateArithmetic(arithmetic, seen, evidence)
+    : undefined;
   for (const value of numericValues(answer))
-    if (!evidenceNumbers.has(value))
+    if (
+      !evidenceNumbers.has(value) &&
+      (derivedValue === undefined ||
+        Math.abs(value - derivedValue) >
+          1e-9 * Math.max(1, Math.abs(derivedValue)))
+    )
       throw new Error("Answer contains a number absent from cited evidence.");
   return trusted.map((reference) => ({
     id: reference.id,
@@ -396,6 +474,7 @@ function fieldId(field: string | { fieldId: string }) {
 }
 function validateQuery(query: DatasetQuery, source: Dataset): DatasetQuery {
   const parsed = datasetQuerySchema.parse(query);
+  validateDatasetQuery(source, parsed);
   if (parsed.limit > 100)
     throw new Error("Chat query limit exceeds the provider evidence bound.");
   const fields = [
@@ -460,6 +539,15 @@ async function callProvider(
         "provider_aborted",
         "Chat request was cancelled.",
       );
+    if (
+      error instanceof Error &&
+      (error.name === "TimeoutError" ||
+        (error.cause instanceof Error && error.cause.name === "TimeoutError"))
+    )
+      throw new ChatProviderError(
+        "provider_timeout",
+        "Chat provider timed out.",
+      );
     throw new ChatProviderError(
       "provider_failure",
       error instanceof Error ? error.message : "Chat provider failed.",
@@ -469,21 +557,48 @@ async function callProvider(
 function resultReferences(
   result: DatasetQueryResult,
   source: Dataset,
+  query: DatasetQuery,
 ): QueryResultReference[] {
   const rows = new Map(source.rows.map((row) => [row.id, row]));
+  const metricUnits = new Map(
+    (query.metrics ?? []).flatMap((metric) => {
+      const unit = metric.fieldId
+        ? source.columns.find((column) => column.id === metric.fieldId)?.unit
+        : undefined;
+      return unit ? [[metric.id, unit] as const] : [];
+    }),
+  );
+  const metricEvidence = (metrics: Record<string, number | null>) =>
+    Object.entries(metrics).flatMap(([id, value]) =>
+      value === null
+        ? []
+        : [
+            {
+              value,
+              ...(metricUnits.get(id)
+                ? { unit: metricUnits.get(id) as string }
+                : {}),
+            },
+          ],
+    );
+  const queryNumericEvidence = metricEvidence(result.metrics);
   const references: QueryResultReference[] = [
     {
       id: `query-${result.queryId}`,
       excerpt: boundedEvidence(
         `Метрики: ${JSON.stringify(result.metrics)}; найдено строк: ${result.matchedRows}; просмотрено строк: ${result.scannedRows}.`,
       ),
-      numericValues: Object.values(result.metrics).filter(
-        (value): value is number => value !== null,
-      ),
+      numericValues: queryNumericEvidence.map((item) => item.value),
+      numericEvidence: queryNumericEvidence,
     },
   ];
   references[0]?.numericValues?.push(result.matchedRows, result.scannedRows);
+  references[0]?.numericEvidence?.push(
+    { value: result.matchedRows },
+    { value: result.scannedRows },
+  );
   for (const [index, group] of result.groups.entries()) {
+    const groupNumericEvidence = metricEvidence(group.metrics);
     references.push({
       id: `group-${result.queryId}-${index}`,
       excerpt: boundedEvidence(
@@ -491,9 +606,11 @@ function resultReferences(
       ),
       numericValues: [
         ...(typeof group.key === "number" ? [group.key] : []),
-        ...Object.values(group.metrics).filter(
-          (value): value is number => value !== null,
-        ),
+        ...groupNumericEvidence.map((item) => item.value),
+      ],
+      numericEvidence: [
+        ...(typeof group.key === "number" ? [{ value: group.key }] : []),
+        ...groupNumericEvidence,
       ],
     });
   }
@@ -507,10 +624,16 @@ function resultReferences(
     if (!row) continue;
     seen.add(reference.rowId);
     const excerpt = rowExcerpt(row);
+    const rowEvidence = sourceReferences({ ...source, rows: [row] })[0];
     references.push({
       id: `row-${row.id}`,
       excerpt,
-      numericValues: numericValues(excerpt),
+      ...(rowEvidence?.numericValues
+        ? { numericValues: rowEvidence.numericValues }
+        : {}),
+      ...(rowEvidence?.numericEvidence
+        ? { numericEvidence: rowEvidence.numericEvidence }
+        : {}),
     });
     if (references.length >= 100) break;
   }
@@ -536,6 +659,11 @@ async function answerChatCore(
       error instanceof Error ? error.message : "Context loading failed.",
     );
   }
+  if (signal.aborted)
+    throw new ChatProviderError(
+      "provider_aborted",
+      "Chat request was cancelled.",
+    );
   if (!context || context.analysisId !== parsed.analysisId)
     return notInSource();
   const provider = dependencies.provider ?? defaultProvider;
@@ -555,10 +683,7 @@ async function answerChatCore(
       provider,
       {
         kind: "text",
-        paragraphs: context.source.paragraphs.map((paragraph) => ({
-          id: `paragraph-${paragraph.index}`,
-          text: boundedEvidence(paragraph.text),
-        })),
+        paragraphs: textEvidence(context.source),
         question: parsed.question,
         history,
       },
@@ -574,6 +699,14 @@ async function answerChatCore(
             output.answer,
             output.references,
             allowed,
+            undefined,
+            {
+              kind: output.calculationKind,
+              referenceIds: output.calculationReferenceIds,
+              values: output.calculationValues,
+              result: output.calculationResult,
+              unit: output.calculationUnit,
+            },
           ),
         });
       if (output.outcome === "clarification")
@@ -673,7 +806,7 @@ async function answerChatCore(
       );
     throw error;
   }
-  const references = resultReferences(result, context.source);
+  const references = resultReferences(result, context.source, query);
   const finalAllowed = new Map(
     references.map((reference) => [reference.id, reference]),
   );
@@ -710,6 +843,13 @@ async function answerChatCore(
           Object.keys(result.metrics).length > 0
             ? `query-${result.queryId}`
             : undefined,
+          {
+            kind: output.calculationKind,
+            referenceIds: output.calculationReferenceIds,
+            values: output.calculationValues,
+            result: output.calculationResult,
+            unit: output.calculationUnit,
+          },
         ),
       });
     if (output.outcome === "clarification")
