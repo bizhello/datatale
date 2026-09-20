@@ -12,6 +12,8 @@ Independent Astra review rejected earlier green candidates for substring numeric
 
 Live Spiro probes found two issues that mocked tests missed. The text-chart provider schema still marked `operation` optional, which the gateway rejected; the field and empty `chartGroups` are now required in the flat wire contract. The gateway also populated the required `answer` sentinel for `not_in_source` and left model-owned `queryId` empty. The server now safely ignores absence prose in favor of the canonical refusal and owns query IDs from the idempotent message ID. After correction, live `gpt-5.6-terra` returned `Сейчас в приюте 5 кошек`, the canonical refusal for an absent dog fact, a Russian text report with a calculated cat-change chart, a three-chart report over the real 4,500-row workbook, and a complete 560-row Краснодар summary from that workbook.
 
+The first production smoke after merge found one remaining gateway-specific failure: the table planner repeated `not_in_source` for an absent city instead of producing the verification query requested by the repair prompt, and its final refusal included required-schema references. The repair call now uses a query-only output schema, while final absence references and prose are discarded. A fresh live Spiro probe over a table containing Краснодар and Москва returned the canonical refusal for Владивосток after deterministic query execution.
+
 The integrated local gate passed Biome, Steiger, strict TypeScript, 395 Vitest tests, the Turbopack production build, and 81 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Production verification is intentionally recorded only after merge and deployment.
 
 ## Bounded arbitrary chat and structured-text repair · 2026-09-20
