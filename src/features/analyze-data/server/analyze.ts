@@ -231,7 +231,7 @@ export const providerTextExtractionResponseSchema = z
               .min(2)
               .max(REPORT_MAX_EVIDENCE),
             derivation: z.enum(["direct", "current-target", "baseline-change"]),
-            operation: z.enum(["none", "increase", "decrease"]).default("none"),
+            operation: z.enum(["none", "increase", "decrease"]),
           })
           .strict()
           .superRefine((group, context) => {
@@ -245,8 +245,7 @@ export const providerTextExtractionResponseSchema = z
               });
           }),
       )
-      .max(REPORT_MAX_TEXT_CHART_GROUPS)
-      .default([]),
+      .max(REPORT_MAX_TEXT_CHART_GROUPS),
   })
   .strict();
 
