@@ -220,6 +220,8 @@ footer {
   color: var(--foreground);
   font-family: var(--font-display), serif;
   font-size: 1.12rem;
+  min-height: 2.75rem;
+  padding-inline-end: 3.25rem;
 }
 
 .onboarding-popover .driver-popover-description,
@@ -245,8 +247,8 @@ footer {
 
 .onboarding-popover .driver-popover-close-btn {
   display: grid;
-  width: 2rem;
-  height: 2rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border: 1px solid var(--line);
   border-radius: 0.55rem;
   background: var(--surface-raised);
@@ -255,8 +257,8 @@ footer {
   line-height: 1;
   opacity: 1;
   place-items: center;
-  top: 0.75rem;
-  right: 0.75rem;
+  top: 0.5rem;
+  right: 0.5rem;
 }
 
 .onboarding-popover .driver-popover-next-btn,
@@ -705,13 +707,9 @@ footer {
   font-size: 2rem;
 }
 .metric-value {
-  display: flex;
   min-width: 0;
-  align-items: baseline;
-  gap: 0.5rem;
-  white-space: nowrap;
-}
-.metric-value span {
+  margin: 0;
+  overflow-wrap: anywhere;
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
   font-size: 1rem;

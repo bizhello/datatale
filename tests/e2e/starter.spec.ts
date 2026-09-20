@@ -277,6 +277,7 @@ test("sends the optional analysis focus and keeps the compact workspace inside m
   page,
 }) => {
   let analyzeRequest: Record<string, unknown> | undefined;
+  const longUnit = "оченьдлиннаяединицаизмерениябезпробеловдляпроверкипереноса";
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/guest", async (route) => {
     await route.fulfill({
@@ -287,7 +288,14 @@ test("sends the optional analysis focus and keeps the compact workspace inside m
   await page.route("**/api/analyze", async (route) => {
     analyzeRequest = route.request().postDataJSON() as Record<string, unknown>;
     await route.fulfill({
-      json: { analysisId, report: dashboardReport, expiresAt: reportExpiresAt },
+      json: {
+        analysisId,
+        report: {
+          ...dashboardReport,
+          metrics: [{ ...dashboardReport.metrics[0], unit: longUnit }],
+        },
+        expiresAt: reportExpiresAt,
+      },
     });
   });
 
@@ -318,6 +326,15 @@ test("sends the optional analysis focus and keeps the compact workspace inside m
   expect(workspaceBounds.right).toBeLessThanOrEqual(workspaceBounds.viewport);
   expect(workspaceBounds.document).toBeLessThanOrEqual(
     workspaceBounds.viewport,
+  );
+  const metricBounds = await page
+    .locator(".metric-value")
+    .evaluate((metric) => ({
+      clientWidth: metric.clientWidth,
+      scrollWidth: metric.scrollWidth,
+    }));
+  expect(metricBounds.scrollWidth).toBeLessThanOrEqual(
+    metricBounds.clientWidth,
   );
 });
 

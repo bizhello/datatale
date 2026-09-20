@@ -1,7 +1,27 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 const preferenceKey = "datatale:onboarding:v1";
+
+async function expectCloseOutsideTitle(page: Page) {
+  const controlsDoNotOverlap = await page
+    .locator(".driver-popover")
+    .evaluate((popover) => {
+      const title = popover.querySelector<HTMLElement>(".driver-popover-title");
+      const close = popover.querySelector<HTMLElement>(
+        ".driver-popover-close-btn",
+      );
+      if (!title || !close) throw new Error("Tour controls are incomplete.");
+      const titleRange = document.createRange();
+      titleRange.selectNodeContents(title);
+      const titleRect = titleRange.getBoundingClientRect();
+      const closeRect = close.getBoundingClientRect();
+      return (
+        titleRect.right <= closeRect.left || titleRect.left >= closeRect.right
+      );
+    });
+  expect(controlsDoNotOverlap).toBe(true);
+}
 
 test.beforeEach(async ({ page }, testInfo) => {
   await page.addInitScript(
@@ -84,8 +104,9 @@ test("shows the welcome, mounts stable demo targets, and restores focus after sk
   });
   expect(closeStyle.color).not.toBe("rgba(0, 0, 0, 0)");
   expect(closeStyle.opacity).toBe("1");
-  expect(closeStyle.width).toBeGreaterThanOrEqual(32);
-  expect(closeStyle.height).toBeGreaterThanOrEqual(32);
+  expect(closeStyle.width).toBeGreaterThanOrEqual(44);
+  expect(closeStyle.height).toBeGreaterThanOrEqual(44);
+  await expectCloseOutsideTitle(page);
   await expect(page.locator(".onboarding-demo-workspace")).toBeVisible();
   await expect(
     page.locator(".onboarding-demo-workspace .chart-heading button").first(),
@@ -180,6 +201,13 @@ test("keeps the highlighted input choices inside a narrow viewport", async ({
     expect(section.scrollWidth).toBeLessThanOrEqual(section.clientWidth);
   }
   expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewport);
+  const next = page.locator(".driver-popover-next-btn");
+  const done = page.locator(".driver-popover-done-btn");
+  for (let step = 0; step < 5; step += 1) {
+    await expectCloseOutsideTitle(page);
+    if (await done.isVisible()) break;
+    await next.click();
+  }
 });
 
 test("continues when localStorage is unavailable", async ({ page }) => {

@@ -50,14 +50,14 @@ export function ReportDashboard({
         {report.metrics.map((metric) => (
           <article className="metric-card" key={metric.id}>
             <span>{metric.label}</span>
-            <div className="metric-value">
+            <p className="metric-value">
               <strong>
                 {metric.value.toLocaleString("ru-RU", {
                   maximumFractionDigits: 2,
                 })}
               </strong>
-              {metric.unit ? <span>{metric.unit}</span> : null}
-            </div>
+              {metric.unit ? <> {metric.unit}</> : null}
+            </p>
             {!metric.unit ? <small>по всем строкам</small> : null}
             <small>Расчёт: {formatDerivation(metric.calculation)}</small>
           </article>
