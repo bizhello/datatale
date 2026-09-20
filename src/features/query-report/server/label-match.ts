@@ -65,3 +65,23 @@ export function labelMentionedInQuestion(label: string, question: string) {
     )
   );
 }
+
+export function labelFollowsMarkerInQuestion(
+  label: string,
+  question: string,
+  markers: ReadonlySet<string>,
+) {
+  const labelWords = words(label);
+  const questionWords = words(question);
+  if (labelWords.length === 0) return false;
+  return questionWords.some((questionWord, index) => {
+    const articleOffset = questionWords[index + 1] === "the" ? 1 : 0;
+    return (
+      markers.has(questionWord) &&
+      labelWords.every((labelWord, offset) => {
+        const candidate = questionWords[index + articleOffset + offset + 1];
+        return candidate ? tokenMatches(labelWord, candidate) : false;
+      })
+    );
+  });
+}

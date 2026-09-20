@@ -2,6 +2,12 @@
 
 > **Historical record:** entries below describe the repository and verification state at the date shown. They are evidence of AI-assisted development, including mistakes and superseded designs, not current setup or operating instructions. Use [README.md](../README.md), [DELIVERY.md](DELIVERY.md), [DEPLOYMENT.md](DEPLOYMENT.md), [PRODUCT.md](PRODUCT.md), and [QUALITY.md](QUALITY.md) for the current project state.
 
+## Bounded arbitrary chat and structured-text repair · 2026-09-20
+
+The 4,500-row CSV exposed that only the predefined summary question avoided the serialized chat-context ceiling. Remaining questions now use bounded retrieval over the immutable source: current-question matches outrank recent-history matches, relevant cells precede unrelated large cells, checked report claims remain available, and a 96 KiB byte budget is enforced while claims are assembled. Truncated source answers fail closed unless one source is decisively identified. Deterministic aggregates apply only positively recognized equality filters; unresolved, multiple, numeric/range, relational, and exclusion constraints yield to the grounded provider path instead of broadening the calculation. Compensated summation is shared by analysis and chat calculations.
+
+The reported long TXT failure was an intermittent AI SDK structured-output error. Invalid extraction or narrative structure now receives one validation-guided replacement call, while repeated invalid output and ungrounded quotations still fail closed. Analysis error actions have a dedicated 16 px separation from their explanation. Independent review found and drove corrections for history-blind retrieval, oversized-cell starvation, unsafe truncated answers, AI SDK error classification, filtered-aggregation broadening, modifier semantics, and stacked error spacing. `bun run check` passed Biome, Steiger, strict TypeScript, 408 Vitest tests, and the Turbopack production build; `bun run test:e2e` passed 81 scenarios across desktop Chromium, mobile Chromium, and mobile WebKit.
+
 ## Large-value chart and large-report chat correction · 2026-09-20
 
 The real 4,500-row CSV exposed two boundary failures. Recharts used its default narrow Y axis, so nine-digit sales ticks were clipped. The built-in `Какие главные выводы?` question unnecessarily expanded all 58,500 table cells into canonical provider claims and then rejected its own payload above 96 KiB, even though the validated report hero already contained the requested answer.

@@ -261,7 +261,9 @@ describe("analysis workspace", () => {
     );
     const alert = await screen.findByRole("alert");
     await waitFor(() => expect(document.activeElement).toBe(alert));
-    expect(screen.getByRole("button", { name: "Повторить" })).toBeVisible();
+    const retry = screen.getByRole("button", { name: "Повторить" });
+    expect(retry).toBeVisible();
+    expect(retry.parentElement).toHaveClass("error-actions");
     expect(
       screen.getByRole("button", { name: "Выбрать другой источник" }),
     ).toBeVisible();

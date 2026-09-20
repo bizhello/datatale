@@ -27,6 +27,11 @@ describe("grounded chat prompt contract", () => {
       "Do not calculate or claim the derived final value",
     );
     expect(prompt).toContain("В этом отчете нет такой информации");
+    expect(prompt).toContain("retrieval.truncated");
+    expect(prompt).toContain("decisiveSourceId");
+    expect(prompt).toContain(
+      "never treat the included source claims as an exhaustive set",
+    );
     expect(prompt).toContain("Return only the strict structured object");
   });
 });
