@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { MemorySavedAnalysisRepository } from "./memory-repository";
+import { MemorySavedAnalysisRepository } from "./memory-repository.test-support";
 
 const reportStorageBoundary = z
   .object({ hero: z.array(z.unknown()).min(2).max(3) })

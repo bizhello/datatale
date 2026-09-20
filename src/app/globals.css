@@ -480,7 +480,6 @@ footer {
   margin: 20px 0 0;
   font-size: 0.84rem;
 }
-.analysis-action,
 .analysis-workspace {
   margin-top: 20px;
   display: flex;
@@ -762,10 +761,6 @@ footer {
   padding: 8px;
   border-top: 1px solid var(--line);
   text-align: left;
-}
-.report-skeleton {
-  height: 130px;
-  margin-top: 12px;
 }
 .sr-only {
   position: absolute;

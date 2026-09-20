@@ -24,7 +24,7 @@ Show the two- or three-sentence hero, metrics, and two or three supported charts
 
 > The model proposes supported metrics and chart types. The application validates that plan, calculates displayed values over the complete accepted table, and stores the source references and formulas with the result. Unsupported or incomplete chart proposals are rejected or omitted.
 
-Show the evidence coverage and a source row or paragraph. If the source is text-only, explain that DataTale returns an honest no-chart result when there are no measurable quantities.
+Show the evidence coverage and a source row or paragraph. If the source is text-only, explain that DataTale uses exact quotations for facts and deliberately avoids inventing table relationships or charts from prose.
 
 ## 2:30–3:15 — Ask the Data
 

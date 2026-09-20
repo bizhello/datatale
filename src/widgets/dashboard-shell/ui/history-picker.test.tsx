@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { HistoryPicker, historyLabel } from "./history-picker";
+import { historyLabel } from "../model/history-label";
+import { HistoryPicker } from "./history-picker";
 
 const base = {
   sourceKind: "text" as const,

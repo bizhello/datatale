@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RunGate } from "./run-gate";
-import { MemoryRunGateRepository } from "./run-gate-memory-repository";
+import { MemoryRunGateRepository } from "./run-gate-memory-repository.test-support";
 
 const at = (value: string) => new Date(value);
 const input = (

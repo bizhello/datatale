@@ -5,6 +5,7 @@ import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import type { ThemeMode } from "./theme-control.types";
+import { prefersReducedMotion, waitForResolvedTheme } from "./theme-transition";
 
 const themeOptions: ReadonlyArray<{
   icon: typeof Sun;
@@ -15,25 +16,6 @@ const themeOptions: ReadonlyArray<{
   { icon: Moon, label: "Тёмная тема", mode: "dark" },
   { icon: Monitor, label: "Системная тема", mode: "system" },
 ];
-
-function prefersReducedMotion() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-function hasResolvedThemeClass(mode: ThemeMode, root: HTMLElement) {
-  const dark =
-    mode === "dark" ||
-    (mode === "system" &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches);
-  return root.classList.contains("dark") === dark;
-}
-
-async function waitForResolvedTheme(mode: ThemeMode, root: HTMLElement) {
-  const deadline = performance.now() + 160;
-  while (!hasResolvedThemeClass(mode, root) && performance.now() < deadline) {
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 16));
-  }
-}
 
 export function ThemeControl() {
   const { setTheme, theme } = useTheme();

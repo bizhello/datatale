@@ -1,6 +1,7 @@
 "use client";
 import { Button, Label, ListBox, Select, Spinner } from "@heroui/react";
 import type { HistorySummary } from "../model/history";
+import { historyLabel } from "../model/history-label";
 
 type HistoryPickerProps = {
   analyses: HistorySummary[];
@@ -73,9 +74,9 @@ export function HistoryPicker({
               <ListBox.Item
                 key={analysis.id}
                 id={analysis.id}
-                textValue={label(analysis)}
+                textValue={historyLabel(analysis)}
               >
-                {label(analysis)}
+                {historyLabel(analysis)}
                 <ListBox.ItemIndicator />
               </ListBox.Item>
             ))}
@@ -85,16 +86,3 @@ export function HistoryPicker({
     </div>
   );
 }
-
-function label(analysis: HistorySummary) {
-  const date = new Date(analysis.createdAt).toLocaleString("ru-RU", {
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-  return `${analysis.sourceKind === "dataset" ? "Таблица" : "Текстовый отчёт"} · ${date} · ${analysis.id.slice(-6)}`;
-}
-
-export const historyLabel = label;

@@ -2,7 +2,7 @@
 
 **Model:** a guest workspace owns analysis receipts and saved analyses. An AI analysis plan becomes checked facts; a report combines those facts with narrative and chart specifications. Application code owns arithmetic and semantic validation. Accepted source, validated report, and chat messages are persisted server-side for seven days from creation and remain owner-scoped and immutable.
 
-## Target structure
+## Implemented structure
 
 Lightweight FSD with Next.js App Router as the application layer.
 
@@ -27,6 +27,27 @@ src/
 ```
 
 Create additional slices with their first consumer. `entities/guest-workspace` owns the sealed guest-session contract and server repository. `features/onboarding` owns Driver.js lifecycle and the versioned local preference; the dashboard widget supplies stable targets and coordinates the deterministic demo.
+
+## Repository placement
+
+Every tracked file belongs to one of these ownership groups. A new file needs a real consumer and must fit one group; do not preserve empty directories or parallel documentation trees.
+
+| Location | Why files belong there |
+| --- | --- |
+| `README.md` | Conventional evaluator/developer entry point and current product overview |
+| `AGENTS.md`, `CLAUDE.md` | Tool-discovered agent entry points; `CLAUDE.md` delegates to the canonical rules instead of duplicating them |
+| `docs/` | Canonical product, technology, architecture, AI, UI, quality, workflow, deployment and delivery contracts; demo/pitch assets support the required submission |
+| `.agents/skills/` | Complete pinned upstream agent-skill packages with provenance in `docs/SKILLS.md` |
+| `.claude/skills` | Relative compatibility symlink to `.agents/skills`; it stores no duplicate files |
+| `src/app/` | Next.js framework entry points, HTTP adapters, metadata and global theme/layout CSS |
+| `src/widgets`, `src/features`, `src/entities`, `src/shared` | FSD ownership from screen composition down to domain-neutral infrastructure; tests are colocated with their owner |
+| `scripts/` | Repository-level migration and Vercel build programs invoked by package scripts, with their tests |
+| `migrations/` | Ordered immutable PostgreSQL migration ledger consumed by `scripts/migrate.ts` |
+| `tests/e2e`, `tests/fixtures`, `tests/setup.ts` | Cross-feature browser journeys, shared synthetic fixtures and common test setup |
+| `public/` | Static browser assets addressed by URL; the App Router favicon stays in `src/app/` |
+| Root configuration and lockfiles | Required entry points for Bun, Next.js, TypeScript, Biome, Steiger, Drizzle, Vitest, Playwright, PostCSS, Vercel and GitHub Actions |
+
+Test-only adapters use the `.test-support.ts` suffix and are never re-exported from production public APIs. Framework-generated caches and declarations stay ignored. Root `scripts/` are build and operations entry points; feature logic never belongs there.
 
 ## Import and ownership rules
 
@@ -59,9 +80,7 @@ Use direct relative imports inside a slice and preserve its narrow public API. D
 | Tour completion/dismissal | Onboarding feature's versioned localStorage preference |
 | Durable source, report and message records | Server-side storage |
 
-Use one owner for each value. Do not maintain two live copies of the chat transcript. Clear private source/report/chat state when guest access ends or data is deleted. The bounded guest history uses the existing widget model hook and native fetch lifecycle. TanStack Query remains unjustified until caching or cross-screen synchronization creates a second real consumer.
-
-Pass state through feature/widget composition before introducing context. Add narrowly scoped context only for a real shared subtree. Zustand is the preferred candidate if implementation demonstrates substantial cross-tree client state that these owners cannot handle cleanly; introduce it through a reviewed decision with a concrete consumer. The MVP does not currently require Zustand or Redux.
+Use one owner for each value. Do not maintain two live copies of the chat transcript. Clear private source/report/chat state when guest access ends or data is deleted. The bounded guest history uses the widget model hook and native fetch lifecycle. Pass state through feature/widget composition; add narrowly scoped context only for a real shared subtree.
 
 ## Data flow and storage
 

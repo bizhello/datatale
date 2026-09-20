@@ -4,7 +4,7 @@ DataTale's production MVP delivers the complete assignment journey: CSV/XLSX/tex
 
 ## Current state
 
-All Must Have features, the optional functional tour, owner-scoped history/reopen, guided analysis transition, quota-flow polish, saved-report recovery, Russian analysis copy, production-shell cleanup, and strengthened AI prompt contracts are deployed from production release `9e73d0f`. Migrations `0001`–`0005` remain current. The guarded production build runs the migration ledger before Next.js; the PR #31 rollout reached Ready. Branch and pull-request Vercel deployments remain disabled.
+All Must Have features, the optional functional tour, owner-scoped history/reopen, guided analysis transition, quota-flow polish, saved-report recovery, Russian analysis copy, production-shell cleanup, and strengthened AI prompt contracts are deployed. The latest behavior-changing release is `9e73d0f`; later documentation-only releases do not change the product contract. Migrations `0001`–`0005` remain current. The guarded production build runs the migration ledger before Next.js; the PR #31 rollout reached Ready. Branch and pull-request Vercel deployments remain disabled.
 
 The release gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 301 Vitest tests, and 72 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Production returns HTTPS 200 and renders the new input cards and empty-workspace explanation. A history read without a sealed guest cookie returns private, uncached `401 {"code":"expired"}` without creating a cookie. Earlier production probes verified a three-statement table report and the exact insufficient-data chat refusal.
 
@@ -43,19 +43,6 @@ The release gate passes Biome, Steiger, strict TypeScript, the Turbopack product
 
 Documentation-only PRs #28 and #30 record the corresponding production rollouts and manual QA. GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI, component-ownership, HeroUI, and hydration history. [AI-WORKLOG.md](AI-WORKLOG.md) records the material AI-assisted mistakes and corrections used for the pitch.
 
-## Completed product wave
-
-| Task | Owner | Base | Worktree | Scope | State |
-| --- | --- | --- | --- | --- | --- |
-| Guest history/reopen v1 | history executor | `ba0f2b5` | removed after integration | Saved-analysis read API, owner isolation, report/chat hydration, tests | deployed in `339d1c8` |
-| Liquid editorial first viewport | visual executor | `ba0f2b5` | removed after integration | Existing empty workspace presentation, responsive/reduced-motion tests | deployed in `339d1c8` |
-| Product-wave integration | conductor | `ba0f2b5` | removed after integration | Shared docs, integration, review, release | PR #21 merged and production Ready |
-| Guided analysis transition | guided-analysis executor | `71e1602` | removed after integration | Optional analysis focus, one-action launch, compact source state, accessible result transition | deployed in `cc583d1` |
-| Submission polish | conductor + audit agents | `1df9bcb` | removed after integration | Quota recovery, destructive affordance, onboarding copy, pitch and release documentation | deployed in `4be7bba` |
-| Final production stabilization | conductor + audit agents | `cf9e3c2` | removed after integration | Saved-report recovery, Russian output, responsive spacing, footer and chart follow-ups, structured prompts, live-provider probes | deployed in `9e73d0f` |
-
 ## Remaining delivery artifact
 
 The repository and live service are ready for evaluation. The checked [demo dataset](demo-data.csv), [reproduction guide](DEMO.md), and 3–5 minute [recording script](PITCH.md) cover the live journey, representative prompts, one reviewer-found mistake, and its verification. Recording and uploading the Loom/Vimeo pitch remains user-owned; no recording URL is claimed in this repository.
-
-Blueprint reuse remains outside the submitted MVP and has no active assignment.
