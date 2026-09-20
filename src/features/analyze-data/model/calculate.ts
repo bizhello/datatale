@@ -10,6 +10,19 @@ import { metricLabel } from "./report-copy";
 
 type Point = { label: string; value: number };
 type Group = { label: string; rows: Dataset["rows"] };
+
+function compensatedSum(values: number[]) {
+  let sum = 0;
+  let correction = 0;
+  for (const value of values) {
+    const adjusted = value - correction;
+    const next = sum + adjusted;
+    correction = next - sum - adjusted;
+    sum = next;
+  }
+  return sum;
+}
+
 export function reportCalculation(
   source: Dataset,
   aggregation: Aggregation,
@@ -62,10 +75,9 @@ export function aggregateRows(
     .map((row) => row.values[aggregation.field.fieldId])
     .filter((value): value is number => typeof value === "number");
   if (!values.length) return 0;
-  if (aggregation.kind === "sum")
-    return values.reduce((sum, value) => sum + value, 0);
+  if (aggregation.kind === "sum") return compensatedSum(values);
   if (aggregation.kind === "average")
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
+    return compensatedSum(values) / values.length;
   if (aggregation.kind === "min") return Math.min(...values);
   return Math.max(...values);
 }
