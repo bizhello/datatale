@@ -148,11 +148,22 @@ test("accepts text locally and exposes an honest preview", async ({ page }) => {
     Math.abs(uploadIcon.y - uploadCard.y - (textIcon.y - textCard.y)),
   ).toBeLessThanOrEqual(1);
   expect(
+    Math.abs(uploadIcon.x - uploadCard.x - (textIcon.x - textCard.x)),
+  ).toBeLessThanOrEqual(1);
+  expect(
     Math.abs(
       uploadCard.y +
         uploadCard.height -
         (uploadAction.y + uploadAction.height) -
         (textCard.y + textCard.height - (textAction.y + textAction.height)),
+    ),
+  ).toBeLessThanOrEqual(1);
+  expect(
+    Math.abs(
+      uploadCard.x +
+        uploadCard.width -
+        (uploadAction.x + uploadAction.width) -
+        (textCard.x + textCard.width - (textAction.x + textAction.width)),
     ),
   ).toBeLessThanOrEqual(1);
   const text = page.getByLabel("Текст отчёта");
