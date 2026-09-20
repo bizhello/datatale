@@ -86,7 +86,7 @@ const providerProposal = {
 
 describe("provider-facing structured output", () => {
   it("keeps a bounded timeout budget for the three-stage repair flow", () => {
-    expect(MODEL_CALL_TIMEOUT_MS).toBe(30_000);
+    expect(MODEL_CALL_TIMEOUT_MS).toBe(45_000);
     expect(TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS).toBe(60_000);
     expect(ANALYSIS_TIMEOUT_MS).toBe(105_000);
     expect(ANALYSIS_TIMEOUT_MS).toBeLessThanOrEqual(

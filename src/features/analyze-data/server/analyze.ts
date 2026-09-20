@@ -65,7 +65,7 @@ export type AnalysisStage =
   | "table-repair"
   | "text-extraction"
   | "narrative";
-export const MODEL_CALL_TIMEOUT_MS = 30_000;
+export const MODEL_CALL_TIMEOUT_MS = 45_000;
 export const TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS = 60_000;
 export const ANALYSIS_TIMEOUT_MS = 105_000;
 export const MODEL_OUTPUT_TOKEN_LIMITS: Readonly<
