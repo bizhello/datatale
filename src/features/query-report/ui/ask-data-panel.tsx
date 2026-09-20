@@ -26,6 +26,7 @@ export type AskDataPanelProps = {
   send: AskDataSend;
   onboardingDemo?: boolean;
   initialMessages?: AskDataMessage[];
+  onAccessRequired?: (resume: () => void) => void;
 };
 
 const suggestions = [
@@ -38,6 +39,7 @@ export function AskDataPanel({
   send,
   onboardingDemo = false,
   initialMessages,
+  onAccessRequired,
 }: AskDataPanelProps) {
   const {
     messages,
@@ -46,6 +48,7 @@ export function AskDataPanel({
     error,
     retryQuestion,
     retryMessageId,
+    accessRequired,
     setQuestion,
     submit,
     cancel,
@@ -68,6 +71,11 @@ export function AskDataPanel({
       log.scrollTo({ top: log.scrollHeight });
     }
   }, [scrollKey]);
+
+  useEffect(() => {
+    if (!accessRequired || !retryQuestion || !retryMessageId) return;
+    onAccessRequired?.(() => void submit(retryQuestion, retryMessageId));
+  }, [accessRequired, onAccessRequired, retryMessageId, retryQuestion, submit]);
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -134,7 +142,7 @@ export function AskDataPanel({
         {error ? (
           <div className={styles.error} role="alert">
             <span>{error}</span>
-            {retryQuestion ? (
+            {retryQuestion && !accessRequired ? (
               <Button
                 size="sm"
                 variant="secondary"
@@ -144,6 +152,22 @@ export function AskDataPanel({
                 }}
               >
                 <RefreshCw aria-hidden="true" /> Повторить
+              </Button>
+            ) : null}
+            {accessRequired &&
+            retryQuestion &&
+            retryMessageId &&
+            onAccessRequired ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                onPress={() =>
+                  onAccessRequired?.(
+                    () => void submit(retryQuestion, retryMessageId),
+                  )
+                }
+              >
+                Ввести код доступа
               </Button>
             ) : null}
           </div>

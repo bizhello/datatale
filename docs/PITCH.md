@@ -1,12 +1,12 @@
 # Submission pitch script
 
-Use this as a 3–5 minute Loom/Vimeo recording guide. Record against the live app at [datatale.bizhov.ru](https://datatale.bizhov.ru) with the checked synthetic [demo-data.csv](demo-data.csv); [DEMO.md](DEMO.md) contains its exact totals and prompts. Do not show invite codes, provider keys, database URLs, private reports, or browser secrets.
+Use this as a 3–5 minute Loom/Vimeo recording guide. Record against the live app at [datatale.bizhov.ru](https://datatale.bizhov.ru) with the checked synthetic [demo-data.csv](demo-data.csv); [DEMO.md](DEMO.md) contains its exact totals and prompts. Do not show access codes, provider keys, database URLs, private reports, or browser secrets.
 
 ## 0:00–0:30 — Product and starting point
 
 Open the workspace and say:
 
-> DataTale turns a CSV, Excel workbook, or short report into a grounded story. It accepts the source locally, shows a bounded preview, and lets a guest run one analysis without creating an account.
+> DataTale turns a CSV, Excel workbook, or short report into a grounded story. It accepts the source locally, shows a bounded preview, and gives each guest workspace five daily analyses and five follow-up questions without creating an account.
 
 Show the input choices and the empty-workspace explanation. If the first-visit tour appears, either use it briefly or skip it and continue with the real flow.
 
@@ -53,5 +53,5 @@ Close with:
 - One answerable and one absent-data question are demonstrated.
 - AI orchestration is explained at the provider boundary and at the deterministic validation/calculation boundary.
 - At least one concrete AI-assisted mistake and its correction are named.
-- No credentials, invite codes, private data, or unrecorded deployment claims appear.
+- No credentials, access codes, private data, or unrecorded deployment claims appear.
 - Keep the recording between three and five minutes.

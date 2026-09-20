@@ -55,7 +55,7 @@ export function responseError(
     const quotaScope =
       value?.scope === "workspace" ||
       value?.scope === "ip" ||
-      value?.scope === "code" ||
+      value?.scope === "unlocked-workspace" ||
       value?.scope === "global"
         ? value.scope
         : undefined;

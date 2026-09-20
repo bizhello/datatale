@@ -11,12 +11,25 @@ import {
 import { ImportWorkspace } from "@/features/import-data";
 import { OnboardingTour } from "@/features/onboarding";
 import { AskDataPanel, createAskDataSend } from "@/features/query-report";
+import {
+  useWorkspaceAccess,
+  WorkspaceAccessModal,
+} from "@/features/unlock-workspace";
 import { ThemeControl } from "@/shared/ui/theme-control";
 import { useHistory } from "../model/use-history";
 import { HistoryPicker } from "./history-picker";
 import { OnboardingDemo } from "./onboarding-demo";
 
 export function DashboardShell() {
+  const access = useWorkspaceAccess();
+  const requestAnalysisAccess = useCallback(
+    (resume: () => void) => access.requestAccess("analysis", resume),
+    [access.requestAccess],
+  );
+  const requestChatAccess = useCallback(
+    (resume: () => void) => access.requestAccess("chat", resume),
+    [access.requestAccess],
+  );
   const [mounted, setMounted] = useState(false);
   const [source, setSource] = useState<Dataset | TextSource>();
   const [analysisFocus, setAnalysisFocus] = useState<AnalysisFocus>();
@@ -119,6 +132,7 @@ export function DashboardShell() {
                 ? { restoredAnalysis: selectedHistory }
                 : {})}
               onAnalysisReady={refreshHistory}
+              onAccessRequired={requestAnalysisAccess}
               onReplace={handleReplace}
               renderReport={(analysisId, report, expiresAt) => (
                 <>
@@ -129,6 +143,7 @@ export function DashboardShell() {
                       ? { initialMessages: selectedHistory.messages }
                       : {})}
                     send={createAskDataSend(analysisId)}
+                    onAccessRequired={requestChatAccess}
                   />
                 </>
               )}
@@ -138,6 +153,9 @@ export function DashboardShell() {
         )}
         {onboardingActive && <OnboardingDemo />}
       </main>
+      {access.modalProps ? (
+        <WorkspaceAccessModal {...access.modalProps} />
+      ) : null}
       <footer>
         <div className="footer-copy">
           <strong className="footer-brand-name">datatale</strong>

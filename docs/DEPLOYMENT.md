@@ -32,11 +32,25 @@ Production analysis requires these server-only values:
 - `AI_MODEL=gpt-5.6-terra`
 - `SESSION_PASSWORD` with at least 32 characters
 - `RATE_LIMIT_SALT`
-- positive `ANALYSIS_WORKSPACE_DAILY_LIMIT`, `ANALYSIS_IP_DAILY_LIMIT`, `ANALYSIS_CODE_DAILY_LIMIT`, and `ANALYSIS_GLOBAL_DAILY_LIMIT`
-- one or more SHA-256 fingerprints in `ANALYSIS_INVITE_CODE_HASHES`
+- positive `ANALYSIS_FREE_DAILY_LIMIT`, `ANALYSIS_ACCESS_DAILY_LIMIT`, `CHAT_FREE_DAILY_LIMIT`, `CHAT_ACCESS_DAILY_LIMIT`, `ANALYSIS_IP_DAILY_LIMIT`, and `ANALYSIS_GLOBAL_DAILY_LIMIT`
+- `ANALYSIS_INVITE_CODE_SEED` as unpadded base64url that decodes to at least 32 random bytes
 - `CRON_SECRET` for scheduled cleanup
 
-Production grants one anonymous analysis per workspace per UTC day. The salted-IP limit is a broader anti-abuse ceiling of 20 analyses per UTC day, so separate visitors behind a shared NAT can each complete a first run without making cookie resets unlimited. The server namespaces the exact built-in synthetic demo into a separate IP bucket; workspace and global counters remain shared. This needs no additional environment variable or migration. Raw invite codes, provider keys, database URLs, session secrets, and salts must never use `NEXT_PUBLIC_*`, enter Git, or appear in logs. Changing a Vercel environment value requires a new deployment.
+Production grants each workspace five analyses and five user chat messages per UTC day across all reports. Today's access code raises both workspace limits to 20 without resetting prior usage; workspaces using the same code keep independent counters. The salted-IP limit remains a broader free-analysis abuse safeguard, the global limit bounds all analyses, and the exact built-in synthetic demo uses a separate IP namespace. Raw access codes, the seed, provider keys, database URLs, session secrets, and salts must never use `NEXT_PUBLIC_*`, enter Git, or appear in logs. Changing a Vercel environment value requires a new deployment.
+
+Generate the seed once and store it in the server environment:
+
+```bash
+bun -e 'console.log(crypto.getRandomValues(new Uint8Array(32)).toBase64({alphabet:"base64url",omitPadding:true}))'
+```
+
+The application derives `DT-YYYYMMDD-…` from that stable seed and the current UTC date. Copy today's code locally without rotating environment values or exposing the seed:
+
+```bash
+bun run access:code
+```
+
+The command prints the code and its next UTC-midnight expiry. It exits non-zero for missing or unsafe configuration. Never expose this command through a public route or deployment log.
 
 ## Migrations
 
@@ -52,7 +66,7 @@ The Vercel wrapper is deliberately stricter than the migration command itself: o
 
 ## Retention and cleanup
 
-Guest workspaces expire after 30 days of inactivity; analysis receipts after 15 minutes; analysis-run leases after 90 seconds; chat inference leases after 60 seconds; saved canonical sources, reports, and chats seven days after analysis creation; quota buckets no later than 48 hours. Viewing and chatting do not extend saved-analysis expiry. Original workbook binaries, raw IP addresses, invite codes, prompts, and secrets are not stored by the application.
+Guest workspaces expire after 30 days of inactivity; analysis receipts after 15 minutes; analysis-run leases after 90 seconds; chat inference leases after 60 seconds; saved canonical sources, reports, and chats seven days after analysis creation; quota buckets no later than 48 hours. Viewing and chatting do not extend saved-analysis expiry. Original workbook binaries, raw IP addresses, access codes, prompts, and secrets are not stored by the application.
 
 Vercel calls `/api/cron/cleanup` daily at 03:00 UTC. The route requires `Authorization: Bearer $CRON_SECRET` and removes expired receipts and saved analyses with cascaded messages independently of provider availability. Primary deletion does not make claims about provider or backup retention.
 
@@ -64,7 +78,7 @@ After each `main` deployment:
 2. Check HTTPS, favicon, main input controls, mobile width, both themes, and first-visit onboarding.
 3. Run one bounded real analysis when AI, prompt, schema, or gateway configuration changed; verify charts or the honest text no-chart result.
 4. Ask one answerable question and one absent-data question; the latter must return `В этом отчете нет такой информации`.
-5. Confirm invite and quota behavior when access logic changed. Never expose the invite code in deployment logs or recorded public evidence.
+5. Confirm access-code and 5/20 quota behavior when access logic changed. Never expose the access code in deployment logs or recorded public evidence.
 
 ## Rollback
 

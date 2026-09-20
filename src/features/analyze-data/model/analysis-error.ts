@@ -16,10 +16,10 @@ export function errorMessage(
   scope?: QuotaScope,
 ) {
   if (error !== "quota") return analysisErrorMessages[error];
-  if (scope === "code")
-    return "Лимит этого кода приглашения на сегодня исчерпан.";
+  if (scope === "unlocked-workspace")
+    return "Лимит в 20 анализов на сегодня исчерпан.";
   if (scope === "global") return "Общий лимит анализов на сегодня исчерпан.";
   if (canUnlockAnalysis(error, scope))
-    return "Бесплатный анализ на сегодня использован. Продолжите с кодом приглашения.";
+    return "Лимит в 5 бесплатных анализов на сегодня исчерпан. Введите код доступа, чтобы увеличить лимит до 20.";
   return analysisErrorMessages.quota;
 }

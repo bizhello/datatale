@@ -438,7 +438,10 @@ describe("useAnalysis HTTP lifecycle", () => {
         .fn()
         .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
         .mockResolvedValueOnce(
-          Response.json({ code: "quota", scope: "code" }, { status: 429 }),
+          Response.json(
+            { code: "quota", scope: "unlocked-workspace" },
+            { status: 429 },
+          ),
         ),
     );
     const { result } = renderHook(() => useAnalysis(source));
@@ -446,7 +449,7 @@ describe("useAnalysis HTTP lifecycle", () => {
     expect(result.current.state).toMatchObject({
       status: "error",
       error: "quota",
-      quotaScope: "code",
+      quotaScope: "unlocked-workspace",
       retryable: false,
     });
   });

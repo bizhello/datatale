@@ -16,7 +16,7 @@ The current candidate gate passes Biome, Steiger, strict TypeScript, the Turbopa
 | Analysis | Strict provider schemas, optional bounded focus, semantic plan validation, deterministic full-source calculations, grounded 2–3 sentence hero, recommendations, and honest no-chart text reports | done |
 | Charts | Two or three AI-selected bar/line/donut charts for suitable tables, tabular equivalents, rationale/evidence, and responsive expanded dialogs | done |
 | Ask the Data | Owner-scoped immutable context, canonical claims, exact insufficient-data refusal, persisted replay, quota, and inference lease | done |
-| Guest safety | Sealed workspace, anonymous and invite quotas, idempotency, seven-day saved-analysis retention, delete-all, and scheduled cleanup | done |
+| Guest safety | Sealed workspace, free and access-code workspace quotas, idempotency, seven-day saved-analysis retention, delete-all, and scheduled cleanup | done |
 | Operations | Neon migrations, automatic guarded production migration, main-only Vercel deploys, Cloudflare DNS, HTTPS, and production smoke checks | done |
 | Onboarding | Accessible five-step functional tour, deterministic local demo, skip/complete persistence, replay, focus restoration, mobile, and reduced-motion behavior | done |
 | History/reopen | Owner-scoped summaries and strict detail hydration without another AI/quota claim; stale-response, expiry, and isolation guards | done |

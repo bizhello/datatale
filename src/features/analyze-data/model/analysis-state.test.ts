@@ -104,7 +104,7 @@ describe("analysis request lifecycle", () => {
     ).toEqual({ code: "provider", retry: "new" });
   });
 
-  it.each(["workspace", "ip", "code", "global"] as const)(
+  it.each(["workspace", "ip", "unlocked-workspace", "global"] as const)(
     "preserves the %s quota scope",
     (scope) => {
       expect(

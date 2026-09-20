@@ -16,6 +16,7 @@ type AskDataState = {
   error: string | null;
   retryQuestion: string | null;
   retryMessageId: string | null;
+  accessRequired: boolean;
 };
 
 const initialState: AskDataState = {
@@ -25,6 +26,7 @@ const initialState: AskDataState = {
   error: null,
   retryQuestion: null,
   retryMessageId: null,
+  accessRequired: false,
 };
 
 function createId() {
@@ -50,7 +52,11 @@ function errorMessage(error: unknown) {
     return "Этот отчёт больше недоступен. Запустите новый анализ.";
   }
   if (error instanceof AskDataClientError && error.code === "quota") {
-    return "Лимит вопросов к отчёту на сегодня исчерпан.";
+    if (error.quotaScope === "unlocked-workspace")
+      return "Лимит в 20 вопросов на сегодня исчерпан.";
+    if (error.quotaScope === "workspace")
+      return "Лимит в 5 бесплатных вопросов на сегодня исчерпан. Введите код доступа, чтобы увеличить лимит до 20.";
+    return "Лимит вопросов на сегодня исчерпан.";
   }
   if (error instanceof AskDataClientError && error.code === "in-flight") {
     return "Этот вопрос уже обрабатывается. Повторите попытку через несколько секунд.";
@@ -129,6 +135,7 @@ export function useAskData(
         error: null,
         retryQuestion: null,
         retryMessageId: null,
+        accessRequired: false,
         messages: retryMessageId
           ? current.messages
           : [
@@ -156,12 +163,17 @@ export function useAskData(
         }
         requestRef.current = null;
         const retryable = canRetry(error);
+        const accessRequired =
+          error instanceof AskDataClientError &&
+          error.code === "quota" &&
+          error.quotaScope === "workspace";
         setState((current) => ({
           ...current,
           pending: false,
           error: errorMessage(error),
-          retryQuestion: retryable ? question : null,
-          retryMessageId: retryable ? messageId : null,
+          retryQuestion: retryable || accessRequired ? question : null,
+          retryMessageId: retryable || accessRequired ? messageId : null,
+          accessRequired,
         }));
         return false;
       }

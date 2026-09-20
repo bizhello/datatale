@@ -153,7 +153,7 @@ describe("analysis workspace", () => {
     expect(screen.queryByText("Анализ завершён")).toBeNull();
   });
 
-  it("keeps focus in the invite flow and preserves focus on the new-key retry", async () => {
+  it("preserves analysis input and uses a new key after access is unlocked", async () => {
     const firstKey = "00000000-0000-4000-8000-000000000002";
     const secondKey = "00000000-0000-4000-8000-000000000003";
     vi.stubGlobal("crypto", {
@@ -168,33 +168,28 @@ describe("analysis workspace", () => {
       .mockResolvedValueOnce(
         Response.json({ code: "quota", scope: "workspace" }, { status: 429 }),
       )
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
       .mockResolvedValueOnce(
         Response.json({ code: "unavailable" }, { status: 503 }),
       );
     vi.stubGlobal("fetch", fetch);
+    let resume: (() => void) | undefined;
     render(
       <AnalyzeWorkspace
         source={source}
         onDelete={vi.fn()}
         onReplace={vi.fn()}
         analysisFocus="find gaps"
+        onAccessRequired={(next) => {
+          resume = next;
+        }}
       />,
     );
     fireEvent.click(
       screen.getByRole("button", { name: "Запустить AI-анализ" }),
     );
-    await screen.findByRole("heading", { name: "Продолжить анализ" });
-    await waitFor(() =>
-      expect(document.activeElement).toBe(screen.getByRole("dialog")),
-    );
-    fireEvent.change(screen.getByLabelText("Код приглашения"), {
-      target: { value: "invite" },
-    });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Разблокировать анализ" }),
-    );
+    await waitFor(() => expect(resume).toBeTypeOf("function"));
+    resume?.();
     await screen.findByRole("alert");
     const analyzeCalls = fetch.mock.calls.filter(
       ([input]) => String(input) === "/api/analyze",
@@ -216,7 +211,7 @@ describe("analysis workspace", () => {
     });
   });
 
-  it("opens invite access only for workspace quota and preserves the selected source", async () => {
+  it("requests access only for a free-workspace quota and preserves the source", async () => {
     const fetch = vi
       .fn()
       .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
@@ -224,46 +219,26 @@ describe("analysis workspace", () => {
         Response.json({ code: "quota", scope: "workspace" }, { status: 429 }),
       );
     vi.stubGlobal("fetch", fetch);
+    const onAccessRequired = vi.fn();
     render(
       <AnalyzeWorkspace
         source={source}
         onDelete={vi.fn()}
         onReplace={vi.fn()}
+        onAccessRequired={onAccessRequired}
       />,
     );
     fireEvent.click(
       screen.getByRole("button", { name: "Запустить AI-анализ" }),
     );
-    expect(
-      await screen.findByRole("heading", { name: "Продолжить анализ" }),
-    ).toBeVisible();
-    expect(screen.getByLabelText("Код приглашения")).toHaveClass(
-      "input--secondary",
-      "input--full-width",
-    );
-    await waitFor(() =>
-      expect(document.activeElement).toBe(screen.getByRole("dialog")),
-    );
-    expect(document.activeElement).not.toBe(
-      document.querySelector('[role="alert"]'),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Закрыть" }));
-    await waitFor(() =>
-      expect(
-        screen.queryByRole("heading", { name: "Продолжить анализ" }),
-      ).toBeNull(),
-    );
+    await waitFor(() => expect(onAccessRequired).toHaveBeenCalledOnce());
     expect(
       screen.getByText(
-        "Бесплатный анализ на сегодня использован. Продолжите с кодом приглашения.",
+        "Лимит в 5 бесплатных анализов на сегодня исчерпан. Введите код доступа, чтобы увеличить лимит до 20.",
       ),
     ).toBeVisible();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Ввести код приглашения" }),
-    );
-    expect(
-      await screen.findByRole("heading", { name: "Продолжить анализ" }),
-    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Ввести код доступа" }));
+    expect(onAccessRequired).toHaveBeenCalledTimes(2);
   });
 
   it("moves focus to an actionable error while keeping replacement available", async () => {
@@ -297,7 +272,10 @@ describe("analysis workspace", () => {
       .fn()
       .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
       .mockResolvedValueOnce(
-        Response.json({ code: "quota", scope: "code" }, { status: 429 }),
+        Response.json(
+          { code: "quota", scope: "unlocked-workspace" },
+          { status: 429 },
+        ),
       );
     vi.stubGlobal("fetch", fetch);
     render(
@@ -311,12 +289,10 @@ describe("analysis workspace", () => {
       screen.getByRole("button", { name: "Запустить AI-анализ" }),
     );
     expect(
-      await screen.findByText(
-        "Лимит этого кода приглашения на сегодня исчерпан.",
-      ),
+      await screen.findByText("Лимит в 20 анализов на сегодня исчерпан."),
     ).toBeVisible();
     expect(
-      screen.queryByRole("heading", { name: "Продолжить анализ" }),
+      screen.queryByRole("button", { name: "Ввести код доступа" }),
     ).toBeNull();
   });
 

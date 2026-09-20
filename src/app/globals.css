@@ -931,23 +931,23 @@ footer {
   gap: 10px;
   margin-top: 18px;
 }
-.invite-modal-copy {
+.access-modal-copy {
   margin: 0 0 18px;
   color: var(--muted);
   line-height: 1.55;
 }
-.invite-modal-form {
+.access-modal-form {
   display: grid;
   gap: 18px;
 }
-.invite-modal-form .textfield {
+.access-modal-form .textfield {
   display: grid;
   gap: 8px;
 }
-.invite-modal-form .input {
+.access-modal-form .input {
   min-height: 44px;
 }
-.invite-modal-form .button {
+.access-modal-form .button {
   justify-self: end;
 }
 .demo-button {

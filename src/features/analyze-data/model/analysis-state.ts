@@ -14,7 +14,7 @@ export type AnalysisErrorCode =
   | "invalid-source"
   | "network"
   | "unknown";
-export type QuotaScope = "workspace" | "ip" | "code" | "global";
+export type QuotaScope = "workspace" | "ip" | "unlocked-workspace" | "global";
 
 export type AnalysisPhase = "session-setup" | "processing";
 
