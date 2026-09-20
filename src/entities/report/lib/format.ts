@@ -19,6 +19,19 @@ export function formatDerivation(
   } as const;
   return `${labels[calculation.kind]} поля «${calculation.fieldLabel}» по всем принятым строкам`;
 }
+export function formatChartDerivation(
+  aggregation: FinalReport["charts"][number]["aggregation"],
+) {
+  if (aggregation.kind === "count")
+    return `Количество строк по полю «${aggregation.dimensionLabel}»`;
+  const labels = {
+    sum: "Сумма",
+    average: "Среднее",
+    min: "Минимум",
+    max: "Максимум",
+  } as const;
+  return `${labels[aggregation.kind]} поля «${aggregation.fieldLabel}» по полю «${aggregation.dimensionLabel}»`;
+}
 export function formatEvidenceSummary(item: FinalReport["evidence"][number]) {
   const kind = item.kind === "row-range" ? "Строки таблицы" : "Абзац источника";
   const coverage = item.coverage

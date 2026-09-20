@@ -3,6 +3,7 @@ import { Button, Modal, Tooltip } from "@heroui/react";
 import { Expand, X } from "lucide-react";
 import { useId, useState } from "react";
 import {
+  formatChartDerivation,
   formatDerivation,
   formatEvidenceSummary,
   formatExpiry,
@@ -15,20 +16,6 @@ type ReportDashboardProps = {
   expiresAt?: string;
   onboardingDemo?: boolean;
 };
-
-function formatChartDerivation(
-  aggregation: FinalReport["charts"][number]["aggregation"],
-) {
-  if (aggregation.kind === "count")
-    return `Количество строк по полю «${aggregation.dimensionLabel}»`;
-  const labels = {
-    sum: "Сумма",
-    average: "Среднее",
-    min: "Минимум",
-    max: "Максимум",
-  } as const;
-  return `${labels[aggregation.kind]} поля «${aggregation.fieldLabel}» по полю «${aggregation.dimensionLabel}»`;
-}
 
 export function ReportDashboard({
   report,

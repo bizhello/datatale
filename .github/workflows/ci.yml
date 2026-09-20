@@ -26,7 +26,7 @@ jobs:
           import os
           import subprocess
 
-          roots = {"README.md", "AGENTS.md", "CLAUDE.md", "DECISIONS.md"}
+          roots = {"README.md", "AGENTS.md", "CLAUDE.md"}
           def documentation(path):
               return path in roots or (path.startswith("docs/") and path.endswith(".md"))
 

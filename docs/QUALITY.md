@@ -18,7 +18,7 @@ Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, pr
 | Browser | Playwright + axe | Full user journey, mobile/theme/state regressions |
 | Model quality | Versioned fixtures + real provider evaluation | Unsupported claims, chart choices, refusals |
 
-Enable required CI checks in GitHub branch settings once a remote exists. The committed workflow alone does not protect a branch. Do not use production credentials/data in CI. CI runs on PRs and pushes to main. Changes limited to root README/AGENTS/CLAUDE/DECISIONS or Markdown under docs skip the expensive suite; the `verify` gate still runs. All other paths, including prompts, dependencies, workflows and unknown paths, run the full suite. Missing comparison history defaults to full checks. Require `verify` in branch protection. Provider-mocked tests run on code/configuration PRs; paid model evals run deliberately before release and when prompts/catalog/model change.
+GitHub protects `main` with an up-to-date branch, a pull request, resolved review conversations, linear history and the required `verify` check; administrators are included, and force-pushes and branch deletion are disabled. Do not use production credentials/data in CI. CI runs on PRs and pushes to main. Changes limited to root README/AGENTS/CLAUDE or Markdown under docs skip the expensive suite; the `verify` gate still runs. All other paths, including prompts, dependencies, workflows and unknown paths, run the full suite. Missing comparison history defaults to full checks. Provider-mocked tests run on code/configuration PRs; paid model evals run deliberately before release and when prompts/catalog/model change.
 
 ## Required tests per change
 

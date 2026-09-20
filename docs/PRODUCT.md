@@ -7,7 +7,7 @@
 1. Open the workspace: upload/text input and one-click demo. On a first visit, offer the skippable tour defined below.
 2. Select CSV/XLSX or paste text. Preview detected columns, units, dates and warnings. Ask for correction only where ambiguity materially changes a result.
 3. Optionally state a question or goal. A blank goal means a general overview.
-4. Run analysis with real processing stages, cancellation and actionable errors.
+4. Run analysis with clearly labeled estimated stages, cancellation and actionable errors.
 5. Read a 2–3 sentence hero insight, meaningful metrics, 2–3 interactive charts on suitable data, and recommendations with supporting facts.
 6. Open evidence: rows/paragraphs, formula, units and coverage. A sample is never represented as the entire dataset.
 7. Ask questions below the dashboard. Missing information produces the exact assignment refusal; unsupported operations and provider failures get different explanations.
@@ -73,8 +73,8 @@ After the free call, show the invite-code modal without clearing the accepted so
 | Simple backend/context | Next Route Handlers, managed storage and bounded source context |
 | Delivery | Working production URL, GitHub README and 3–5 minute pitch with real AI-use evidence |
 
-Text with no measurable quantities gets an honest chart limitation. This edge case does not excuse failing to deliver 2–3 charts on the acceptance dataset. Prepare a demo with a temporal series, categorical comparison and a meaningful part-to-whole metric.
+Text input gets an honest chart limitation because this feature does not invent synthetic table relationships from prose. This does not excuse failing to deliver 2–3 charts on the tabular acceptance dataset, which includes a temporal series, categorical comparison and a meaningful part-to-whole metric.
 
 ## Scope priority
 
-Required and delivered: all four assignment features, responsive polished UI, themes/branding, error handling, reliable answers, evidence drill-down, the guided tour, and owner-scoped guest report history/reopen. Blueprint reuse remains a future enhancement. Do not add template CRUD, exports, public sharing, background jobs, or extra chart types without a separate product decision.
+Required and delivered: all four assignment features, responsive polished UI, themes/branding, error handling, reliable answers, evidence drill-down, the guided tour, and owner-scoped guest report history/reopen. Changes beyond this submission scope require a separate product decision.

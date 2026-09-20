@@ -37,7 +37,7 @@ flowchart LR
 
 ## Product behavior
 
-DataTale supports local CSV/XLSX parsing, workbook sheet selection, pasted text, bounded previews, cancellation, responsive loading, light/dark/system themes, expanded charts, evidence drill-down, recommendations, and grounded chat. Text without measurable quantities gets an honest no-chart result. A skippable first-visit tour uses a deterministic local demo and spends no model request.
+DataTale supports local CSV/XLSX parsing, workbook sheet selection, pasted text, bounded previews, cancellation, responsive loading, light/dark/system themes, expanded charts, evidence drill-down, recommendations, and grounded chat. Pasted text produces quotation-backed facts and an explicit no-chart explanation; chart planning is limited to suitable tables. A skippable first-visit tour uses a deterministic local demo and spends no model request.
 
 Analysis creates a sealed guest workspace. The accepted canonical source, validated report, and chat are stored for seven days; original binary uploads are not stored. History is owner-scoped and reopens a report without consuming analysis or chat quota. Losing the sealed cookie ends access, while confirmed delete-all removes the workspace data and clears the client state.
 
@@ -78,7 +78,7 @@ Use `bun run test`, not Bun's separate `bun test` runner. Browser tests start an
 | Question | Canonical document |
 | --- | --- |
 | What must the product do? | [Product and acceptance criteria](docs/PRODUCT.md) |
-| Which technologies are selected? | [Selected stack](DECISIONS.md) |
+| Which technologies are selected? | [Technology decisions](docs/DECISIONS.md) |
 | Where does behavior belong? | [Architecture](docs/ARCHITECTURE.md) |
 | How does AI choose charts and justify claims? | [AI contracts](docs/AI.md) |
 | What should it look and feel like? | [UI contract](docs/UI.md) |

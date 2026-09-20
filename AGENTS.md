@@ -1,6 +1,6 @@
 # DataTale agent instructions
 
-Read README.md for actual implementation status, DECISIONS.md for accepted choices, then only the domain document relevant to the task. Latest user instructions take precedence.
+Read README.md for actual implementation status, docs/DECISIONS.md for accepted choices, then only the domain document relevant to the task. Latest user instructions take precedence.
 
 ## Language and evidence
 
