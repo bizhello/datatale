@@ -142,4 +142,48 @@ describe("calculateObservationCharts", () => {
     ).toEqual([]);
     expect(calculateObservationCharts([], [], (id) => id)).toEqual([]);
   });
+
+  it("rejects duplicate observation IDs instead of counting a value twice", () => {
+    expect(
+      calculateObservationCharts(
+        [observation("a", "A", 5), observation("target", "Target", 10)],
+        [
+          {
+            id: "duplicate",
+            kind: "bar",
+            title: "Duplicate",
+            rationale: "Invalid",
+            observationIds: ["a", "a", "target"],
+            derivation: "current-target",
+          },
+        ],
+        (id) => id,
+      ),
+    ).toEqual([]);
+  });
+
+  it("treats change observations as signed deltas", () => {
+    const charts = calculateObservationCharts(
+      [
+        observation("baseline", "A", 5),
+        observation("change", "A", -2, "today", "change"),
+      ],
+      [
+        {
+          id: "signed-change",
+          kind: "bar",
+          title: "Signed change",
+          rationale: "Signed delta",
+          observationIds: ["baseline", "change"],
+          derivation: "baseline-change",
+          operation: "decrease",
+        },
+      ],
+      (id) => id,
+    );
+    expect(charts[0]?.points).toContainEqual({
+      label: "Итого (расчёт)",
+      value: 3,
+    });
+  });
 });

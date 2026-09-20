@@ -53,6 +53,8 @@ export function calculateObservationCharts(
   );
   const charts: ObservationChart[] = [];
   for (const group of groups) {
+    if (new Set(group.observationIds).size !== group.observationIds.length)
+      continue;
     const selected = group.observationIds.map((id) => byId.get(id));
     if (selected.some((observation) => observation === undefined)) continue;
     const items = selected as TextObservation[];
@@ -87,7 +89,9 @@ export function calculateObservationCharts(
         !baseline ||
         !change ||
         group.operation === "none" ||
-        new Set(items.map((item) => item.subject)).size !== 1
+        new Set(items.map((item) => item.subject)).size !== 1 ||
+        (group.operation === "increase" && change.value < 0) ||
+        (group.operation === "decrease" && change.value > 0)
       )
         continue;
       points = [
@@ -95,9 +99,7 @@ export function calculateObservationCharts(
         { label: "Изменение", value: change.value },
         {
           label: "Итого (расчёт)",
-          value:
-            baseline.value +
-            (group.operation === "decrease" ? -change.value : change.value),
+          value: baseline.value + change.value,
         },
       ];
     } else {
@@ -106,7 +108,7 @@ export function calculateObservationCharts(
         value: item.value,
       }));
     }
-    const evidenceIds = items.slice(0, 7).map((item) => evidenceId(item.id));
+    const evidenceIds = items.map((item) => evidenceId(item.id));
     if (evidenceIds.some((id) => id.length === 0)) continue;
     charts.push({
       id: group.id,

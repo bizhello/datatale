@@ -413,7 +413,19 @@ describe("analysis orchestration", () => {
               paragraphIndex: paragraph.index,
               quote: paragraph.text,
             })),
-            chartGroups: [],
+            chartGroups: [
+              {
+                id: "all-metrics",
+                kind: "bar",
+                title: "Все показатели",
+                rationale: "Сравнение",
+                observationIds: paragraphs.map(
+                  (paragraph) => `metric-${paragraph.index}`,
+                ),
+                derivation: "direct",
+                operation: "none",
+              },
+            ],
           }
         : {
             hero: [
@@ -434,8 +446,10 @@ describe("analysis orchestration", () => {
           };
 
     const report = await analyzeSource(source, { callModel: call });
-    expect(report.evidence).toHaveLength(7);
-    expect(report.observations).toHaveLength(7);
+    expect(report.evidence).toHaveLength(8);
+    expect(report.observations).toHaveLength(8);
+    expect(report.charts[0]?.observationIds).toHaveLength(8);
+    expect(report.charts[0]?.evidenceIds).toHaveLength(8);
   });
 
   it("repairs one invalid text extraction and keeps the complete source in the prompt", async () => {

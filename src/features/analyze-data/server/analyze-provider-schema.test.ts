@@ -326,6 +326,90 @@ describe("provider-facing structured output", () => {
     });
   });
 
+  it("allows the complete eight-observation chart evidence bound", () => {
+    const observations = Array.from({ length: 8 }, (_, index) => ({
+      id: `metric-${index + 1}`,
+      subject: `Metric ${index + 1}`,
+      value: index + 1,
+      unit: null,
+      period: null,
+      role: "snapshot" as const,
+      paragraphIndex: index + 1,
+      quote: `Metric ${index + 1}: ${index + 1}`,
+    }));
+    const output = textExtractionFromProviderOutput({
+      observations,
+      chartGroups: [
+        {
+          id: "all",
+          kind: "bar",
+          title: "All metrics",
+          rationale: "Comparison",
+          observationIds: observations.map((item) => item.id),
+          derivation: "direct",
+          operation: "none",
+        },
+      ],
+    });
+    expect(output.chartGroups[0]?.observationIds).toHaveLength(8);
+    expect(() =>
+      textExtractionFromProviderOutput({
+        observations,
+        chartGroups: [
+          {
+            id: "too-many",
+            kind: "bar",
+            title: "Too many",
+            rationale: "Boundary",
+            observationIds: [...observations.map((item) => item.id), "extra"],
+            derivation: "direct",
+            operation: "none",
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects duplicate observation IDs in a provider chart group", () => {
+    expect(() =>
+      textExtractionFromProviderOutput({
+        observations: [
+          {
+            id: "a",
+            subject: "A",
+            value: 1,
+            unit: null,
+            period: null,
+            role: "snapshot",
+            paragraphIndex: 1,
+            quote: "A: 1",
+          },
+          {
+            id: "target",
+            subject: "Target",
+            value: 2,
+            unit: null,
+            period: null,
+            role: "target",
+            paragraphIndex: 1,
+            quote: "Target: 2",
+          },
+        ],
+        chartGroups: [
+          {
+            id: "duplicate",
+            kind: "bar",
+            title: "Duplicate",
+            rationale: "Invalid",
+            observationIds: ["a", "a", "target"],
+            derivation: "current-target",
+            operation: "none",
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
   it("keeps qualitative quotations without inventing numeric fields", () => {
     expect(
       textExtractionFromProviderOutput({

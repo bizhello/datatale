@@ -17,6 +17,7 @@ import {
   narrativeResponseSchema,
   REPORT_ID_MAX_LENGTH,
   REPORT_LABEL_MAX_LENGTH,
+  REPORT_MAX_EVIDENCE,
   REPORT_MAX_TEXT_CHART_GROUPS,
   REPORT_MAX_TEXT_OBSERVATIONS,
   REPORT_NARRATIVE_MAX_LENGTH,
@@ -187,7 +188,7 @@ const providerNarrativeItemSchema = z
   .object({
     text: providerNarrativeString,
     factIds: z.array(providerIdentifierString).max(4),
-    evidenceIds: z.array(providerIdentifierString).max(7),
+    evidenceIds: z.array(providerIdentifierString).max(REPORT_MAX_EVIDENCE),
     kind: z.enum(["observation", "hypothesis", "action"]),
   })
   .strict();
@@ -228,11 +229,21 @@ export const providerTextExtractionResponseSchema = z
             observationIds: z
               .array(providerIdentifierString)
               .min(2)
-              .max(REPORT_MAX_TEXT_OBSERVATIONS),
+              .max(REPORT_MAX_EVIDENCE),
             derivation: z.enum(["direct", "current-target", "baseline-change"]),
             operation: z.enum(["none", "increase", "decrease"]).default("none"),
           })
-          .strict(),
+          .strict()
+          .superRefine((group, context) => {
+            if (
+              new Set(group.observationIds).size !== group.observationIds.length
+            )
+              context.addIssue({
+                code: "custom",
+                message: "Chart observation IDs must be unique.",
+                path: ["observationIds"],
+              });
+          }),
       )
       .max(REPORT_MAX_TEXT_CHART_GROUPS)
       .default([]),
@@ -679,7 +690,7 @@ async function analyzeText(
     const key = `${paragraphIndex}:${quote}`;
     const existing = evidenceByQuote.get(key);
     if (existing) return existing;
-    if (evidence.length >= 7) return undefined;
+    if (evidence.length >= REPORT_MAX_EVIDENCE) return undefined;
     const evidenceId = `quote-${id}`;
     evidenceByQuote.set(key, evidenceId);
     evidence.push({
@@ -781,7 +792,7 @@ async function analyzeText(
     extraction.chartGroups,
     (observationId) => observationEvidence.get(observationId) ?? "",
   );
-  const checkedNarrativePrompt = `${narrativePrompt}\n\nChecked facts, source-backed observations, calculated chart series, and evidence only:\n${JSON.stringify({ facts, observations: checkedObservations, charts, evidence })}\nEvery chart point is deterministic code output. Explain calculated current totals or change totals only when their chart provenance supports it; never invent a value or relationship.${focusContext(focus)}`;
+  const checkedNarrativePrompt = `${narrativePrompt}\n\nChecked facts, source-backed observations, calculated chart series, and evidence only:\n${JSON.stringify({ facts, observations: checkedObservations, charts, evidence })}\nEvery chart point is deterministic code output. Change observations are signed deltas: a decrease is negative, and calculated totals add the signed change once. Explain calculated current totals or change totals only when their chart provenance supports it; never invent a value or relationship.${focusContext(focus)}`;
   const narrate = (prompt: string) =>
     callModel({
       stage: "narrative",
