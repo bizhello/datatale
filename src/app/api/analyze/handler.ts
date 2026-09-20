@@ -31,6 +31,8 @@ type AnalyzeGate = Readonly<{
     ipHash: string;
     key: string;
     fingerprint: string;
+    unlocked?: boolean;
+    now?: Date;
   }): Promise<RunGateOutcome<FinalReport>>;
   markProviderStarted(workspaceId: string, receiptId: string): Promise<boolean>;
   succeed(
@@ -52,7 +54,7 @@ type AnalyzeHandlerDependencies = Readonly<{
   readInviteCodeFingerprint?(): Promise<string | undefined>;
   isWorkspaceActive(id: string, now: Date): Promise<boolean>;
   hashIp(ip: string): string | undefined;
-  validCodeFingerprint?(fingerprint: string): boolean;
+  validCodeFingerprint?(fingerprint: string, now: Date): boolean;
   gate(): AnalyzeGate;
   analyze(source: CanonicalSource, focus?: AnalysisFocus): Promise<FinalReport>;
   saveAnalysis(input: {
@@ -127,10 +129,20 @@ function gateResponse(
     RunGateOutcome<FinalReport>,
     { kind: "claimed" } | { kind: "replay" }
   >,
+  unlocked: boolean,
 ) {
   switch (outcome.kind) {
     case "quota":
-      return privateJson({ code: "quota", scope: outcome.scope }, 429);
+      return privateJson(
+        {
+          code: "quota",
+          scope:
+            outcome.scope === "workspace" && unlocked
+              ? "unlocked-workspace"
+              : outcome.scope,
+        },
+        429,
+      );
     case "conflict":
       return privateJson({ code: "conflict" }, 409);
     case "in-flight":
@@ -168,8 +180,9 @@ export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
 
     const workspace = await dependencies.readWorkspace();
     if (!workspace) return privateJson({ code: "expired" }, 401);
+    const now = new Date();
     try {
-      if (!(await dependencies.isWorkspaceActive(workspace.id, new Date())))
+      if (!(await dependencies.isWorkspaceActive(workspace.id, now)))
         return privateJson({ code: "expired" }, 401);
     } catch {
       return privateJson({ code: "unavailable" }, 503);
@@ -207,15 +220,16 @@ export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
       .digest("hex");
     let gate: AnalyzeGate;
     let outcome: RunGateOutcome<FinalReport>;
+    let unlocked = false;
     try {
       gate = dependencies.gate();
       const storedCodeFingerprint =
         await dependencies.readInviteCodeFingerprint?.();
-      const codeFingerprint =
+      unlocked = Boolean(
         storedCodeFingerprint &&
-        (dependencies.validCodeFingerprint?.(storedCodeFingerprint) ?? true)
-          ? storedCodeFingerprint
-          : undefined;
+          (dependencies.validCodeFingerprint?.(storedCodeFingerprint, now) ??
+            true),
+      );
       outcome = await gate.claim({
         workspaceId: workspace.id,
         ipHash: isShowcaseDemoSource(source)
@@ -223,7 +237,8 @@ export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
           : ipHash,
         key,
         fingerprint,
-        ...(codeFingerprint ? { codeFingerprint } : {}),
+        now,
+        ...(unlocked ? { unlocked: true } : {}),
       });
     } catch {
       return privateJson({ code: "unavailable" }, 503);
@@ -249,7 +264,7 @@ export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
         return privateJson({ code: "unavailable" }, 503);
       }
     }
-    if (outcome.kind !== "claimed") return gateResponse(outcome);
+    if (outcome.kind !== "claimed") return gateResponse(outcome, unlocked);
 
     const { receiptId } = outcome;
     try {

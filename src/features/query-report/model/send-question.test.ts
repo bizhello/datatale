@@ -76,6 +76,26 @@ describe("query report API adapter", () => {
     ).rejects.toMatchObject({ retryable: false });
   });
 
+  it("preserves the server quota tier for access decisions", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          { code: "quota", scope: "unlocked-workspace" },
+          { status: 429 },
+        ),
+      ),
+    );
+
+    await expect(
+      createAskDataSend(analysisId)(turn, new AbortController().signal),
+    ).rejects.toMatchObject({
+      code: "quota",
+      quotaScope: "unlocked-workspace",
+      retryable: false,
+    });
+  });
+
   it("preserves actionable chat error codes", async () => {
     for (const [code, status] of [
       ["expired", 401],

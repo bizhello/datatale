@@ -5,16 +5,24 @@ import {
   type AskDataSend,
 } from "./types";
 
-type ErrorPayload = { code?: unknown };
+type ErrorPayload = { code?: unknown; scope?: unknown };
 
 function requestError(response: Response, payload: ErrorPayload) {
   const code = typeof payload.code === "string" ? payload.code : "unknown";
+  const quotaScope =
+    payload.scope === "workspace" || payload.scope === "unlocked-workspace"
+      ? payload.scope
+      : undefined;
   const retryable =
     (response.status >= 500 &&
       code !== "timeout" &&
       code !== "invalid-answer") ||
     code === "in-flight";
-  return new AskDataClientError(code, { code, retryable });
+  return new AskDataClientError(code, {
+    code,
+    retryable,
+    ...(quotaScope ? { quotaScope } : {}),
+  });
 }
 
 export function createAskDataSend(analysisId: string): AskDataSend {

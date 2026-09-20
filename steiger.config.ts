@@ -28,6 +28,15 @@ export default defineConfig([
     rules: { "fsd/insignificant-slice": "off" },
   },
   {
+    // Workspace Unlock owns the shared analysis/chat access-code lifecycle;
+    // it is intentionally composed once by the dashboard shell.
+    files: [
+      "./src/features/unlock-workspace",
+      "./src/features/unlock-workspace/**",
+    ],
+    rules: { "fsd/insignificant-slice": "off" },
+  },
+  {
     // Onboarding owns the versioned UI preference and tour lifecycle; it is
     // intentionally mounted once by the dashboard shell.
     files: ["./src/features/onboarding", "./src/features/onboarding/**"],

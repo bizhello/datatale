@@ -17,7 +17,11 @@ import {
 
 const CHAT_REQUEST_MAX_BYTES = 4 * 1024;
 
-type ClaimOutcome = "claimed" | "existing" | "missing" | "quota";
+type ClaimOutcome =
+  | "claimed"
+  | "existing"
+  | "missing"
+  | { kind: "quota"; scope: "workspace" | "unlocked-workspace" };
 
 type ChatHandlerDependencies = Readonly<{
   runtimeSafe(): boolean;
@@ -112,7 +116,8 @@ export function createChatHandler(dependencies: ChatHandlerDependencies) {
         request: chatRequest,
       });
       if (claim === "missing") return privateJson({ code: "not-found" }, 404);
-      if (claim === "quota") return privateJson({ code: "quota" }, 429);
+      if (typeof claim === "object" && claim.kind === "quota")
+        return privateJson({ code: "quota", scope: claim.scope }, 429);
 
       const afterClaimReplay = await dependencies.readReply({
         workspaceId: workspace.id,

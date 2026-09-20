@@ -104,7 +104,7 @@ flowchart LR
 | --- | --- |
 | GuestWorkspace | Implemented: random server ID, inactivity expiry/revocation; no account credentials |
 | AnalysisRun | Implemented: workspace/key/fingerprint, lease/provider state, failure or validated report; 15-minute TTL |
-| QuotaBucket | Implemented: UTC daily workspace, hashed-IP and global counters; 48-hour TTL |
+| QuotaBucket | Implemented: UTC daily workspace analysis/chat counters plus hashed-IP and global analysis safeguards; 48-hour TTL |
 | Dataset | Saved as immutable accepted source with schema, units, warnings, fingerprint and fixed expiry |
 | Report / Message | Saved report provenance and owner-checked chat history; assistant result envelopes enable replay |
 
@@ -115,6 +115,8 @@ The analysis request sends the complete canonical source to the server and provi
 Use iron-session for sealed cookie payloads, not hand-written signing. Production: host-only `__Host-datatale`, HttpOnly, Secure, SameSite=Lax, Path=/, no Domain attribute. Store minimal workspace identity/expiry, not report data. Validate the unsealed shape and workspace activity on every operation; a client-supplied owner ID is never authority.
 
 Use a server-only secret and explicit TTL settings matching PRODUCT. Dev HTTP cookie settings are separate. Protect mutations against CSRF; private responses are not publicly cached. Create the database workspace before attaching its cookie, and keep the client bootstrap single-flight. Delete-all revokes access server-side. IP is a rate-limit signal, not ownership.
+
+The workspace cookie is the quota identity. A free workspace has independent 5-analysis and 5-user-message counters per UTC day. A capability derived from today's HMAC access code raises both limits to 20 without resetting earlier usage. The same code can unlock multiple workspaces without combining their counters. The sealed capability is revalidated against the current UTC day and configured secret on every paid boundary, so yesterday's code or a replaced secret cannot retain elevated access. Salted-IP and global analysis counters remain secondary abuse safeguards.
 
 ## API surface
 
@@ -127,7 +129,7 @@ GET         /api/saved-analysis/:id implemented validated report/transcript deta
 POST        /api/chat              implemented, owner-scoped grounded chat
 ```
 
-Mutations require same-origin requests. `/api/analyze` revalidates the canonical source, hashes the IP only as an abuse signal, atomically claims quotas and an idempotency receipt, and validates replayed reports. The entity-owned built-in demo factory and matcher share one canonical fixture; only an exact server-validated match receives the separate demo IP namespace, while the existing workspace and global buckets remain unchanged. The client creates the guest workspace before analysis and never receives its ID. Saved-analysis GET routes read the sealed cookie, require an active workspace, validate every persisted source/report/message boundary, return private uncached responses, and never create a workspace or claim AI quota. `/api/chat` accepts only an analysis UUID, message UUID and question; it loads owner-scoped source/report/history and never trusts browser-supplied facts. A user message consumes one of ten workspace chat turns per UTC day; assistant messages and idempotent replays do not consume quota.
+Mutations require same-origin requests. `/api/analyze` revalidates the canonical source, hashes the IP only as an abuse signal, atomically claims the workspace tier, safeguards, and an idempotency receipt, then validates replayed reports. The entity-owned built-in demo factory and matcher share one canonical fixture; only an exact server-validated match receives the separate demo IP namespace, while the existing workspace and global buckets remain unchanged. The client creates the guest workspace before analysis and never receives its ID. Saved-analysis GET routes read the sealed cookie, require an active workspace, validate every persisted source/report/message boundary, return private uncached responses, and never create a workspace or claim AI quota. `/api/chat` accepts only an analysis UUID, message UUID and question; it loads owner-scoped source/report/history and never trusts browser-supplied facts. A user message consumes one of 5 free or 20 unlocked workspace chat turns across all reports per UTC day; assistant messages and idempotent replays do not consume quota. On free chat exhaustion, the client retains the question and message ID, unlocks the workspace, and retries exactly once only after successful access validation.
 
 ## Failure and extension boundaries
 

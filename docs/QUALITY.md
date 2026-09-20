@@ -32,7 +32,7 @@ A behavioral feature is incomplete without tests for its acceptance and meaningf
 | Boundary between real components | Integration test exercising the connected components, including error propagation and validation |
 | Route plus persistence/session | Integration against isolated test storage for ownership, transaction behavior, expiry and failure; mock external inference rather than the entire data path |
 | AI orchestration | Integration of actual validators/calculations with controlled provider responses; separate live-model evaluations for output quality |
-| Grounded chat and persistence | Route integration with isolated storage: owner isolation, immutable source/report, seven-day fixed expiry, ten-turn daily quota, retry replay, exact refusal and canonical claim-ID validation |
+| Grounded chat and persistence | Route integration with isolated storage: owner isolation, immutable source/report, seven-day fixed expiry, aggregate 5/20 workspace tiers, unlock retry with the same message ID, exact refusal and canonical claim-ID validation |
 | Bug fix | Regression test that reproduces the defect and passes after the correction |
 | Documentation or cosmetic formatting only | Relevant static/manual verification; no artificial behavioral tests |
 
@@ -57,6 +57,7 @@ Parser integration exercises synthetic CSV/XLSX and canonical Dataset validation
 | Guest isolation | Two independent cookies cannot read/chat/delete each other's reports even with known IDs |
 | Cookie/retention | Missing/tampered/expired cookie, workspace revocation, report expiry, refresh cadence and CSRF mutation cases |
 | Duplicate spending | Concurrent identical idempotency keys claim one run; refresh does not call model again |
+| Daily access and quotas | UTC rotation, stale capability rejection, independent workspaces using one code, 5/20 analysis and chat boundaries, invalid-code no-charge, and preserved idempotent retries |
 | Races | Replace file/cancel mid-request, late response, interrupted stream, expired run deadline |
 | Storage failure | No success/saved label before commit; rollback and retry preserve ownership |
 | UI states | Upload → analyze → charts → chat → evidence → delete-all; empty/error/loading/retry paths |

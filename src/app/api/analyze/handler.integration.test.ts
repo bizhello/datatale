@@ -310,6 +310,48 @@ describe("POST /api/analyze handler", () => {
     },
   );
 
+  it("marks a current access capability as unlocked and maps its exhausted tier", async () => {
+    const validatedAt: Date[] = [];
+    const claim = vi.fn(async () => ({
+      kind: "quota" as const,
+      scope: "workspace" as const,
+    }));
+    const handler = createAnalyzeHandler(
+      dependencies({
+        readInviteCodeFingerprint: async () => "current-fingerprint",
+        validCodeFingerprint: (_fingerprint: string, now: Date) => {
+          validatedAt.push(now);
+          return true;
+        },
+        gate: () => ({ claim }),
+      }),
+    );
+    const response = await handler(request());
+    expect(claim).toHaveBeenCalledWith(
+      expect.objectContaining({ unlocked: true, now: validatedAt[0] }),
+    );
+    expect(response.status).toBe(429);
+    await expect(response.json()).resolves.toEqual({
+      code: "quota",
+      scope: "unlocked-workspace",
+    });
+  });
+
+  it("does not unlock analysis with a stale sealed capability", async () => {
+    const claim = vi.fn(async () => ({ kind: "unavailable" as const }));
+    const handler = createAnalyzeHandler(
+      dependencies({
+        readInviteCodeFingerprint: async () => "stale-fingerprint",
+        validCodeFingerprint: () => false,
+        gate: () => ({ claim }),
+      }),
+    );
+    await handler(request());
+    expect(claim).toHaveBeenCalledWith(
+      expect.not.objectContaining({ unlocked: true }),
+    );
+  });
+
   it("marks provider start immediately before one call, then replays with zero additional calls", async () => {
     const events: string[] = [];
     const gate = new TestGate();

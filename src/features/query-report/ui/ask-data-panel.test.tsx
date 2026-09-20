@@ -135,7 +135,7 @@ describe("AskDataPanel", () => {
   it.each([
     ["expired", "Срок действия гостевого сеанса истёк", false],
     ["not-found", "Этот отчёт больше недоступен", false],
-    ["quota", "Лимит вопросов к отчёту на сегодня исчерпан", false],
+    ["quota", "Лимит вопросов на сегодня исчерпан", false],
     ["in-flight", "Этот вопрос уже обрабатывается", true],
   ] as const)(
     "explains %s and exposes retry=%s",
@@ -152,6 +152,65 @@ describe("AskDataPanel", () => {
       view.unmount();
     },
   );
+
+  it("preserves a free-tier question and message id until access succeeds", async () => {
+    const send = vi
+      .fn<AskDataSend>()
+      .mockRejectedValueOnce(
+        new AskDataClientError("quota", {
+          code: "quota",
+          quotaScope: "workspace",
+          retryable: false,
+        }),
+      )
+      .mockResolvedValueOnce({
+        status: "answered",
+        answer: "Ответ после разблокировки.",
+      });
+    let resume: (() => void) | undefined;
+    const onAccessRequired = vi.fn((next: () => void) => {
+      resume = next;
+    });
+    render(<AskDataPanel send={send} onAccessRequired={onAccessRequired} />);
+
+    enterQuestion("Сколько кошек?");
+
+    await waitFor(() => expect(onAccessRequired).toHaveBeenCalledOnce());
+    expect(screen.getAllByText("Сколько кошек?")).toHaveLength(1);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Лимит в 5 бесплатных вопросов",
+    );
+    resume?.();
+
+    expect(await screen.findByText("Ответ после разблокировки.")).toBeVisible();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[0]?.[0].messageId).toBe(
+      send.mock.calls[1]?.[0].messageId,
+    );
+    expect(screen.getAllByText("Сколько кошек?")).toHaveLength(1);
+  });
+
+  it("keeps an exhausted unlocked workspace terminal", async () => {
+    const onAccessRequired = vi.fn();
+    const send = vi.fn(async () => {
+      throw new AskDataClientError("quota", {
+        code: "quota",
+        quotaScope: "unlocked-workspace",
+        retryable: false,
+      });
+    });
+    render(<AskDataPanel send={send} onAccessRequired={onAccessRequired} />);
+
+    enterQuestion("Ещё один вопрос");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Лимит в 20 вопросов на сегодня исчерпан.",
+    );
+    expect(onAccessRequired).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: "Ввести код доступа" }),
+    ).toBeNull();
+  });
 
   it("cancels a pending request and ignores its late result", async () => {
     const request = deferred<AskDataResult>();

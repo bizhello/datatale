@@ -9,7 +9,7 @@ const input = (
     ipHash: string;
     key: string;
     fingerprint: string;
-    codeFingerprint: string;
+    unlocked: boolean;
     now: Date;
   }> = {},
 ) => ({
@@ -25,50 +25,86 @@ const setup = () => {
   return {
     repository,
     gate: new RunGate(repository, {
-      workspaceDailyLimit: 2,
+      freeWorkspaceDailyLimit: 2,
       ipDailyLimit: 3,
-      codeDailyLimit: 10,
+      unlockedWorkspaceDailyLimit: 10,
       globalDailyLimit: 4,
     }),
   };
 };
 
 describe("RunGate lifecycle", () => {
-  it("gives an invite fingerprint its own ten-call daily budget across workspaces", async () => {
+  it("allows five free analyses and rejects the sixth", async () => {
     const repository = new MemoryRunGateRepository();
     const gate = new RunGate(repository, {
-      workspaceDailyLimit: 1,
-      ipDailyLimit: 1,
-      codeDailyLimit: 10,
-      globalDailyLimit: 20,
+      freeWorkspaceDailyLimit: 5,
+      ipDailyLimit: 50,
+      unlockedWorkspaceDailyLimit: 20,
+      globalDailyLimit: 100,
     });
-    for (let index = 0; index < 10; index++) {
+    for (let index = 0; index < 5; index++) {
       await expect(
-        gate.claim(
-          input({
-            workspaceId: `00000000-0000-4000-8000-${String(index + 10).padStart(12, "0")}`,
-            key: `code-${index}`,
-            codeFingerprint: "invite",
-          }),
-        ),
+        gate.claim(input({ key: `free-${index}` })),
       ).resolves.toMatchObject({ kind: "claimed" });
     }
+    await expect(gate.claim(input({ key: "free-6" }))).resolves.toEqual({
+      kind: "quota",
+      scope: "workspace",
+    });
+  });
+
+  it("raises the same workspace counter to twenty after unlock", async () => {
+    const gate = new RunGate(new MemoryRunGateRepository(), {
+      freeWorkspaceDailyLimit: 5,
+      ipDailyLimit: 50,
+      unlockedWorkspaceDailyLimit: 20,
+      globalDailyLimit: 100,
+    });
+    for (let index = 0; index < 2; index++)
+      await gate.claim(input({ key: `before-${index}` }));
+    for (let index = 0; index < 18; index++)
+      await expect(
+        gate.claim(input({ key: `after-${index}`, unlocked: true })),
+      ).resolves.toMatchObject({ kind: "claimed" });
     await expect(
-      gate.claim(
-        input({
-          workspaceId: "00000000-0000-4000-8000-000000000099",
-          key: "code-11",
-          codeFingerprint: "invite",
-        }),
-      ),
-    ).resolves.toEqual({ kind: "quota", scope: "code" });
+      gate.claim(input({ key: "after-19", unlocked: true })),
+    ).resolves.toEqual({ kind: "quota", scope: "workspace" });
+  });
+
+  it("gives two workspaces using the same code independent twenty-analysis budgets", async () => {
+    const gate = new RunGate(new MemoryRunGateRepository(), {
+      freeWorkspaceDailyLimit: 5,
+      ipDailyLimit: 1,
+      unlockedWorkspaceDailyLimit: 20,
+      globalDailyLimit: 100,
+    });
+    for (const workspaceId of [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002",
+    ]) {
+      for (let index = 0; index < 20; index++)
+        await expect(
+          gate.claim(
+            input({
+              workspaceId,
+              key: `${workspaceId}-${index}`,
+              unlocked: true,
+            }),
+          ),
+        ).resolves.toMatchObject({ kind: "claimed" });
+      await expect(
+        gate.claim(
+          input({ workspaceId, key: `${workspaceId}-21`, unlocked: true }),
+        ),
+      ).resolves.toEqual({ kind: "quota", scope: "workspace" });
+    }
   });
 
   it("blocks a second anonymous workspace on the same salted IP", async () => {
     const gate = new RunGate(new MemoryRunGateRepository(), {
-      workspaceDailyLimit: 1,
+      freeWorkspaceDailyLimit: 1,
       ipDailyLimit: 1,
-      codeDailyLimit: 10,
+      unlockedWorkspaceDailyLimit: 10,
       globalDailyLimit: 20,
     });
     await expect(gate.claim(input({ key: "first" }))).resolves.toMatchObject({
@@ -85,9 +121,9 @@ describe("RunGate lifecycle", () => {
   });
   it("gives separate workspaces behind one IP their first run up to the anti-abuse ceiling", async () => {
     const gate = new RunGate(new MemoryRunGateRepository(), {
-      workspaceDailyLimit: 1,
+      freeWorkspaceDailyLimit: 1,
       ipDailyLimit: 2,
-      codeDailyLimit: 10,
+      unlockedWorkspaceDailyLimit: 10,
       globalDailyLimit: 20,
     });
     await expect(gate.claim(input({ key: "first" }))).resolves.toMatchObject({
@@ -195,9 +231,9 @@ describe("RunGate lifecycle", () => {
   });
   it("fails closed for missing or non-positive caps", async () => {
     const gate = new RunGate(new MemoryRunGateRepository(), {
-      workspaceDailyLimit: 0,
+      freeWorkspaceDailyLimit: 0,
       ipDailyLimit: 1,
-      codeDailyLimit: 10,
+      unlockedWorkspaceDailyLimit: 10,
       globalDailyLimit: 1,
     });
     await expect(gate.claim(input())).resolves.toEqual({ kind: "unavailable" });

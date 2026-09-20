@@ -7,18 +7,24 @@ import {
 import { datasetSchema, textSourceSchema } from "@/entities/dataset";
 import {
   readGuestWorkspace,
+  readInviteCodeFingerprint,
   SqlGuestWorkspaceRepository,
 } from "@/entities/guest-workspace/server";
 import { finalReportSchema } from "@/entities/report";
 import type { SavedAnalysisMessage } from "@/entities/saved-analysis";
 import { answerChat } from "@/features/query-report/server";
-import { hasSafeAnalysisRuntime } from "@/shared/config";
+import { hasSafeChatRuntime, workspaceDailyQuota } from "@/shared/config";
 import { savedAnalysisRepository } from "../saved-analysis-runtime";
 import { createChatHandler } from "./handler";
+import { resolveChatQuota } from "./quota";
 
-const CHAT_DAILY_LIMIT = 10;
 const ASSISTANT_SUFFIX = ":assistant";
 const workspaceRepository = new SqlGuestWorkspaceRepository();
+
+async function chatQuota() {
+  const fingerprint = await readInviteCodeFingerprint();
+  return resolveChatQuota(fingerprint);
+}
 
 function assistantId(messageId: string) {
   return `${messageId}${ASSISTANT_SUFFIX}`;
@@ -40,7 +46,7 @@ async function history(
 }
 
 export const POST = createChatHandler({
-  runtimeSafe: hasSafeAnalysisRuntime,
+  runtimeSafe: hasSafeChatRuntime,
   readWorkspace: readGuestWorkspace,
   isWorkspaceActive: (id, now) => workspaceRepository.isActive(id, now),
   readReply: async ({ workspaceId, analysisId, messageId }) => {
@@ -52,17 +58,20 @@ export const POST = createChatHandler({
     return parsed.success ? parsed.data : undefined;
   },
   claimQuestion: async ({ workspaceId, request }) => {
+    const quota = await chatQuota();
     const stored = await savedAnalysisRepository.appendMessage({
       workspaceId,
       analysisId: request.analysisId,
-      dailyLimit: CHAT_DAILY_LIMIT,
+      dailyLimit: quota.limit,
+      now: quota.now,
       message: {
         id: request.messageId,
         role: "user",
         content: request.question,
       },
     });
-    if (stored === "quota-exceeded") return "quota";
+    if (stored === "quota-exceeded")
+      return { kind: "quota", scope: quota.scope };
     return stored ? "claimed" : "missing";
   },
   claimInference: ({ workspaceId, analysisId, messageId }) =>
@@ -123,7 +132,7 @@ export const POST = createChatHandler({
       await savedAnalysisRepository.appendMessage({
         workspaceId,
         analysisId: request.analysisId,
-        dailyLimit: CHAT_DAILY_LIMIT,
+        dailyLimit: workspaceDailyQuota.unlocked,
         message: {
           id: assistantId(request.messageId),
           role: "assistant",

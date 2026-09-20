@@ -9,15 +9,15 @@ export type RunGateOutcome<Report = unknown> =
   | { kind: "in-flight" }
   | { kind: "provider-started" }
   | { kind: "conflict" }
-  | { kind: "quota"; scope: "workspace" | "ip" | "code" | "global" }
+  | { kind: "quota"; scope: "workspace" | "ip" | "global" }
   | { kind: "unavailable" }
   | { kind: "expired" };
 
 export type RunGateConfig = Readonly<{
-  workspaceDailyLimit: number;
+  freeWorkspaceDailyLimit: number;
+  unlockedWorkspaceDailyLimit: number;
   ipDailyLimit: number;
   globalDailyLimit: number;
-  codeDailyLimit?: number;
   receiptTtlMs?: number;
   leaseMs?: number;
   quotaTtlMs?: number;
@@ -27,7 +27,7 @@ export type ClaimInput = Readonly<{
   ipHash: string;
   key: string;
   fingerprint: string;
-  codeFingerprint?: string;
+  unlocked?: boolean;
   now?: Date;
 }>;
 export type RunReceipt<Report = unknown> = Readonly<{
@@ -74,15 +74,12 @@ const defaults = {
   quotaTtlMs: 48 * 60 * 60_000,
 } as const;
 function validConfig(config: RunGateConfig): config is Required<RunGateConfig> {
-  return (
-    [
-      config.workspaceDailyLimit,
-      config.ipDailyLimit,
-      config.globalDailyLimit,
-    ].every((value) => Number.isInteger(value) && value > 0) &&
-    Number.isInteger(config.codeDailyLimit) &&
-    (config.codeDailyLimit ?? 0) > 0
-  );
+  return [
+    config.freeWorkspaceDailyLimit,
+    config.unlockedWorkspaceDailyLimit,
+    config.ipDailyLimit,
+    config.globalDailyLimit,
+  ].every((value) => Number.isInteger(value) && value > 0);
 }
 export class RunGate<Report = unknown> {
   constructor(

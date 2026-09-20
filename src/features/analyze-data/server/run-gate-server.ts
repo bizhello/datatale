@@ -1,5 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
+import { workspaceDailyQuota } from "@/shared/config";
 import { RunGate, type RunGateConfig } from "./run-gate";
 import { SqlRunGateRepository } from "./run-gate-repository";
 
@@ -15,10 +16,10 @@ export function hashIp(ip: string) {
 }
 export function getRunGateConfig(): RunGateConfig {
   return {
-    workspaceDailyLimit: positive(process.env.ANALYSIS_WORKSPACE_DAILY_LIMIT),
+    freeWorkspaceDailyLimit: workspaceDailyQuota.free,
+    unlockedWorkspaceDailyLimit: workspaceDailyQuota.unlocked,
     ipDailyLimit: positive(process.env.ANALYSIS_IP_DAILY_LIMIT),
     globalDailyLimit: positive(process.env.ANALYSIS_GLOBAL_DAILY_LIMIT),
-    codeDailyLimit: positive(process.env.ANALYSIS_CODE_DAILY_LIMIT),
   };
 }
 export function getRunGate<Report = unknown>() {

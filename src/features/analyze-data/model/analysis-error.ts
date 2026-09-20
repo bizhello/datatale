@@ -1,3 +1,4 @@
+import { workspaceDailyQuota } from "@/shared/config";
 import {
   type AnalysisErrorCode,
   analysisErrorMessages,
@@ -16,10 +17,10 @@ export function errorMessage(
   scope?: QuotaScope,
 ) {
   if (error !== "quota") return analysisErrorMessages[error];
-  if (scope === "code")
-    return "Лимит этого кода приглашения на сегодня исчерпан.";
+  if (scope === "unlocked-workspace")
+    return `Лимит в ${workspaceDailyQuota.unlocked} анализов на сегодня исчерпан.`;
   if (scope === "global") return "Общий лимит анализов на сегодня исчерпан.";
   if (canUnlockAnalysis(error, scope))
-    return "Бесплатный анализ на сегодня использован. Продолжите с кодом приглашения.";
+    return `Лимит в ${workspaceDailyQuota.free} бесплатных анализов на сегодня исчерпан. Введите код доступа, чтобы увеличить лимит до ${workspaceDailyQuota.unlocked}.`;
   return analysisErrorMessages.quota;
 }

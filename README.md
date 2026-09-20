@@ -41,7 +41,7 @@ DataTale supports local CSV/XLSX parsing, workbook sheet selection, pasted text,
 
 Analysis creates a sealed guest workspace. The accepted canonical source, validated report, and chat are stored for seven days; original binary uploads are not stored. History is owner-scoped and reopens a report without consuming analysis or chat quota. Losing the sealed cookie ends access, while confirmed delete-all removes the workspace data and clears the client state.
 
-Guests receive one analysis per workspace per UTC day. A broader salted-IP ceiling allows separate visitors behind shared NAT to complete a first run while limiting repeated cookie resets. The exact built-in synthetic demo uses a separate IP namespace; workspace and global limits still apply. A high-entropy invite code can unlock a separate ten-analysis daily budget; only SHA-256 code fingerprints are configured or persisted. Raw invite codes and IP addresses are never stored.
+Each guest workspace receives five analyses and five user chat messages per UTC day across all of its reports. Today's access code raises both workspace limits to 20; usage before unlock remains part of those totals, while another workspace using the same code receives its own allowance. The server derives the rotating code from one secret seed and stores only a sealed daily capability. Salted-IP and global analysis ceilings remain secondary abuse controls. Raw access codes, secret seeds, and IP addresses are never persisted.
 
 ## Stack and quality gates
 
@@ -63,6 +63,12 @@ bun run dev
 ```
 
 Open `http://localhost:3000`. Local input, preview, and onboarding need no secrets. Analysis, history, and chat require the server-only values documented in `.env.example`. Apply the ordered Neon migration ledger locally with `bun run db:migrate`; guarded Vercel production builds migrate `main` before `next build`, while local builds never migrate.
+
+Generate one seed, then save that exact secret in Vercel Production and in the ignored local `.env.local` file. The local command reads `.env.local`; it does not fetch Vercel configuration:
+
+```bash
+bun run access:code
+```
 
 ```bash
 bun run check                        # Biome, architecture, types, Vitest, build

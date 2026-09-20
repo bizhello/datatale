@@ -13,7 +13,6 @@ import { canUnlockAnalysis, errorMessage } from "../model/analysis-error";
 import type { AnalysisFocus } from "../model/analysis-focus";
 import { type RestoredAnalysis, useAnalysis } from "../model/use-analysis";
 import { AnalysisProgress } from "./analysis-progress";
-import { InviteAccessModal } from "./invite-access-modal";
 
 type AnalyzeWorkspaceProps = {
   source: Dataset | TextSource;
@@ -23,6 +22,7 @@ type AnalyzeWorkspaceProps = {
   autoStart?: boolean;
   restoredAnalysis?: RestoredAnalysis;
   onAnalysisReady?: () => void;
+  onAccessRequired?: (resume: () => void) => void;
   renderReport?: (
     analysisId: string,
     report: FinalReport,
@@ -38,6 +38,7 @@ export function AnalyzeWorkspace({
   renderReport,
   restoredAnalysis,
   onAnalysisReady,
+  onAccessRequired,
 }: AnalyzeWorkspaceProps) {
   const { state, run, cancel, retry } = useAnalysis(
     source,
@@ -49,7 +50,6 @@ export function AnalyzeWorkspace({
   const [deleteState, setDeleteState] = useState<"idle" | "deleting" | "error">(
     "idle",
   );
-  const [accessOpen, setAccessOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   useEffect(() => {
     if (state.status === "ready") onAnalysisReady?.();
@@ -59,8 +59,8 @@ export function AnalyzeWorkspace({
       state.status === "error" &&
       canUnlockAnalysis(state.error, state.quotaScope)
     )
-      setAccessOpen(true);
-  }, [state]);
+      onAccessRequired?.(() => void run());
+  }, [onAccessRequired, run, state]);
   const stateError = state.status === "error" ? state.error : undefined;
   const stateQuotaScope =
     state.status === "error" ? state.quotaScope : undefined;
@@ -150,9 +150,9 @@ export function AnalyzeWorkspace({
             <h2>Анализ не завершён</h2>
             <p>{errorMessage(state.error, state.quotaScope)}</p>
             {state.retryable && <Button onPress={retry}>Повторить</Button>}
-            {canUnlock && (
-              <Button onPress={() => setAccessOpen(true)}>
-                Ввести код приглашения
+            {canUnlock && onAccessRequired && (
+              <Button onPress={() => onAccessRequired?.(() => void run())}>
+                Ввести код доступа
               </Button>
             )}
           </div>
@@ -162,11 +162,6 @@ export function AnalyzeWorkspace({
         (renderReport?.(state.analysisId, state.report, state.expiresAt) ?? (
           <ReportDashboard report={state.report} expiresAt={state.expiresAt} />
         ))}
-      <InviteAccessModal
-        isOpen={accessOpen}
-        onOpenChange={setAccessOpen}
-        onUnlocked={() => void run()}
-      />
       {deleteState === "error" && (
         <div className="error-state" role="alert">
           <div>
