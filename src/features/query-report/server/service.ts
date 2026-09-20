@@ -18,6 +18,7 @@ import {
 import type { Dataset, TextSource } from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
+import { chartExtremum } from "./chart-extremum";
 
 export const CHAT_TIMEOUT_MS = 30_000;
 const PROVIDER_OUTPUT_MAX_TOKENS = 700;
@@ -391,6 +392,23 @@ async function answerChatCore(
   if (requested === "unsupported") {
     ensureActive();
     return unsupported();
+  }
+  const extremum = chartExtremum(parsed.question, context.report);
+  if (extremum) {
+    const evidence = sourceEvidence(context.report, extremum.evidenceId);
+    if (evidence) {
+      ensureActive();
+      return {
+        outcome: "answered",
+        answer: extremum.answer,
+        references: [
+          {
+            id: reportReferenceId(context.report, evidence.id) ?? evidence.id,
+            ...(evidence.excerpt ? { excerpt: evidence.excerpt } : {}),
+          },
+        ],
+      };
+    }
   }
   if ("rows" in context.source) {
     const aggregate = deterministicAggregation(

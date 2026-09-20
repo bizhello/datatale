@@ -90,6 +90,18 @@ describe("Dashboard input shell", () => {
       }),
     ).toBeVisible();
   });
+
+  it("uses clear product copy in the header and footer", () => {
+    render(<DashboardShell />);
+    expect(
+      screen.getByRole("link", { name: "DataTale — главная" }),
+    ).toHaveTextContent("datatale");
+    expect(screen.queryByText("Локальная проверка")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Данные превращаются в понятную историю"),
+    ).toBeVisible();
+    expect(screen.getByText("Проверяем расчёты")).toBeVisible();
+  });
   it("accepts text and shows its exact source preview", () => {
     render(<DashboardShell />);
     fireEvent.change(screen.getByLabelText("Текст отчёта"), {
