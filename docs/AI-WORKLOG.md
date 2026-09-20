@@ -1,5 +1,15 @@
 # AI development evidence
 
+## Daily workspace quota tiers · 2026-09-20
+
+The previous access gate charged every recipient of one invite code to a shared ten-analysis bucket, while chat used a separate hard-coded ten-message allowance and ignored access capability. The replacement counts analysis and user chat independently per sealed guest workspace and UTC day: five free calls of each kind, raised to a total of 20 after today's code. Usage before unlock remains charged, questions aggregate across reports, and different workspaces using the same code do not consume each other's budget. Assistant messages and idempotent replays remain free. Anonymous IP and global analysis ceilings still bound cookie-reset and total spend.
+
+One stable 32-byte base64url seed now derives a versioned HMAC code for the current UTC date. Only the daily fingerprint enters the sealed cookie; the seed and raw code never enter the database or logs. `bun run access:code` reads the ignored local copy of the same seed configured in Vercel and prints today's code plus its UTC expiry. The server revalidates the capability at each analysis and chat boundary. Review caught a midnight race where chat validation and bucket selection used different timestamps; the corrected path shares one exact `Date` through both decisions.
+
+Independent review also rejected arbitrary positive env-configured tier limits because they could contradict the UI or make a valid code reduce access. The final design uses one shared 5/20 product constant and removes four unnecessary environment variables. Review removed an obsolete SQL overload that migration `0005` had already retired and corrected documentation that had implied the local CLI could read Vercel secrets automatically.
+
+PR #48 passed hosted CI, 392 Vitest tests, 78 Playwright scenarios, Biome, Steiger, strict TypeScript, the Turbopack production build, and disposable PostgreSQL migration probes. Production deployment `dpl_HKs3CwpBqPnKt3xmpT3yKmiFwzre` applied migration `0006` before building commit `0ddcd02`, reached Ready, returned HTTPS 200, created an isolated guest workspace, and accepted today's access code through the real API without exposing the code or seed.
+
 ## Perceptible analysis stages and source-action clarity · 2026-09-20
 
 A screenshot showed 95% while the second of four named stages remained active. The UI had only two actual phases and hard-coded every post-session state to the second marker; a validated response then replaced the loader after a 320 ms 100% beat, so the third and fourth markers were never visibly traversed. The correction keeps the percentage explicitly approximate, maps its bands to all four markers, and advances missing bands only after the response has already passed schema validation. A dashed desktop connector becomes a vertical timeline on narrow screens, and the final all-complete state remains visible for 650 ms before the report receives focus. Fake-timer coverage preserves cancellation, stale-request ownership, timer cleanup, and abort-listener cleanup.
