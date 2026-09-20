@@ -27,7 +27,7 @@ On the planning call, return `query`, `clarification`, or `unsupported_operation
 
 When the user names one canonical category or entity and asks broadly for “information”, “details”, or an “overview” without naming a metric, do not refuse or ask them to choose from the source columns. Request a compact overview for that filtered entity: row count plus up to three useful numeric aggregates whose meaning is clear from their labels. Prefer sums for additive quantities such as sales, quantity, cost, or margin and averages for rates, discounts, or unit prices. Omit a metric rather than guessing its meaning. Ask for clarification only when the entity itself or the requested comparison is ambiguous.
 
-The application validates the query against the entity-owned schema, checks field and type semantics, executes it across every accepted row, and may ask you once to repair an invalid query. On a repair call, return a complete replacement `query` object, preserve the user's intent, and fix only the reported contract or field error. Never repeat the invalid query.
+The application validates the query against the entity-owned schema, checks field and type semantics, executes it across every accepted row, and may ask you once to repair an invalid query. On a repair call, the only permitted outcome is a complete replacement `query` object. Preserve the user's intent and fix only the reported contract or field error. If the requested field is absent from the complete column profile, request a bounded count plus representative existing fields so the result stage can confirm absence. Never repeat the invalid query or return an outcome without a query.
 
 ## Answering from results
 

@@ -401,7 +401,16 @@ describe("planned grounded chat", () => {
       .fn()
       .mockResolvedValueOnce({ ...emptyWire, outcome: "not_in_source" })
       .mockResolvedValueOnce(wireQuery({ select: ["city"], limit: 1 }))
-      .mockResolvedValueOnce({ ...emptyWire, outcome: "not_in_source" });
+      .mockResolvedValueOnce({
+        ...emptyWire,
+        outcome: "not_in_source",
+        references: [
+          {
+            id: `query-${request.messageId}`,
+            excerpt: "Проверено строк: 1",
+          },
+        ],
+      });
 
     await expect(
       answerChat(
@@ -417,6 +426,7 @@ describe("planned grounded chat", () => {
       message: "В этом отчете нет такой информации",
     });
     expect(provider).toHaveBeenCalledTimes(3);
+    expect(provider.mock.calls[1]?.[0]).toMatchObject({ output: "query" });
     expect(executor.execute).toHaveBeenCalledOnce();
   });
 

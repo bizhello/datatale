@@ -25,6 +25,7 @@ import {
   decodeQuery,
   type ProviderEnvelope,
   providerEnvelopeSchema,
+  providerQueryEnvelopeSchema,
 } from "./provider-contract";
 import {
   boundedHistory as buildBoundedHistory,
@@ -59,6 +60,7 @@ export type ChatContext = {
 export type ChatProvider = (request: {
   prompt: string;
   signal: AbortSignal;
+  output: "outcome" | "query";
 }) => Promise<unknown>;
 export type ChatDependencies = {
   loadContext: (
@@ -134,6 +136,7 @@ function validateQuery(query: DatasetQuery, source: Dataset): DatasetQuery {
 async function defaultProvider({
   prompt,
   signal,
+  output,
 }: Parameters<ChatProvider>[0]) {
   const model = getAnalysisModel();
   if (!model) throw new Error("Chat provider is not configured.");
@@ -143,7 +146,12 @@ async function defaultProvider({
   );
   const response = await generateText({
     model,
-    output: Output.object({ schema: providerEnvelopeSchema }),
+    output: Output.object({
+      schema:
+        output === "query"
+          ? providerQueryEnvelopeSchema
+          : providerEnvelopeSchema,
+    }),
     prompt: `${promptFile}\n\n${prompt}`,
     maxRetries: 0,
     maxOutputTokens: PROVIDER_OUTPUT_MAX_TOKENS,
@@ -156,9 +164,10 @@ async function callProvider(
   provider: ChatProvider,
   prompt: unknown,
   signal: AbortSignal,
+  output: "outcome" | "query" = "outcome",
 ) {
   try {
-    return await provider({ prompt: JSON.stringify(prompt), signal });
+    return await provider({ prompt: JSON.stringify(prompt), signal, output });
   } catch (error) {
     if (signal.aborted)
       throw new ChatProviderError(
@@ -317,6 +326,7 @@ async function answerChatCore(
               error: error instanceof Error ? error.message : "Invalid query",
             },
             signal,
+            "query",
           ),
         );
       } catch (repairError) {
