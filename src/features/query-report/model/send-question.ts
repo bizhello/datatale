@@ -50,9 +50,9 @@ export function createAskDataSend(analysisId: string): AskDataSend {
         ),
       };
     if (result.data.outcome === "not_in_source")
-      return { status: "insufficient_data" };
+      return { status: "not_in_source", message: result.data.message };
     if (result.data.outcome === "clarification")
-      return { status: "unsupported_operation", message: result.data.message };
+      return { status: "clarification", message: result.data.message };
     return {
       status: "unsupported_operation",
       message: result.data.message,

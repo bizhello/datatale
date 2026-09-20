@@ -8,7 +8,8 @@ export type AskDataAnswer = {
 
 export type AskDataResult =
   | AskDataAnswer
-  | { status: "insufficient_data" }
+  | { status: "clarification"; message: string }
+  | { status: "not_in_source"; message: string }
   | { status: "unsupported_operation"; message: string };
 
 export type AskDataSend = (
@@ -22,7 +23,7 @@ export type AskDataMessage = {
   role: "user" | "assistant";
   text: string;
   evidenceLabels?: string[];
-  kind?: "answer" | "insufficient" | "unsupported" | "error";
+  kind?: "answer" | "clarification" | "not_in_source" | "unsupported" | "error";
 };
 
 export class AskDataClientError extends Error {

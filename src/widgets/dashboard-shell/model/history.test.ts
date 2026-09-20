@@ -82,4 +82,43 @@ describe("history hydration contract", () => {
       "Три строки.",
     ]);
   });
+
+  it("restores clarification and absence as distinct assistant messages", () => {
+    const common = {
+      analysisId: base.analysisId,
+      role: "assistant" as const,
+      createdAt: "2026-09-19T12:00:01.000Z",
+    };
+    const messages = restoreMessages([
+      {
+        ...common,
+        id: "clarification",
+        content: "Уточните период.",
+        result: {
+          outcome: "clarification" as const,
+          message: "Уточните период.",
+        },
+      },
+      {
+        ...common,
+        id: "missing",
+        content: "В этом отчете нет такой информации",
+        result: {
+          outcome: "not_in_source" as const,
+          message: "В этом отчете нет такой информации" as const,
+        },
+      },
+    ]);
+
+    expect(messages).toEqual([
+      expect.objectContaining({
+        kind: "clarification",
+        text: "Уточните период.",
+      }),
+      expect.objectContaining({
+        kind: "not_in_source",
+        text: "В этом отчете нет такой информации",
+      }),
+    ]);
+  });
 });

@@ -90,15 +90,22 @@ export function restoreMessages(
           ? {
               id: `${message.id}:assistant`,
               role: "assistant",
-              text: "В этом отчете нет такой информации",
-              kind: "insufficient",
-            }
-          : {
-              id: `${message.id}:assistant`,
-              role: "assistant",
               text: result.message,
-              kind: "unsupported",
-            };
+              kind: "not_in_source",
+            }
+          : result.outcome === "clarification"
+            ? {
+                id: `${message.id}:assistant`,
+                role: "assistant",
+                text: result.message,
+                kind: "clarification",
+              }
+            : {
+                id: `${message.id}:assistant`,
+                role: "assistant",
+                text: result.message,
+                kind: "unsupported",
+              };
     return [assistant];
   });
 }
