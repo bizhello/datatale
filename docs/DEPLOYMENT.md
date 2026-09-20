@@ -68,7 +68,7 @@ The Vercel wrapper is deliberately stricter than the migration command itself: o
 
 ## Retention and cleanup
 
-Guest workspaces expire after 30 days of inactivity; analysis receipts after 15 minutes; analysis-run leases after 90 seconds; chat inference leases after 60 seconds; saved canonical sources, reports, and chats seven days after analysis creation; quota buckets no later than 48 hours. Viewing and chatting do not extend saved-analysis expiry. Original workbook binaries, raw IP addresses, access codes, prompts, and secrets are not stored by the application.
+Guest workspaces expire after 30 days of inactivity; analysis receipts after 15 minutes; analysis-run and chat inference leases after 90 seconds; saved canonical sources, reports, and chats seven days after analysis creation; quota buckets no later than 48 hours. Viewing and chatting do not extend saved-analysis expiry. Original workbook binaries, raw IP addresses, access codes, prompts, and secrets are not stored by the application.
 
 Vercel calls `/api/cron/cleanup` daily at 03:00 UTC. The route requires `Authorization: Bearer $CRON_SECRET` and removes expired receipts and saved analyses with cascaded messages independently of provider availability. Primary deletion does not make claims about provider or backup retention.
 

@@ -98,6 +98,54 @@ describe("calculateObservationCharts", () => {
     ]);
   });
 
+  it("orders ISO daily periods by their complete date", () => {
+    const charts = calculateObservationCharts(
+      [
+        observation("second", "Revenue", 150, "2026-09-02"),
+        observation("first", "Revenue", 100, "2026-09-01"),
+      ],
+      [
+        {
+          id: "daily-revenue",
+          kind: "line",
+          title: "Динамика",
+          rationale: "Дни",
+          observationIds: ["second", "first"],
+          derivation: "direct",
+        },
+      ],
+      (id) => `e-${id}`,
+    );
+    expect(charts[0]?.points).toEqual([
+      { label: "2026-09-01", value: 100 },
+      { label: "2026-09-02", value: 150 },
+    ]);
+  });
+
+  it("orders ISO and named dated periods on the same time scale", () => {
+    const charts = calculateObservationCharts(
+      [
+        observation("february", "Revenue", 150, "февраль 2026"),
+        observation("january", "Revenue", 100, "2026-01-01"),
+      ],
+      [
+        {
+          id: "mixed-dates",
+          kind: "line",
+          title: "Динамика",
+          rationale: "Периоды",
+          observationIds: ["february", "january"],
+          derivation: "direct",
+        },
+      ],
+      (id) => `e-${id}`,
+    );
+    expect(charts[0]?.points.map((point) => point.label)).toEqual([
+      "2026-01-01",
+      "февраль 2026",
+    ]);
+  });
+
   it("keeps a target outside species and preserves a baseline plus change", () => {
     const charts = calculateObservationCharts(
       [

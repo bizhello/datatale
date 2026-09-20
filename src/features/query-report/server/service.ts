@@ -288,11 +288,6 @@ async function answerChatCore(
     );
   }
   if (intent.outcome === "clarification") return clarification(intent.message);
-  if (intent.outcome === "not_in_source")
-    throw new ChatProviderError(
-      "invalid_provider_output",
-      "Dataset absence requires an executed query.",
-    );
   if (intent.outcome === "unsupported_operation")
     return unsupported(intent.message);
   let query: DatasetQuery;

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import type { Dataset, TextSource } from "@/entities/dataset";
+import type { Dataset, DatasetQuery, TextSource } from "@/entities/dataset";
 import { answerChat, type ChatContext } from "./service";
 
 const request = {
@@ -177,6 +177,160 @@ describe("planned grounded chat", () => {
     expect(provider).toHaveBeenCalledTimes(2);
     expect(executor.execute).toHaveBeenCalledOnce();
   });
+
+  it("accepts a Russian thousands-separated rendering of a numeric table result", async () => {
+    const executor = {
+      execute: vi.fn(async (_dataset: Dataset, query: DatasetQuery) => ({
+        queryId: query.queryId,
+        rows: [],
+        groups: [],
+        metrics: { total: 13_000 },
+        matchedRows: 1,
+        scannedRows: 1,
+        returnedRows: 0,
+        truncated: false,
+        rowReferences: [],
+      })),
+    };
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(
+        wireQuery({
+          metrics: [{ id: "total", aggregation: "sum", fieldId: "sales" }],
+          select: [],
+          limit: 1,
+        }),
+      )
+      .mockResolvedValueOnce(
+        wireAnswer("Итого: 13 000 ₽.", [{ id: `query-${request.messageId}` }]),
+      );
+
+    await expect(
+      answerChat(
+        { ...request, question: "Какова сумма продаж?" },
+        {
+          loadContext: async () =>
+            context({
+              ...dataset,
+              rows: [
+                {
+                  id: "r1",
+                  values: { city: "Краснодар", sales: 13_000 },
+                  provenance: { sourceRowNumber: 2 },
+                },
+              ],
+            }),
+          provider,
+          queryExecutor: executor,
+        },
+      ),
+    ).resolves.toMatchObject({
+      outcome: "answered",
+      answer: "Итого: 13 000 ₽.",
+    });
+  });
+
+  it("accepts a canonical ISO date in a table answer", async () => {
+    const dateDataset: Dataset = {
+      version: 1,
+      id: "dates",
+      source: { kind: "csv" },
+      columns: [{ id: "date", label: "Дата", scalarType: "date" }],
+      rows: [
+        {
+          id: "r1",
+          values: { date: "2026-09-21" },
+          provenance: { sourceRowNumber: 2 },
+        },
+      ],
+    };
+    const executor = {
+      execute: vi.fn(async (_dataset: Dataset, query: DatasetQuery) => ({
+        queryId: query.queryId,
+        rows: [{ date: "2026-09-21" }],
+        groups: [],
+        metrics: {},
+        matchedRows: 1,
+        scannedRows: 1,
+        returnedRows: 1,
+        truncated: false,
+        rowReferences: [{ rowId: "r1", sourceRowNumber: 2 }],
+      })),
+    };
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(wireQuery({ select: ["date"], limit: 1 }))
+      .mockResolvedValueOnce(
+        wireAnswer("Дата: 2026-09-21.", [
+          { id: `query-${request.messageId}` },
+          { id: "row-r1" },
+        ]),
+      );
+
+    await expect(
+      answerChat(
+        { ...request, question: "Какая дата?" },
+        {
+          loadContext: async () => context(dateDataset),
+          provider,
+          queryExecutor: executor,
+        },
+      ),
+    ).resolves.toMatchObject({
+      outcome: "answered",
+      answer: "Дата: 2026-09-21.",
+    });
+  });
+
+  it("rejects an ISO date absent from the cited table row", async () => {
+    const dateDataset: Dataset = {
+      version: 1,
+      id: "dates",
+      source: { kind: "csv" },
+      columns: [{ id: "date", label: "Дата", scalarType: "date" }],
+      rows: [
+        {
+          id: "r1",
+          values: { date: "2026-09-21" },
+          provenance: { sourceRowNumber: 2 },
+        },
+      ],
+    };
+    const executor = {
+      execute: vi.fn(async (_dataset: Dataset, query: DatasetQuery) => ({
+        queryId: query.queryId,
+        rows: [{ date: "2026-09-21" }],
+        groups: [],
+        metrics: {},
+        matchedRows: 1,
+        scannedRows: 1,
+        returnedRows: 1,
+        truncated: false,
+        rowReferences: [{ rowId: "r1", sourceRowNumber: 2 }],
+      })),
+    };
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(wireQuery({ select: ["date"], limit: 1 }))
+      .mockResolvedValueOnce(
+        wireAnswer("Дата: 2069-12-31.", [
+          { id: `query-${request.messageId}` },
+          { id: "row-r1" },
+        ]),
+      );
+
+    await expect(
+      answerChat(
+        { ...request, question: "Какая дата?" },
+        {
+          loadContext: async () => context(dateDataset),
+          provider,
+          queryExecutor: executor,
+        },
+      ),
+    ).rejects.toMatchObject({ code: "invalid_provider_output" });
+  });
+
   it("repairs one invalid field plan and rejects invalid citations", async () => {
     const executor = {
       execute: vi.fn(async () => ({
@@ -225,6 +379,43 @@ describe("planned grounded chat", () => {
         },
       ),
     ).rejects.toMatchObject({ code: "invalid_provider_output" });
+    expect(provider).toHaveBeenCalledTimes(3);
+    expect(executor.execute).toHaveBeenCalledOnce();
+  });
+
+  it("repairs a premature dataset absence before returning the canonical refusal", async () => {
+    const executor = {
+      execute: vi.fn(async (_dataset: Dataset, query: DatasetQuery) => ({
+        queryId: query.queryId,
+        rows: [{ city: "Краснодар" }],
+        groups: [],
+        metrics: {},
+        matchedRows: 1,
+        scannedRows: 1,
+        returnedRows: 1,
+        truncated: false,
+        rowReferences: [{ rowId: "r1", sourceRowNumber: 2 }],
+      })),
+    };
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce({ ...emptyWire, outcome: "not_in_source" })
+      .mockResolvedValueOnce(wireQuery({ select: ["city"], limit: 1 }))
+      .mockResolvedValueOnce({ ...emptyWire, outcome: "not_in_source" });
+
+    await expect(
+      answerChat(
+        { ...request, question: "Какой телефон указан в отчёте?" },
+        {
+          loadContext: async () => context(dataset),
+          provider,
+          queryExecutor: executor,
+        },
+      ),
+    ).resolves.toEqual({
+      outcome: "not_in_source",
+      message: "В этом отчете нет такой информации",
+    });
     expect(provider).toHaveBeenCalledTimes(3);
     expect(executor.execute).toHaveBeenCalledOnce();
   });

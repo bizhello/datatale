@@ -111,6 +111,8 @@ flowchart LR
 
 The analysis request sends the complete canonical source to the server and provider, then saves the validated source/report under the workspace. Original binary files are not retained. Saved analyses and messages expire seven days after creation; viewing or chatting never extends that deadline. Replays use the persisted validated result and do not call the provider again. Corrections produce a new analysis rather than silently changing old evidence.
 
+Grounded chat always reloads that immutable accepted source. `query-report/server/provider-contract.ts` owns the flat gateway wire schema, `source-context.ts` owns bounded source profiles and canonical evidence, `answer-validation.ts` owns citations and numeric grounding, `arithmetic.ts` owns the bounded calculation allowlist, and `service.ts` orchestrates the calls and outcomes. Table questions use model-planned `DatasetQuery` objects validated and executed by `entities/dataset`; the model never receives an executable language. Text questions receive every accepted paragraph as complete bounded chunks. Both paths return canonical references, keep clarification and genuine absence distinct, and persist only validated completed answers.
+
 ## Guest access
 
 Use iron-session for sealed cookie payloads, not hand-written signing. Production: host-only `__Host-datatale`, HttpOnly, Secure, SameSite=Lax, Path=/, no Domain attribute. Store minimal workspace identity/expiry, not report data. Validate the unsealed shape and workspace activity on every operation; a client-supplied owner ID is never authority.

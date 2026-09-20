@@ -23,8 +23,19 @@ function compatible(observations: TextObservation[]): boolean {
 }
 function periodRank(period: string): number | undefined {
   const normalized = period.toLocaleLowerCase("ru-RU");
-  const iso = normalized.match(/\b(\d{4})-(\d{2})(?:-\d{2})?\b/u);
-  if (iso) return Number(iso[1]) * 12 + Number(iso[2]) - 1;
+  const iso = normalized.match(/\b(\d{4})-(\d{2})(?:-(\d{2}))?\b/u);
+  if (iso) {
+    const year = Number(iso[1]);
+    const month = Number(iso[2]);
+    const day = Number(iso[3] ?? 1);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (
+      date.getUTCFullYear() === year &&
+      date.getUTCMonth() === month - 1 &&
+      date.getUTCDate() === day
+    )
+      return date.getTime();
+  }
   const monthStems = [
     ["январ", "january"],
     ["феврал", "february"],
@@ -44,7 +55,7 @@ function periodRank(period: string): number | undefined {
   );
   if (month < 0) return undefined;
   const year = normalized.match(/\b(19|20)\d{2}\b/u)?.[0];
-  return year ? Number(year) * 12 + month : month;
+  return Date.UTC(year ? Number(year) : 1970, month, 1);
 }
 
 /** Builds points only for explicit model-proposed groups after compatibility checks. */

@@ -19,6 +19,7 @@ export type QueryResultReference = {
   excerpt?: string;
   numericValues?: number[];
   numericEvidence?: NumericEvidence[];
+  isoDates?: string[];
 };
 
 export function boundedHistory(history: ChatMessage[]) {
@@ -39,12 +40,22 @@ function boundedEvidence(value: string) {
   return value.slice(0, CHAT_EVIDENCE_MAX_LENGTH);
 }
 const numericToken =
-  /(?<![\p{L}\d])[+\-−]?(?:\d+(?:[.,]\d+)?|\d*[.,]\d+)(?![\p{L}\d])/gu;
+  /(?<![\p{L}\d])(?:\d{4}-\d{2}-\d{2}|[+\-−]?(?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?|\d*[.,]\d+))(?![\p{L}\d])/gu;
+const isoDateToken = /\b\d{4}-\d{2}-\d{2}\b/gu;
+export function isoDateValues(value: string) {
+  return value.match(isoDateToken) ?? [];
+}
 export function numericValues(value: string) {
   return (
-    value
-      .match(numericToken)
-      ?.map((token) => Number(token.replace(",", ".").replace("−", "-"))) ?? []
+    value.match(numericToken)?.flatMap((token) => {
+      if (isoDateValues(token).length > 0) return [];
+      const normalized = token
+        .replace(/[ \u00a0\u202f]/gu, "")
+        .replace(",", ".")
+        .replace("−", "-");
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? [parsed] : [];
+    }) ?? []
   );
 }
 
@@ -92,6 +103,9 @@ export function sourceReferences(
           excerpt,
           numericValues: numericEvidence.map((item) => item.value),
           numericEvidence,
+          isoDates: Object.values(row.values).flatMap((value) =>
+            isoDateValues(String(value)),
+          ),
         };
       })
     : textEvidence(source).map((paragraph) => {
@@ -101,6 +115,7 @@ export function sourceReferences(
           excerpt: paragraph.text,
           numericValues: values,
           numericEvidence: values.map((value) => ({ value })),
+          isoDates: isoDateValues(paragraph.text),
         };
       });
 }
@@ -227,6 +242,7 @@ export function resultReferences(
         ...(typeof group.key === "number" ? [{ value: group.key }] : []),
         ...groupNumericEvidence,
       ],
+      isoDates: isoDateValues(String(group.key)),
     });
   }
   const seen = new Set<string>();
@@ -249,6 +265,7 @@ export function resultReferences(
       ...(rowEvidence.numericEvidence
         ? { numericEvidence: rowEvidence.numericEvidence }
         : {}),
+      ...(rowEvidence.isoDates ? { isoDates: rowEvidence.isoDates } : {}),
     });
     if (references.length >= 100) break;
   }

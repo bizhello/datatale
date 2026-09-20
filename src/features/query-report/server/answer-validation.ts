@@ -1,11 +1,12 @@
 import { type ArithmeticInput, validateArithmetic } from "./arithmetic";
-import { numericValues } from "./source-context";
+import { isoDateValues, numericValues } from "./source-context";
 
 type QueryResultReference = {
   id: string;
   excerpt?: string;
   numericValues?: number[];
   numericEvidence?: { value: number; unit?: string }[];
+  isoDates?: string[];
 };
 
 export function validateAnswerReferences(
@@ -34,6 +35,9 @@ export function validateAnswerReferences(
       (reference) => evidence.get(reference.id)?.numericValues ?? [],
     ),
   );
+  const evidenceDates = new Set(
+    trusted.flatMap((reference) => evidence.get(reference.id)?.isoDates ?? []),
+  );
   const derivedValue = arithmetic
     ? validateArithmetic(arithmetic, seen, evidence)
     : undefined;
@@ -45,5 +49,8 @@ export function validateAnswerReferences(
           1e-9 * Math.max(1, Math.abs(derivedValue)))
     )
       throw new Error("Answer contains a number absent from cited evidence.");
+  for (const date of isoDateValues(answer))
+    if (!evidenceDates.has(date))
+      throw new Error("Answer contains a date absent from cited evidence.");
   return trusted;
 }
