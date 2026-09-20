@@ -221,11 +221,11 @@ export const providerTextExtractionResponseSchema = z
         z
           .object({
             id: providerIdentifierString,
-            subject: providerLabelString,
-            value: z.number().finite(),
+            subject: providerLabelString.nullable(),
+            value: z.number().finite().nullable(),
             unit: providerUnitString.nullable(),
             period: providerPeriodString.nullable(),
-            role: z.enum(["snapshot", "change", "target"]),
+            role: z.enum(["snapshot", "change", "target"]).nullable(),
             paragraphIndex: z.number().int().positive(),
             quote: providerQuoteString,
           })
@@ -946,9 +946,9 @@ async function analyzeText(
     );
     if (!paragraph?.text.includes(observation.quote)) continue;
     if (
-      observation.subject !== undefined &&
-      observation.value !== undefined &&
-      observation.role !== undefined &&
+      observation.subject !== null &&
+      observation.value !== null &&
+      observation.role !== null &&
       quoteHasValue(observation.quote, observation.value) &&
       quoteHasExactPhrase(observation.quote, observation.subject) &&
       (observation.unit === undefined ||

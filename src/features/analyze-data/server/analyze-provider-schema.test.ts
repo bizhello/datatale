@@ -313,6 +313,26 @@ describe("provider-facing structured output", () => {
     ).toMatchObject({ observations: [{ subject: "dogs", role: "snapshot" }] });
   });
 
+  it("keeps qualitative quotations without inventing numeric fields", () => {
+    expect(
+      textExtractionFromProviderOutput({
+        facts: [],
+        observations: [
+          {
+            id: "direct-observation",
+            subject: null,
+            value: null,
+            unit: null,
+            period: null,
+            role: null,
+            paragraphIndex: 1,
+            quote: "Команда отметила задержку согласования.",
+          },
+        ],
+      }),
+    ).toMatchObject({ observations: [{ value: null, role: null }] });
+  });
+
   it("rejects a one-sentence hero before it can reach the dashboard", () => {
     expect(() =>
       narrativeFromProviderOutput({

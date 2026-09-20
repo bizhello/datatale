@@ -385,11 +385,11 @@ export const textExtractionResponseSchema = z
         z
           .object({
             id: identifierString,
-            subject: labelString.optional(),
-            value: z.number().finite().optional(),
-            unit: unitString.nullable().optional(),
-            period: periodString.nullable().optional(),
-            role: textObservationRoleSchema.optional(),
+            subject: labelString.nullable(),
+            value: z.number().finite().nullable(),
+            unit: unitString.nullable(),
+            period: periodString.nullable(),
+            role: textObservationRoleSchema.nullable(),
             paragraphIndex: z.number().int().positive(),
             quote: quoteString,
           })

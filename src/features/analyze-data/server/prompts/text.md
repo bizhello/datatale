@@ -59,7 +59,7 @@ Write each user-visible fact label in Russian. Preserve exact quotations, units,
 Return only the structured object requested by the caller. Do not add Markdown, commentary, analysis, or wrapper keys.
 
 - `facts` is retained only for legacy table-compatible extraction; use `observations` for every text quantity.
-- `observations` contains a bounded, meaningfully complete set of source-backed quantities. Each item has `subject`, `value`, nullable `unit` and `period`, `role` (`snapshot`, `change`, or `target`), `paragraphIndex`, and exact `quote`.
+- `observations` contains direct qualitative quotations and a bounded, meaningfully complete set of source-backed quantities. For a qualitative quotation set `subject`, `value`, `unit`, `period`, and `role` to null. For a quantity, `subject`, `value`, and `role` are required; only `unit` and `period` may be null.
 - `paragraphIndex` must identify the paragraph containing the quotation.
 - `quote` must be copied exactly and contiguously from that paragraph.
 - Never propose a chart. Text analysis uses quotation evidence only.
