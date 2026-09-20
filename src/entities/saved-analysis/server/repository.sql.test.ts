@@ -14,6 +14,63 @@ const validators = {
 };
 
 describe("saved analysis SQL repository boundaries", () => {
+  it("normalizes a persisted SQL null result for user messages", async () => {
+    const sql = vi.fn(async () => [
+      {
+        id: "message-1",
+        analysisId,
+        role: "user",
+        content: "What changed?",
+        result: null,
+        createdAt: now,
+      },
+    ]);
+    const repository = new SqlSavedAnalysisRepository(validators, sql as never);
+
+    await expect(
+      repository.messages({ workspaceId, analysisId, now }),
+    ).resolves.toEqual([
+      {
+        id: "message-1",
+        analysisId,
+        role: "user",
+        content: "What changed?",
+        result: undefined,
+        createdAt: now,
+      },
+    ]);
+  });
+
+  it("returns a newly inserted user message whose SQL result is null", async () => {
+    const sql = vi.fn(async () => [
+      {
+        message_id: "message-1",
+        analysis_id: analysisId,
+        role: "user",
+        content: "What changed?",
+        result: null,
+        created_at: now,
+        quotaExceeded: false,
+        messageConflict: false,
+      },
+    ]);
+    const repository = new SqlSavedAnalysisRepository(validators, sql as never);
+
+    await expect(
+      repository.appendMessage({
+        workspaceId,
+        analysisId,
+        message: { id: "message-1", role: "user", content: "What changed?" },
+        dailyLimit: 10,
+        now,
+      }),
+    ).resolves.toMatchObject({
+      id: "message-1",
+      role: "user",
+      result: undefined,
+    });
+  });
+
   it("fails closed when a summary row is corrupt", async () => {
     const sql = vi.fn(async () => [
       {
