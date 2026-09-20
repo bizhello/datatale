@@ -116,7 +116,7 @@ export function calculateObservationCharts(
       aggregation: {
         kind: "count",
         dimensionFieldId: "observation",
-        dimensionLabel: "Источник",
+        dimensionLabel: group.kind === "line" ? "Период" : "Категория",
       },
       observationIds: items.map((item) => item.id),
       points,

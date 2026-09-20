@@ -276,21 +276,21 @@ describe("provider-facing structured output", () => {
     });
     expect(
       textExtractionFromProviderOutput({
-        facts: [
+        observations: [
           {
             id: "fact",
-            label: "Revenue",
             subject: "Revenue",
             value: 12,
             unit: "RUB",
             period: "January",
+            role: "snapshot",
             paragraphIndex: 1,
             quote: "Revenue was 12 RUB in January.",
           },
         ],
-        observations: [],
+        chartGroups: [],
       }),
-    ).toMatchObject({ facts: [{ id: "fact", value: 12 }] });
+    ).toMatchObject({ observations: [{ id: "fact", value: 12 }] });
   });
 
   it("accepts nullable-period source observations with explicit roles", () => {
@@ -329,7 +329,6 @@ describe("provider-facing structured output", () => {
   it("keeps qualitative quotations without inventing numeric fields", () => {
     expect(
       textExtractionFromProviderOutput({
-        facts: [],
         observations: [
           {
             id: "direct-observation",
@@ -342,6 +341,7 @@ describe("provider-facing structured output", () => {
             quote: "Команда отметила задержку согласования.",
           },
         ],
+        chartGroups: [],
       }),
     ).toMatchObject({ observations: [{ value: null, role: null }] });
   });

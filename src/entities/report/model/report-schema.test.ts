@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   finalReportSchema,
-  REPORT_NARRATIVE_MAX_LENGTH,
   REPORT_QUOTE_MAX_LENGTH,
   textExtractionResponseSchema,
 } from "./schema";
@@ -45,54 +44,26 @@ describe("final report contract", () => {
         ],
       }).success,
     ).toBe(false));
-  it("bounds model-controlled text fields and requires text-fact context", () => {
+  it("bounds model-controlled text observations", () => {
     expect(
       textExtractionResponseSchema.safeParse({
-        facts: [
+        observations: [
           {
-            id: "fact",
-            label: "Metric",
+            id: "observation",
             subject: "Metric",
             value: 1,
             unit: "unit",
-            period: "January",
+            period: null,
+            role: "snapshot",
             paragraphIndex: 1,
             quote: "x".repeat(REPORT_QUOTE_MAX_LENGTH + 1),
           },
         ],
-        observations: [],
-      }).success,
-    ).toBe(false);
-    expect(
-      textExtractionResponseSchema.safeParse({
-        facts: [
-          {
-            id: "fact",
-            label: "Metric",
-            subject: "Metric",
-            value: 1,
-            unit: "unit",
-            paragraphIndex: 1,
-            quote: "1 unit in January",
-          },
-        ],
-        observations: [],
-      }).success,
-    ).toBe(false);
-    expect(
-      finalReportSchema.safeParse({
-        ...base,
-        noChartReason: "No visual relationship is supported.",
-        hero: [
-          {
-            text: "x".repeat(REPORT_NARRATIVE_MAX_LENGTH + 1),
-            factIds: ["f"],
-          },
-          { text: "Confirmed.", factIds: ["f"] },
-        ],
+        chartGroups: [],
       }).success,
     ).toBe(false);
   });
+
   it("rejects reports whose UTF-8 serialized form exceeds the storage budget", () => {
     const long = "я".repeat(REPORT_QUOTE_MAX_LENGTH);
     const report = {
