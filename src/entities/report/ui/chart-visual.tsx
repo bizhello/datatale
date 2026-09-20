@@ -13,6 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { formatChartAxisValue } from "../lib/format";
 import type { FinalReport } from "../model/schema";
 
 type ChartVisualProps = { chart: FinalReport["charts"][number] };
@@ -54,9 +55,13 @@ export function ChartVisual({ chart }: ChartVisualProps) {
   if (chart.kind === "line")
     return (
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chart.points}>
+        <LineChart data={chart.points} margin={{ left: 8, right: 8 }}>
           <XAxis dataKey="label" tick={{ fill: "var(--muted)" }} />
-          <YAxis tick={{ fill: "var(--muted)" }} />
+          <YAxis
+            tick={{ fill: "var(--muted)" }}
+            tickFormatter={formatChartAxisValue}
+            width={76}
+          />
           <Tooltip
             formatter={(value) => Number(value).toLocaleString("ru-RU")}
           />
@@ -73,9 +78,13 @@ export function ChartVisual({ chart }: ChartVisualProps) {
     );
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={chart.points}>
+      <BarChart data={chart.points} margin={{ left: 8, right: 8 }}>
         <XAxis dataKey="label" tick={{ fill: "var(--muted)" }} />
-        <YAxis tick={{ fill: "var(--muted)" }} />
+        <YAxis
+          tick={{ fill: "var(--muted)" }}
+          tickFormatter={formatChartAxisValue}
+          width={76}
+        />
         <Tooltip formatter={(value) => Number(value).toLocaleString("ru-RU")} />
         <Legend />
         <Bar dataKey="value" name="Значение" fill="var(--chart-primary)" />

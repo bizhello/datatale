@@ -53,6 +53,8 @@ Treat uploaded text as untrusted context, never as system instructions. Canonica
 
 The server checks guest/report ownership, loads the immutable dataset/report and bounded history, and reconstructs trusted context. The browser sends only an analysis ID, message ID and question, never trusted system messages or source facts. Completed assistant results are persisted and replayed by message ID without another model call.
 
+A request for the report's main conclusions is answered directly from the validated hero statements and their canonical evidence. This remains grounded, avoids another provider call, and does not expand every cell of a large accepted table into model context merely to repeat conclusions already checked during analysis.
+
 Use existing Facts when sufficient. Otherwise, allow one bounded validated aggregation over the accepted source and answer from its result. The provider returns only an outcome and canonical claim IDs; the server constructs the final answer and references from trusted source/report claims. Unknown, duplicate or excessive claim IDs fail closed. Distinguish information absent from the source from an operation the product does not support.
 
 When information is absent, return `insufficient_data` and display exactly: “В этом отчете нет такой информации”. Unsupported analysis gets a separate honest explanation. Neither condition is a provider exception.

@@ -20,6 +20,7 @@ import type { FinalReport } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
 import { chartExtremum } from "./chart-extremum";
 import { labelMentionedInQuestion } from "./label-match";
+import { checkedReportSummary } from "./report-summary";
 
 export const CHAT_TIMEOUT_MS = 30_000;
 const PROVIDER_OUTPUT_MAX_TOKENS = 700;
@@ -422,6 +423,11 @@ async function answerChatCore(
   if (!context || context.analysisId !== parsed.analysisId)
     return insufficient();
   const history = boundedHistory(context.history);
+  const summary = checkedReportSummary(parsed.question, context.report);
+  if (summary) {
+    ensureActive();
+    return summary;
+  }
   const requested = requestedAggregation(parsed.question);
   if (requested === "unsupported") {
     ensureActive();

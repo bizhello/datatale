@@ -2,6 +2,12 @@
 
 > **Historical record:** entries below describe the repository and verification state at the date shown. They are evidence of AI-assisted development, including mistakes and superseded designs, not current setup or operating instructions. Use [README.md](../README.md), [DELIVERY.md](DELIVERY.md), [DEPLOYMENT.md](DEPLOYMENT.md), [PRODUCT.md](PRODUCT.md), and [QUALITY.md](QUALITY.md) for the current project state.
 
+## Large-value chart and large-report chat correction · 2026-09-20
+
+The real 4,500-row CSV exposed two boundary failures. Recharts used its default narrow Y axis, so nine-digit sales ticks were clipped. The built-in `Какие главные выводы?` question unnecessarily expanded all 58,500 table cells into canonical provider claims and then rejected its own payload above 96 KiB, even though the validated report hero already contained the requested answer.
+
+Bar and line axes now reserve explicit space and use compact Russian tick labels while tooltips and accessible tables retain full precision. Main-conclusion questions read the validated hero and its canonical evidence directly, bounded by the chat answer contract, without a second provider call. A 350-million-value browser fixture proves every rendered Y tick remains inside the chart; a 4,500-row service fixture proves the suggested summary returns checked conclusions without invoking the provider. `bun run check:all` passed Biome, Steiger, strict TypeScript, 393 Vitest tests, the Turbopack production build, and 78 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit.
+
 ## Reproducible local setup and documentation audit · 2026-09-20
 
 A full canonical-document pass found that local setup omitted Neon provisioning, secret generation, environment requirements, command purpose, browser installation, and failure recovery. It also found stale 367/75 test counts, an outdated `0001`–`0005` production migration claim, an omitted access endpoint/feature, an inaccurate runtime description of Drizzle, a receipt-only persistence description, and an unsafe rollback promise after a destructive migration. README now distinguishes UI-only and full Neon/gateway modes, documents every package script and required variable, and explains that local development never migrates automatically. Historical worklog entries are explicitly separated from current operating instructions.
