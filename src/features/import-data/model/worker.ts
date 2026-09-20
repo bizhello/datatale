@@ -5,6 +5,7 @@ import { inputLimits } from "@/shared/config";
 import { ImportError } from "../lib/import-error";
 import { normalizeTable } from "./normalize";
 import { parseCsv } from "./parse-csv";
+import { prepareWorksheet } from "./prepare-worksheet";
 import type { WorkerRequest } from "./worker-protocol";
 
 export function preflightXlsx(bytes: Uint8Array) {
@@ -13,6 +14,7 @@ export function preflightXlsx(bytes: Uint8Array) {
   let failure: ImportError | undefined;
   let formulas = false;
   const physicalCells = { count: 0 };
+  const physicalRows = { count: 0 };
   const fail = (message: string, code: string) => {
     failure ??= new ImportError(message, code);
   };
@@ -31,6 +33,7 @@ export function preflightXlsx(bytes: Uint8Array) {
             formulas = true;
           },
           physicalCells,
+          physicalRows,
         )
       : undefined;
     const decoder = inspect ? new TextDecoder() : undefined;
@@ -70,20 +73,22 @@ function createWorksheetChecker(
   fail: (message: string, code: string) => void,
   foundFormula: () => void,
   physicalCells: { count: number },
+  physicalRows: { count: number },
 ) {
   let worksheet = false;
-  let dimension = false;
   const parser = new Parser({ proxy: true });
   parser.on("openTag", (element) => {
     const name = element.name.split(":").at(-1);
     if (name === "worksheet") worksheet = true;
-    if (worksheet && name === "dimension") {
-      dimension = true;
-      validateRange(element.attrs.ref, fail);
+    if (worksheet && name === "row") {
+      physicalRows.count += 1;
+      if (physicalRows.count > inputLimits.xlsxSparseRows)
+        fail("Лист содержит слишком много XML-строк.", "dimensions-limit");
+      validatePhysicalRow(element.attrs.r, fail);
     }
     if (worksheet && name === "c") {
       physicalCells.count += 1;
-      validateCoordinate(element.attrs.r, fail);
+      validatePhysicalCoordinate(element.attrs.r, fail);
       if (physicalCells.count > inputLimits.physicalCells)
         fail("Лист содержит слишком много ячеек.", "cells-limit");
     }
@@ -98,34 +103,34 @@ function createWorksheetChecker(
     },
     end() {
       parser.end();
-      if (worksheet && !dimension)
-        fail("В XLSX нет корректного размера листа.", "dimensions-limit");
     },
   };
 }
 
-function validateRange(
+function validatePhysicalRow(
   value: unknown,
   fail: (message: string, code: string) => void,
 ) {
-  if (typeof value !== "string") {
-    fail("В XLSX нет корректного размера листа.", "dimensions-limit");
-    return;
-  }
-  for (const coordinate of value.split(":"))
-    validateCoordinate(coordinate, fail);
+  if (
+    value !== undefined &&
+    (typeof value !== "string" ||
+      !/^[1-9]\d*$/.test(value) ||
+      Number(value) > inputLimits.xlsxSparseRows)
+  )
+    fail("Структура листа слишком разрежена.", "dimensions-limit");
 }
-function validateCoordinate(
+
+function validatePhysicalCoordinate(
   value: unknown,
   fail: (message: string, code: string) => void,
 ) {
   if (
     typeof value !== "string" ||
     !/^[A-Z]+[1-9]\d*$/.test(value) ||
-    coordinateColumn(value) > inputLimits.columns ||
-    coordinateRow(value) > inputLimits.rows + 1
+    coordinateColumn(value) > inputLimits.xlsxSparseColumns ||
+    coordinateRow(value) > inputLimits.xlsxSparseRows
   )
-    fail("Размер листа выходит за допустимые границы.", "dimensions-limit");
+    fail("Структура листа слишком разрежена.", "dimensions-limit");
 }
 
 function coordinateColumn(coordinate: string) {
@@ -197,19 +202,13 @@ self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
         "Выбранный лист больше недоступен.",
         "missing-sheet",
       );
-    inspectDimensions(selected.data);
-    const [headers, ...rows] = selected.data;
-    if (!headers)
-      throw new ImportError("В выбранном листе нет заголовка.", "empty-header");
-    const result = normalizeTable(
-      {
-        headers: headers.map((header) =>
-          header === null ? "" : String(header),
-        ),
-        rows,
-      },
-      { kind: "xlsx", filename: file.name, sheet: selected.sheet },
-    );
+    const table = prepareWorksheet(selected.data);
+    inspectDimensions([table.headers, ...table.rows]);
+    const result = normalizeTable(table, {
+      kind: "xlsx",
+      filename: file.name,
+      sheet: selected.sheet,
+    });
     self.postMessage({
       id,
       kind: "success",

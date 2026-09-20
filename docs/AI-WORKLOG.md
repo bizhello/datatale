@@ -281,3 +281,13 @@ The review also exposed a stateless-repair defect: the second table-planning cal
 **Correction:** the exact entity-owned synthetic dataset now uses a separate namespaced one-call IP bucket inside the existing atomic quota transaction. Workspace and global limits still apply, arbitrary sources retain the ordinary bucket, and server-side matching checks the complete canonical columns, values, row identities, filename, and provenance rather than trusting a client demo flag.
 
 **Evidence:** entity regressions reject modified demo sources, the route proves exact demo and focused-demo requests use the isolated bucket while changed data does not, and the dashboard test proves the client submits the same canonical fixture recognized by the server.
+
+## 2026-09-20 — generated XLSX empty-tail recovery
+
+**Observed failure:** `pseudodata.xlsx` contained 4,500 data rows but also 4,500 self-closing empty XML rows through row 9005 and omitted the optional worksheet `dimension`. Preflight treated every physical coordinate as business data and rejected the first empty cell beyond row 5001. The workbook also placed its real header after introductory report rows, and its validated canonical dataset occupied 1,832,670 bytes, exposing a mismatch with the former 1 MiB ceiling.
+
+**Correction:** archive expansion, entry, physical-cell, physical-row, sparse-coordinate, and worker-time limits remain bounded. Worksheet dimensions are advisory; logical row and column limits now apply after safe parsing and header preparation. Rectangular workbook output is reduced only across empty padding, while populated out-of-table cells and ambiguous all-string headers fail explicitly instead of being silently discarded. The canonical source ceiling now matches the existing 2 MiB upload ceiling.
+
+**AI review correction:** successive independent review passes rejected early heuristics that trusted absolute filled-cell coordinates, modal effective width, or the first typed value across the entire sheet. Concrete counterexamples covered typed metadata, same-width captions, blank headers, sparse optional columns, padded footer notes, internal blank rows, and omitted row coordinates. The final implementation uses bounded XML guards, repeated populated-column evidence, typed-data lookahead scoped to the inferred table, and an explicit ambiguous-header error.
+
+**Evidence:** the exact local workbook imports in-browser as 4,500 × 13 with source provenance rows 6–4505. The repository gate passes 362 Vitest tests and the production build; the complete 75-scenario Playwright matrix passed during the change, followed by the focused nine-scenario XLSX matrix after the final parser corrections. Independent review approved the final diff without material findings.
