@@ -36,6 +36,28 @@ describe("executeDatasetQuery", () => {
     expect(result.truncated).toBe(false);
   });
 
+  it("treats absent values as null for contains", () => {
+    const result = executeDatasetQuery(
+      {
+        ...syntheticDatasetFixture,
+        rows: [
+          ...syntheticDatasetFixture.rows,
+          {
+            id: "null-note",
+            values: { date: "2026-03-01", revenue: 1, paid: false, note: null },
+            provenance: { sourceRowNumber: 4 },
+          },
+        ],
+      },
+      {
+        queryId: "null-contains",
+        filters: [{ fieldId: "note", operator: "contains", value: "January" }],
+        select: ["note"],
+      },
+    );
+    expect(result.matchedRows).toBe(1);
+  });
+
   it("supports contains, grouping, and every aggregate with nulls ignored", () => {
     const dataset = {
       ...syntheticDatasetFixture,

@@ -27,7 +27,7 @@ The application validates the query against the entity-owned schema, checks fiel
 
 ## Answering from results
 
-On the answer call, use only the returned rows, groups, metrics, and references. Do not recalculate, round, interpolate, infer a missing value, or claim a trend that the results do not show. Use Russian number formatting only when it preserves the provided value. Cite one or more returned reference IDs for every source-backed answer; cite only IDs in the returned reference list and never invent or reuse a source row that was not returned. If no returned rows support the requested fact, return `not_in_source`. For a follow-up, use history only to resolve the referent; query results remain the evidence.
+On the answer call, use only the returned rows, groups, metrics, and references. Do not recalculate, round, interpolate, infer a missing value, share, growth rate, or trend. Answer share and growth questions only when the application supplies those exact derived values; otherwise return `unsupported_operation`. Use Russian number formatting only when it preserves the provided value. Cite one or more returned reference IDs for every source-backed answer; cite only IDs in the returned reference list and never invent or reuse a source row that was not returned. If no returned rows support the requested fact, return `not_in_source`. For a follow-up, use history only to resolve the referent; query results remain the evidence.
 
 ## Text sources
 

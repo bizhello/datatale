@@ -54,7 +54,8 @@ function matches(
   dataset: Dataset,
 ): boolean {
   const field = column(dataset, filter.fieldId);
-  const actual = row.values[filter.fieldId] as Scalar;
+  const actualValue = row.values[filter.fieldId] as Scalar | undefined;
+  const actual: Scalar = actualValue === undefined ? null : actualValue;
   const expected = filter.value;
   if (Array.isArray(expected)) {
     if (filter.operator !== "in")
@@ -72,9 +73,9 @@ function matches(
   if (!compatible(expected, field.scalarType))
     fail(`Value for "${filter.fieldId}" does not match its column type.`);
   if (filter.operator === "contains") {
+    if (actual === null) return false;
     if (
       expected === null ||
-      actual === null ||
       typeof actual !== "string" ||
       typeof expected !== "string"
     )

@@ -94,14 +94,19 @@ describe("planned grounded chat", () => {
       expect(JSON.parse(prompt).paragraphs).toEqual([
         { id: "paragraph-1", text: text.paragraphs[0]?.text },
       ]);
-      return wireAnswer("Команда победила.", [{ id: "paragraph-1" }]);
+      return {
+        ...wireAnswer("Команда победила.", [{ id: "paragraph-1" }]),
+        references: [{ id: "paragraph-1", excerpt: "поддельная цитата" }],
+      };
     });
     await expect(
       answerChat(request, { loadContext: async () => context(text), provider }),
     ).resolves.toEqual({
       outcome: "answered",
       answer: "Команда победила.",
-      references: [{ id: "paragraph-1" }],
+      references: [
+        { id: "paragraph-1", excerpt: "Краснодарская команда победила." },
+      ],
     });
   });
   it("executes a model plan and grounds the second call in query references", async () => {
@@ -148,7 +153,9 @@ describe("planned grounded chat", () => {
           limit: 10,
         }),
       )
-      .mockResolvedValueOnce(wireAnswer("Продажи: 10.", [{ id: "row-r1" }]));
+      .mockResolvedValueOnce(
+        wireAnswer("Продажи: 10.", [{ id: "query-chat" }]),
+      );
     await expect(
       answerChat(
         { ...request, question: "Продажи в Краснодаре" },
@@ -201,11 +208,14 @@ describe("planned grounded chat", () => {
       )
       .mockResolvedValueOnce(wireAnswer("Да", [{ id: "missing" }]));
     await expect(
-      answerChat(request, {
-        loadContext: async () => context(dataset),
-        provider,
-        queryExecutor: executor,
-      }),
+      answerChat(
+        { ...request, question: "Продажи в City-59" },
+        {
+          loadContext: async () => context(dataset),
+          provider,
+          queryExecutor: executor,
+        },
+      ),
     ).rejects.toMatchObject({ code: "invalid_provider_output" });
   });
 
@@ -222,7 +232,8 @@ describe("planned grounded chat", () => {
       });
       await expect(
         answerChat(request, {
-          loadContext: async () => context(dataset),
+          loadContext: async () =>
+            context(outcome === "not_in_source" ? text : dataset),
           provider,
           queryExecutor: { execute: vi.fn() },
         }),
@@ -265,5 +276,36 @@ describe("planned grounded chat", () => {
         queryExecutor: { execute: vi.fn() },
       }),
     ).rejects.toMatchObject({ code: "invalid_provider_output" });
+  });
+
+  it("uses bounded top categorical candidates for high-cardinality profiles", async () => {
+    const large: Dataset = {
+      ...dataset,
+      rows: Array.from({ length: 60 }, (_, index) => ({
+        id: `r-${index}`,
+        values: { city: `City-${index}`, sales: index },
+        provenance: { sourceRowNumber: index + 2 },
+      })),
+    };
+    const provider = vi.fn(async ({ prompt }: { prompt: string }) => {
+      const profile = JSON.parse(prompt);
+      expect(profile.columns[0].values).toHaveLength(40);
+      expect(profile.columns[0].candidateSearch).toBeUndefined();
+      return {
+        ...emptyWire,
+        outcome: "clarification",
+        message: "Уточните город.",
+      };
+    });
+    await expect(
+      answerChat(
+        { ...request, question: "Продажи в City-59" },
+        {
+          loadContext: async () => context(large),
+          provider,
+          queryExecutor: { execute: vi.fn() },
+        },
+      ),
+    ).resolves.toMatchObject({ outcome: "clarification" });
   });
 });

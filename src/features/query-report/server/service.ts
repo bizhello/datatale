@@ -159,7 +159,7 @@ const providerEnvelopeSchema = z
           ),
       )
       .max(20),
-    limit: z.number().int().min(0).max(1_000),
+    limit: z.number().int().min(0).max(100),
   })
   .strict();
 type ProviderEnvelope = z.output<typeof providerEnvelopeSchema>;
@@ -278,52 +278,68 @@ function sourceReferences(
         excerpt: paragraph.text,
       }));
 }
-function columns(source: Dataset) {
+function columns(source: Dataset, question: string) {
+  const normalizedQuestion = question.toLocaleLowerCase("ru-RU").trim();
   return source.columns.map((column) => {
-    const values = [
-      ...new Set(
-        source.rows
-          .map((row) => row.values[column.id])
-          .filter(
-            (value): value is string | number | boolean => value !== null,
-          ),
-      ),
-    ];
+    const counts = new Map<string | number | boolean, number>();
+    for (const value of source.rows.map((row) => row.values[column.id])) {
+      if (value !== null && value !== undefined)
+        counts.set(value, (counts.get(value) ?? 0) + 1);
+    }
+    const values = [...counts.keys()];
+    const frequent = values
+      .sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0))
+      .slice(0, MAX_DISTINCT_VALUES);
+    const questionCandidates = values.filter(
+      (value): value is string =>
+        typeof value === "string" &&
+        (normalizedQuestion.includes(value.toLocaleLowerCase("ru-RU")) ||
+          value.toLocaleLowerCase("ru-RU").includes(normalizedQuestion)),
+    );
+    const candidates = [...new Set([...questionCandidates, ...frequent])].slice(
+      0,
+      MAX_DISTINCT_VALUES,
+    );
     return {
       id: column.id,
       label: column.label,
       scalarType: column.scalarType,
       ...(column.unit ? { unit: column.unit } : {}),
-      ...(values.length <= MAX_DISTINCT_VALUES
-        ? { values }
-        : { values: [], candidateSearch: "available" }),
+      values: candidates,
+      ...(values.length > MAX_DISTINCT_VALUES
+        ? { candidateCount: values.length }
+        : {}),
     };
   });
 }
 function validateReferences(
   references: Array<{ id: string; excerpt?: string | undefined }>,
-  allowed: Set<string>,
+  evidence: Map<string, string>,
+  requiredId?: string,
 ) {
   if (references.length < 1 || references.length > 7)
     throw new Error("Answer must cite source references.");
   const seen = new Set<string>();
-  return references.map((reference) => {
-    if (seen.has(reference.id) || !allowed.has(reference.id))
+  const result = references.map((reference) => {
+    if (seen.has(reference.id) || !evidence.has(reference.id))
       throw new Error("Answer cited unknown or duplicate source reference.");
     seen.add(reference.id);
     return {
       id: reference.id,
-      ...(reference.excerpt
-        ? { excerpt: reference.excerpt.slice(0, 1_000) }
-        : {}),
+      excerpt: evidence.get(reference.id) as string,
     };
   });
+  if (requiredId && !seen.has(requiredId))
+    throw new Error("Numeric answer must cite the query result reference.");
+  return result;
 }
 function fieldId(field: string | { fieldId: string }) {
   return typeof field === "string" ? field : field.fieldId;
 }
 function validateQuery(query: DatasetQuery, source: Dataset): DatasetQuery {
   const parsed = datasetQuerySchema.parse(query);
+  if (parsed.limit > 100)
+    throw new Error("Chat query limit exceeds the provider evidence bound.");
   const fields = [
     ...parsed.select.map(fieldId),
     ...(parsed.groupBy ? [fieldId(parsed.groupBy)] : []),
@@ -388,7 +404,7 @@ function resultReferences(
   const references: QueryResultReference[] = [
     {
       id: `query-${result.queryId}`,
-      excerpt: `Найдено строк: ${result.matchedRows}; просмотрено строк: ${result.scannedRows}.`,
+      excerpt: `Метрики: ${JSON.stringify(result.metrics)}; найдено строк: ${result.matchedRows}; просмотрено строк: ${result.scannedRows}.`,
     },
   ];
   const seen = new Set<string>();
@@ -405,35 +421,6 @@ function resultReferences(
   }
   return references;
 }
-function derivedEvidence(result: DatasetQueryResult) {
-  const derived: Array<Record<string, string | number>> = [];
-  for (const [metricId, total] of Object.entries(result.metrics)) {
-    if (total === null || !Number.isFinite(total)) continue;
-    let previous: number | null = null;
-    for (const [index, group] of result.groups.entries()) {
-      const value = group.metrics[metricId];
-      if (value === null || value === undefined || !Number.isFinite(value)) {
-        previous = null;
-        continue;
-      }
-      const item: Record<string, string | number> = {
-        metricId,
-        groupIndex: index,
-        value,
-        shareOfTotal: total === 0 ? 0 : (value / total) * 100,
-      };
-      if (previous !== null) {
-        item.differenceFromPrevious = value - previous;
-        item.percentChangeFromPrevious =
-          previous === 0 ? 0 : ((value - previous) / Math.abs(previous)) * 100;
-      }
-      derived.push(item);
-      previous = value;
-    }
-  }
-  return derived;
-}
-
 async function answerChatCore(
   request: ChatRequest,
   dependencies: ChatDependencies,
@@ -458,8 +445,11 @@ async function answerChatCore(
     return notInSource();
   const provider = dependencies.provider ?? defaultProvider;
   const history = boundedHistory(context.history);
-  const allowed = new Set(
-    sourceReferences(context.source).map((reference) => reference.id),
+  const allowed = new Map(
+    sourceReferences(context.source).map((reference) => [
+      reference.id,
+      reference.excerpt ?? "",
+    ]),
   );
   if (!("rows" in context.source)) {
     if (context.source.rawText.length > 30_000)
@@ -505,7 +495,7 @@ async function answerChatCore(
     return unsupported("Операции с таблицей временно недоступны.");
   const profile = {
     kind: "dataset",
-    columns: columns(context.source),
+    columns: columns(context.source, parsed.question),
     rowCount: context.source.rows.length,
     question: parsed.question,
     history,
@@ -522,7 +512,11 @@ async function answerChatCore(
     );
   }
   if (intent.outcome === "clarification") return clarification(intent.message);
-  if (intent.outcome === "not_in_source") return notInSource();
+  if (intent.outcome === "not_in_source")
+    throw new ChatProviderError(
+      "invalid_provider_output",
+      "Dataset absence requires an executed query.",
+    );
   if (intent.outcome === "unsupported_operation")
     return unsupported(intent.message);
   let query: DatasetQuery = decodeQuery(intent);
@@ -578,7 +572,9 @@ async function answerChatCore(
     throw error;
   }
   const references = resultReferences(result, context.source);
-  const finalAllowed = new Set(references.map((reference) => reference.id));
+  const finalAllowed = new Map(
+    references.map((reference) => [reference.id, reference.excerpt ?? ""]),
+  );
   const rawAnswer = await callProvider(
     provider,
     {
@@ -591,7 +587,6 @@ async function answerChatCore(
         rowReferences: group.rowReferences.slice(0, 5),
       })),
       metrics: result.metrics,
-      derived: derivedEvidence(result),
       matchedRows: result.matchedRows,
       scannedRows: result.scannedRows,
       returnedRows: result.returnedRows,
@@ -606,7 +601,13 @@ async function answerChatCore(
       return chatResultSchema.parse({
         outcome: "answered",
         answer: output.answer,
-        references: validateReferences(output.references, finalAllowed),
+        references: validateReferences(
+          output.references,
+          finalAllowed,
+          Object.keys(result.metrics).length > 0
+            ? `query-${result.queryId}`
+            : undefined,
+        ),
       });
     if (output.outcome === "clarification")
       return clarification(output.message);
