@@ -1,5 +1,4 @@
 "use client";
-import { Chip } from "@heroui/react";
 import { BarChart3, BookOpen } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { Dataset, TextSource } from "@/entities/dataset";
@@ -74,12 +73,9 @@ export function DashboardShell() {
           <span className="brand-icon">
             <BookOpen size={20} aria-hidden="true" />
           </span>
-          datatale<span className="brand-dot">.</span>
+          datatale
         </a>
         <div className="header-actions">
-          <Chip className="local-badge" size="sm" variant="soft">
-            Локальная проверка
-          </Chip>
           <ThemeControl />
         </div>
       </header>
@@ -143,14 +139,21 @@ export function DashboardShell() {
         {onboardingActive && <OnboardingDemo />}
       </main>
       <footer>
-        <span>DataTale / From data to a point of view</span>
-        <span>
-          <BarChart3 size={14} aria-hidden="true" /> Проверенный источник
-        </span>
-        <OnboardingTour
-          hydrated={mounted}
-          onSessionChange={setOnboardingActive}
-        />
+        <div className="footer-copy">
+          <strong className="footer-brand-name">datatale</strong>
+          <span className="footer-tagline">
+            Данные превращаются в понятную историю
+          </span>
+        </div>
+        <div className="footer-actions">
+          <span className="footer-trust">
+            <BarChart3 size={14} aria-hidden="true" /> Проверяем расчёты
+          </span>
+          <OnboardingTour
+            hydrated={mounted}
+            onSessionChange={setOnboardingActive}
+          />
+        </div>
       </footer>
     </div>
   );

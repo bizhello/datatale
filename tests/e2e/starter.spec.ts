@@ -684,6 +684,23 @@ test("fits mobile and has no automated accessibility violations", async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(page.getByText("ПОСЛЕ ПРОВЕРКИ ИСТОЧНИКА")).toBeVisible();
+  await expect(page.getByText("Локальная проверка")).toHaveCount(0);
+  await expect(page.locator(".brand")).toHaveText("datatale");
+  await expect(
+    page.getByText("Данные превращаются в понятную историю"),
+  ).toBeVisible();
+  const footerTrustAlignment = await page
+    .locator(".footer-trust")
+    .evaluate((trust) => {
+      const icon = trust.querySelector("svg");
+      const trustBox = trust.getBoundingClientRect();
+      const iconBox = icon?.getBoundingClientRect();
+      if (!iconBox) throw new Error("Footer trust icon is unavailable.");
+      return Math.abs(
+        iconBox.top + iconBox.height / 2 - (trustBox.top + trustBox.height / 2),
+      );
+    });
+  expect(footerTrustAlignment).toBeLessThanOrEqual(1);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
