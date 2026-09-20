@@ -278,6 +278,65 @@ describe("planned grounded chat", () => {
     });
   });
 
+  it("repairs an unfiltered existence plan and refuses after the filtered query finds no rows", async () => {
+    const executor = {
+      execute: vi.fn(async (_dataset: Dataset, query: DatasetQuery) => {
+        expect(query.filters).toEqual([
+          { fieldId: "city", operator: "eq", value: "Самара" },
+        ]);
+        return {
+          queryId: query.queryId,
+          rows: [],
+          groups: [],
+          metrics: { count: 0 },
+          matchedRows: 0,
+          scannedRows: 1,
+          returnedRows: 0,
+          truncated: false,
+          rowReferences: [],
+        };
+      }),
+    };
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(
+        wireQuery({
+          metrics: [{ id: "count", aggregation: "count", fieldId: "" }],
+          limit: 1,
+        }),
+      )
+      .mockResolvedValueOnce(
+        wireQuery({
+          filters: [
+            {
+              fieldId: "city",
+              operator: "eq",
+              valueKind: "string",
+              values: ["Самара"],
+            },
+          ],
+          metrics: [{ id: "count", aggregation: "count", fieldId: "" }],
+          limit: 1,
+        }),
+      );
+
+    await expect(
+      answerChat(
+        { ...request, question: "Есть ли Самара в данных?" },
+        {
+          loadContext: async () => context(dataset),
+          provider,
+          queryExecutor: executor,
+        },
+      ),
+    ).resolves.toEqual({
+      outcome: "not_in_source",
+      message: "В этом отчете нет такой информации",
+    });
+    expect(provider).toHaveBeenCalledTimes(2);
+    expect(executor.execute).toHaveBeenCalledOnce();
+  });
+
   it("accepts a Russian thousands-separated rendering of a numeric table result", async () => {
     const executor = {
       execute: vi.fn(async (_dataset: Dataset, query: DatasetQuery) => ({

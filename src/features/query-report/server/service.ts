@@ -100,7 +100,13 @@ const unsupported = (
 function fieldId(field: string | { fieldId: string }) {
   return typeof field === "string" ? field : field.fieldId;
 }
-function validateQuery(query: DatasetQuery, source: Dataset): DatasetQuery {
+const existenceQuestion =
+  /(?:^|[\s,.!?])(?:есть|имеется|присутствует|содержится|существует)\s+ли(?:[\s,.!?]|$)/iu;
+function validateQuery(
+  query: DatasetQuery,
+  source: Dataset,
+  question: string,
+): DatasetQuery {
   const parsed = datasetQuerySchema.parse(query);
   validateDatasetQuery(source, parsed);
   if (parsed.limit > 100)
@@ -131,6 +137,14 @@ function validateQuery(query: DatasetQuery, source: Dataset): DatasetQuery {
     )
       throw new Error("Numeric metric requires a numeric field.");
   }
+  if (
+    existenceQuestion.test(question) &&
+    parsed.filters.length === 0 &&
+    !parsed.groupBy
+  )
+    throw new Error(
+      "An existence question must filter or group the requested entity; an unfiltered row count cannot prove presence or absence.",
+    );
   return parsed;
 }
 async function defaultProvider({
@@ -306,6 +320,7 @@ async function answerChatCore(
       query = validateQuery(
         decodeQuery(candidate, parsed.messageId),
         context.source,
+        parsed.question,
       );
       break;
     } catch (error) {
@@ -355,6 +370,7 @@ async function answerChatCore(
       );
     throw error;
   }
+  if (result.matchedRows === 0) return notInSource();
   const references = buildResultReferences(result, context.source, query);
   const finalAllowed = new Map(
     references.map((reference) => [reference.id, reference]),
