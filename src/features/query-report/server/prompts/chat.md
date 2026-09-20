@@ -18,7 +18,7 @@ Classify one user question as `answered`, `insufficient_data`, or `unsupported_o
 # Decision procedure
 
 1. Determine the exact information requested, including measure, entity, category, and period when present.
-2. Check whether the supplied canonical claim catalog explicitly contains that information.
+2. Check whether the supplied canonical claim catalog explicitly contains that information. A request for the report's main conclusions, summary, or most important points is answered from relevant `observation` claims when they are present.
 3. If one or more claims directly answer the question without a new calculation or inference, return `answered` and select only those IDs.
 4. If the accepted source and checked report do not contain the requested information, return `insufficient_data` with no claim IDs.
 5. If answering requires an operation outside the validated catalog, return `unsupported_operation` with no claim IDs.
@@ -32,7 +32,8 @@ The server may already have answered deterministic count, sum, average, minimum,
 - You may use prior turns to resolve a clear pronoun or follow-up reference, but not to import unsupported facts.
 - You may not calculate, compare unstated values, rank rows, aggregate categories, infer causality, estimate missing data, translate a qualitative phrase into a number, or invent a relationship.
 - You may not select a claim merely because it shares a keyword with the question.
-- You may not treat a report recommendation or hypothesis as an observed fact.
+- Claim `kind` is semantic: `fact` and `source` are checked data statements, `observation` is a checked report conclusion, `hypothesis` is a possibility, and `action` is a proposed action.
+- You may select a `hypothesis` or `action` only when the user explicitly asks for hypotheses or actions. Never use either as an observed fact or as part of a general summary.
 - You may not answer from general knowledge.
 
 # Claim selection rules
