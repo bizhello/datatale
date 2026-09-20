@@ -21,25 +21,30 @@ function compatible(observations: TextObservation[]): boolean {
     new Set(observations.map((item) => item.unit)).size === 1
   );
 }
-function monthRank(period: string): number {
-  const months = [
-    "январь",
-    "февраль",
-    "март",
-    "апрель",
-    "май",
-    "июнь",
-    "июль",
-    "август",
-    "сентябрь",
-    "октябрь",
-    "ноябрь",
-    "декабрь",
+function periodRank(period: string): number | undefined {
+  const normalized = period.toLocaleLowerCase("ru-RU");
+  const iso = normalized.match(/\b(\d{4})-(\d{2})(?:-\d{2})?\b/u);
+  if (iso) return Number(iso[1]) * 12 + Number(iso[2]) - 1;
+  const monthStems = [
+    ["январ", "january"],
+    ["феврал", "february"],
+    ["март", "march"],
+    ["апрел", "april"],
+    ["мая", "май", "may"],
+    ["июн", "june"],
+    ["июл", "july"],
+    ["август", "august"],
+    ["сентябр", "september"],
+    ["октябр", "october"],
+    ["ноябр", "november"],
+    ["декабр", "december"],
   ];
-  const value = months.indexOf(
-    period.toLocaleLowerCase("ru-RU").split(/\s+/u)[0] ?? "",
+  const month = monthStems.findIndex((stems) =>
+    stems.some((stem) => normalized.includes(stem)),
   );
-  return value < 0 ? Number.MAX_SAFE_INTEGER : value;
+  if (month < 0) return undefined;
+  const year = normalized.match(/\b(19|20)\d{2}\b/u)?.[0];
+  return year ? Number(year) * 12 + month : month;
 }
 
 /** Builds points only for explicit model-proposed groups after compatibility checks. */
@@ -65,16 +70,24 @@ export function calculateObservationCharts(
         new Set(items.map((item) => item.subject)).size !== 1
       )
         continue;
-      items.sort(
-        (left, right) =>
-          monthRank(left.period as string) - monthRank(right.period as string),
-      );
+      items.sort((left, right) => {
+        const leftRank = periodRank(left.period as string);
+        const rightRank = periodRank(right.period as string);
+        if (leftRank === undefined || rightRank === undefined) return 0;
+        return leftRank - rightRank;
+      });
     }
     let points: Array<{ label: string; value: number }>;
     if (group.derivation === "current-target") {
-      const target = items.find((item) => item.role === "target");
+      const targets = items.filter((item) => item.role === "target");
       const snapshots = items.filter((item) => item.role === "snapshot");
-      if (!target || snapshots.length < 1) continue;
+      if (
+        targets.length !== 1 ||
+        snapshots.length < 1 ||
+        snapshots.length + targets.length !== items.length
+      )
+        continue;
+      const target = targets[0] as TextObservation;
       points = [
         {
           label: "Текущее значение (расчёт)",
@@ -83,9 +96,14 @@ export function calculateObservationCharts(
         { label: "Цель", value: target.value },
       ];
     } else if (group.derivation === "baseline-change") {
-      const baseline = items.find((item) => item.role === "snapshot");
-      const change = items.find((item) => item.role === "change");
+      const snapshots = items.filter((item) => item.role === "snapshot");
+      const changes = items.filter((item) => item.role === "change");
+      const baseline = snapshots[0];
+      const change = changes[0];
       if (
+        snapshots.length !== 1 ||
+        changes.length !== 1 ||
+        items.length !== 2 ||
         !baseline ||
         !change ||
         group.operation === "none" ||

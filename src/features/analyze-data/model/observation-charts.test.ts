@@ -74,6 +74,30 @@ describe("calculateObservationCharts", () => {
     ]);
   });
 
+  it("orders Russian inflected month periods across years", () => {
+    const charts = calculateObservationCharts(
+      [
+        observation("jan", "Revenue", 150, "в январе 2026"),
+        observation("dec", "Revenue", 100, "декабрь 2025"),
+      ],
+      [
+        {
+          id: "dated-revenue",
+          kind: "line",
+          title: "Динамика",
+          rationale: "Периоды",
+          observationIds: ["jan", "dec"],
+          derivation: "direct",
+        },
+      ],
+      (id) => `e-${id}`,
+    );
+    expect(charts[0]?.points).toEqual([
+      { label: "декабрь 2025", value: 100 },
+      { label: "в январе 2026", value: 150 },
+    ]);
+  });
+
   it("keeps a target outside species and preserves a baseline plus change", () => {
     const charts = calculateObservationCharts(
       [
@@ -185,5 +209,40 @@ describe("calculateObservationCharts", () => {
       label: "Итого (расчёт)",
       value: 3,
     });
+  });
+
+  it("rejects ambiguous derivation role cardinality", () => {
+    const observations = [
+      observation("baseline", "A", 5),
+      observation("second-baseline", "A", 4),
+      observation("change", "A", 2, "today", "change"),
+      observation("target-a", "A", 10, null, "target"),
+      observation("target-b", "A", 12, null, "target"),
+    ];
+    expect(
+      calculateObservationCharts(
+        observations,
+        [
+          {
+            id: "ambiguous-target",
+            kind: "bar",
+            title: "Target",
+            rationale: "Invalid",
+            observationIds: ["baseline", "target-a", "target-b"],
+            derivation: "current-target",
+          },
+          {
+            id: "ambiguous-change",
+            kind: "bar",
+            title: "Change",
+            rationale: "Invalid",
+            observationIds: ["baseline", "second-baseline", "change"],
+            derivation: "baseline-change",
+            operation: "increase",
+          },
+        ],
+        (id) => id,
+      ),
+    ).toEqual([]);
   });
 });
