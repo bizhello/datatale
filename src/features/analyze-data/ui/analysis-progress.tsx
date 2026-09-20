@@ -2,6 +2,7 @@
 
 import { ProgressBar, Skeleton } from "@heroui/react";
 import { Check, LoaderCircle } from "lucide-react";
+import { analysisStageIndex } from "../model/analysis-progress";
 import type { AnalysisPhase } from "../model/analysis-state";
 
 type AnalysisProgressProps = {
@@ -30,9 +31,11 @@ export function AnalysisProgress({
   sourceKind,
 }: AnalysisProgressProps) {
   const stages = sourceKind === "text" ? textStages : tableStages;
-  const activeIndex = phase === "session-setup" ? 0 : 1;
+  const activeIndex = analysisStageIndex(progress, phase === "session-setup");
   const activeLabel =
-    stages[activeIndex]?.label ?? stages[0]?.label ?? "Анализ";
+    (activeIndex === undefined ? undefined : stages[activeIndex]?.label) ??
+    stages[0]?.label ??
+    "Анализ";
   const statusLabel =
     progress >= 100
       ? "Анализ завершён"
@@ -44,7 +47,7 @@ export function AnalysisProgress({
     <div className="report-loading">
       <div className="analysis-progress-heading">
         <span className="analysis-progress-icon" aria-hidden="true">
-          <LoaderCircle className="spin" />
+          {progress >= 100 ? <Check /> : <LoaderCircle className="spin" />}
         </span>
         <div>
           <h2>Готовим анализ</h2>
@@ -69,10 +72,12 @@ export function AnalysisProgress({
       <ol className="analysis-progress-stages" aria-label="Этапы анализа">
         {stages.map((stage, index) => {
           const isActive = index === activeIndex;
-          const isComplete = index < activeIndex;
+          const isComplete = progress >= 100 || index < (activeIndex ?? 0);
           return (
             <li
-              className={isActive ? "is-active" : undefined}
+              className={
+                isActive ? "is-active" : isComplete ? "is-complete" : undefined
+              }
               aria-current={isActive ? "step" : undefined}
               key={stage.id}
             >

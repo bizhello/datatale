@@ -630,12 +630,21 @@ footer {
   font-size: 0.78rem;
 }
 .analysis-progress-stages {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin: 20px 0 24px;
   padding: 0;
   list-style: none;
+}
+.analysis-progress-stages::before {
+  position: absolute;
+  top: 11px;
+  right: calc(25% - 11px);
+  left: 11px;
+  border-top: 1px dashed var(--line);
+  content: "";
 }
 .report-loading {
   width: 100%;
@@ -662,6 +671,8 @@ footer {
   min-height: 260px;
 }
 .analysis-progress-stages li {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -683,11 +694,20 @@ footer {
   border-radius: 50%;
   font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
+  background: var(--surface);
 }
 .analysis-progress-stages li.is-active .analysis-stage-marker {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
+}
+.analysis-progress-stages li.is-complete {
+  color: var(--foreground);
+}
+.analysis-progress-stages li.is-complete .analysis-stage-marker {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--background);
 }
 .analysis-stage-marker svg {
   width: 14px;
@@ -1268,7 +1288,16 @@ footer {
     grid-template-columns: auto 1fr;
   }
   .analysis-progress-stages {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .analysis-progress-stages::before {
+    top: 11px;
+    right: auto;
+    bottom: 11px;
+    left: 11px;
+    border-top: 0;
+    border-left: 1px dashed var(--line);
   }
   .loading-state > .button {
     grid-column: 1 / -1;

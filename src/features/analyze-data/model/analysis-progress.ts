@@ -2,8 +2,11 @@ export const ANALYSIS_PROGRESS_CONFIG = {
   table: { estimateMs: 22_000 },
   text: { estimateMs: 20_000 },
   estimatedCap: 95,
-  completionDelayMs: 320,
+  completionStageDelayMs: 180,
+  completionHoldMs: 650,
 } as const;
+
+export const ANALYSIS_STAGE_THRESHOLDS = [0, 20, 50, 75] as const;
 
 type AnalysisSourceKind = keyof Pick<
   typeof ANALYSIS_PROGRESS_CONFIG,
@@ -60,4 +63,25 @@ export function estimateAnalysisProgress(
     .reverse()
     .find((candidate) => candidate.atMs <= elapsedMs);
   return checkpoint?.value ?? 0;
+}
+
+export function analysisStageIndex(
+  progress: number,
+  isSessionSetup: boolean,
+): number | undefined {
+  if (progress >= 100) return undefined;
+  if (isSessionSetup) return 0;
+  const index = [...ANALYSIS_STAGE_THRESHOLDS]
+    .map((threshold, candidate) => ({ threshold, candidate }))
+    .reverse()
+    .find(({ threshold }) => progress >= threshold)?.candidate;
+  return Math.max(1, index ?? 1);
+}
+
+export function completionProgressSequence(
+  progress: number,
+): readonly number[] {
+  return [...ANALYSIS_STAGE_THRESHOLDS.slice(2), 100].filter(
+    (checkpoint) => checkpoint > progress,
+  );
 }

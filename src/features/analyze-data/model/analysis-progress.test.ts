@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   ANALYSIS_PROGRESS_CONFIG,
+  analysisStageIndex,
+  completionProgressSequence,
   estimateAnalysisProgress,
   getAnalysisProgressSchedule,
   nextAnalysisProgressDelay,
@@ -42,5 +44,22 @@ describe("estimated analysis progress", () => {
         "table",
       ),
     ).toBeLessThan(95);
+  });
+
+  it("maps the estimate to four visual stages and completes them only at 100", () => {
+    expect(analysisStageIndex(0, true)).toBe(0);
+    expect(analysisStageIndex(0, false)).toBe(1);
+    expect(analysisStageIndex(49, false)).toBe(1);
+    expect(analysisStageIndex(50, false)).toBe(2);
+    expect(analysisStageIndex(74, false)).toBe(2);
+    expect(analysisStageIndex(75, false)).toBe(3);
+    expect(analysisStageIndex(95, false)).toBe(3);
+    expect(analysisStageIndex(100, false)).toBeUndefined();
+  });
+
+  it("returns only the missing validated-completion checkpoints", () => {
+    expect(completionProgressSequence(0)).toEqual([50, 75, 100]);
+    expect(completionProgressSequence(65)).toEqual([75, 100]);
+    expect(completionProgressSequence(95)).toEqual([100]);
   });
 });

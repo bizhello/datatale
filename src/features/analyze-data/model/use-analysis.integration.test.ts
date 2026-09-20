@@ -80,7 +80,7 @@ describe("useAnalysis HTTP lifecycle", () => {
     });
   });
 
-  it("holds the approximate estimate at 95 until an early response is validated", async () => {
+  it("holds at 95, then acknowledges the validated result before rendering", async () => {
     vi.useFakeTimers();
     const removeAbortListener = vi.spyOn(
       AbortSignal.prototype,
@@ -127,10 +127,15 @@ describe("useAnalysis HTTP lifecycle", () => {
         await Promise.resolve();
       });
       expect(result.current.state).toMatchObject({
+        status: "analyzing",
+        progress: 95,
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(180));
+      expect(result.current.state).toMatchObject({
         status: "completing",
         progress: 100,
       });
-      act(() => vi.advanceTimersByTime(320));
+      act(() => vi.advanceTimersByTime(650));
       await act(async () => runPromise);
       expect(result.current.state.status).toBe("ready");
       expect(removeAbortListener).toHaveBeenCalledWith(
@@ -143,7 +148,7 @@ describe("useAnalysis HTTP lifecycle", () => {
     }
   });
 
-  it("removes the completion abort listener when cancellation interrupts the 100 beat", async () => {
+  it("removes the completion abort listener when cancellation interrupts the stage beats", async () => {
     vi.useFakeTimers();
     const removeAbortListener = vi.spyOn(
       AbortSignal.prototype,
@@ -182,7 +187,7 @@ describe("useAnalysis HTTP lifecycle", () => {
         await Promise.resolve();
         await Promise.resolve();
       });
-      expect(result.current.state.status).toBe("completing");
+      expect(result.current.state.status).toBe("analyzing");
       act(() => result.current.cancel());
       await act(async () => runPromise);
       expect(result.current.state.status).toBe("cancelled");
@@ -289,8 +294,23 @@ describe("useAnalysis HTTP lifecycle", () => {
         await Promise.resolve();
         await Promise.resolve();
       });
-      expect(result.current.state.status).toBe("completing");
-      act(() => vi.advanceTimersByTime(320));
+      expect(result.current.state.status).toBe("analyzing");
+      await act(async () => vi.advanceTimersByTimeAsync(180));
+      expect(result.current.state).toMatchObject({
+        progress: 50,
+        status: "analyzing",
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(180));
+      expect(result.current.state).toMatchObject({
+        progress: 75,
+        status: "analyzing",
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(180));
+      expect(result.current.state).toMatchObject({
+        progress: 100,
+        status: "completing",
+      });
+      act(() => vi.advanceTimersByTime(650));
       await act(async () => runB);
       expect(result.current.state.status).toBe("ready");
     } finally {

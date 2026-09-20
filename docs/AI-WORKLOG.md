@@ -1,5 +1,13 @@
 # AI development evidence
 
+## Perceptible analysis stages and source-action clarity · 2026-09-20
+
+A screenshot showed 95% while the second of four named stages remained active. The UI had only two actual phases and hard-coded every post-session state to the second marker; a validated response then replaced the loader after a 320 ms 100% beat, so the third and fourth markers were never visibly traversed. The correction keeps the percentage explicitly approximate, maps its bands to all four markers, and advances missing bands only after the response has already passed schema validation. A dashed desktop connector becomes a vertical timeline on narrow screens, and the final all-complete state remains visible for 650 ms before the report receives focus. Fake-timer coverage preserves cancellation, stale-request ownership, timer cleanup, and abort-listener cleanup.
+
+The same review found the surviving `Заменить источник` copy semantically wrong: the action creates a separate report and never overwrites a saved one. Ready and restored reports now say `Создать новый отчёт`; earlier states say `Выбрать другой источник`.
+
+The reported 28,814-byte Desktop text fixture was valid and below the 30,000-character input limit. A live Spiro call over the complete 48-paragraph source reproduced a timeout at 30,017 ms, proving that the failure preceded report validation; an initial suggestion to increase the structured-output token budget was therefore rejected as unsupported. Text extraction now has its own 60-second call deadline while the smaller planning and narrative calls retain 30 seconds, and the overall deadline remains bounded at 105 seconds. The same full fixture then completed in 35,519 ms with two grounded hero statements, four checked metrics, and four exact-quote evidence items. Timeout errors nested by the SDK are classified as `timeout` rather than the misleading generic provider failure.
+
 ## Text fact coverage and source-grounded follow-ups · 2026-09-20
 
 A shelter note with three baseline animal counts and a later cat increment exposed two independent gaps. Text extraction asked for at most four facts but discouraged quote reuse, making several quantities in one sentence compete for a single evidence quote. Ask the Data did retain the complete original text, but its provider policy classified a before/after question as unsupported because deriving the final count would require arithmetic.

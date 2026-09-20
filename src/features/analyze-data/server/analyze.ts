@@ -62,7 +62,8 @@ export type AnalysisStage =
   | "text-extraction"
   | "narrative";
 export const MODEL_CALL_TIMEOUT_MS = 30_000;
-export const ANALYSIS_TIMEOUT_MS = 75_000;
+export const TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS = 60_000;
+export const ANALYSIS_TIMEOUT_MS = 105_000;
 export const MODEL_OUTPUT_TOKEN_LIMITS: Readonly<
   Record<AnalysisStage, number>
 > = {
@@ -84,6 +85,26 @@ export type AnalyzeOptions = {
   timeoutMs?: number;
   focus?: AnalysisFocus;
 };
+
+function isTimeoutFailure(error: unknown): boolean {
+  const visited = new Set<unknown>();
+  let candidate = error;
+  while (
+    typeof candidate === "object" &&
+    candidate !== null &&
+    !visited.has(candidate)
+  ) {
+    visited.add(candidate);
+    if (
+      "name" in candidate &&
+      (candidate.name === "TimeoutError" ||
+        candidate.name === "GatewayTimeoutError")
+    )
+      return true;
+    candidate = "cause" in candidate ? candidate.cause : undefined;
+  }
+  return false;
+}
 
 const providerIdentifierString = z.string().min(1).max(REPORT_ID_MAX_LENGTH);
 const providerFieldReferenceString = z.string().max(FIELD_REFERENCE_MAX_LENGTH);
@@ -427,7 +448,10 @@ function defaultCallModel(): ModelCall {
       maxRetries: 0,
       maxOutputTokens: MODEL_OUTPUT_TOKEN_LIMITS[stage],
       abortSignal: signal,
-      timeout: MODEL_CALL_TIMEOUT_MS,
+      timeout:
+        stage === "text-extraction"
+          ? TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS
+          : MODEL_CALL_TIMEOUT_MS,
     });
     return decodeProviderOutput(response.output);
   };
@@ -1016,7 +1040,7 @@ export async function analyzeSource(
     );
   } catch (error) {
     if (error instanceof AnalysisError) throw error;
-    if (controller.signal.aborted)
+    if (controller.signal.aborted || isTimeoutFailure(error))
       throw new AnalysisError("timeout", "Analysis deadline exceeded.");
     if (error instanceof z.ZodError)
       throw new AnalysisError("invalid-model-output", error.message);

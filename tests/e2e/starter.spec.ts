@@ -264,7 +264,18 @@ test("renders a fixture dashboard and expands charts without another analysis re
     .click();
   await page.getByRole("button", { name: "Запустить AI-анализ" }).click();
   await expect(
+    page.getByRole("progressbar", {
+      name: "Оценка хода анализа, приблизительно",
+    }),
+  ).toHaveAttribute("aria-valuenow", "100");
+  await expect(
+    page.locator(".analysis-progress-stages .is-complete"),
+  ).toHaveCount(4);
+  await expect(
     page.getByRole("heading", { name: /Выручка выросла/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Создать новый отчёт" }),
   ).toBeVisible();
   await expect(page.getByText(/Отчёт и вопросы хранятся до/)).toBeVisible();
   await expect(
