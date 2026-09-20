@@ -36,9 +36,9 @@ The optional goal is normalized to at most 400 characters and is sent through an
 
 Analysis prompt assets are `features/analyze-data/server/prompts/table.md`, `text.md`, and `narrative.md`. The grounded chat prompt is owned by `features/query-report/server/prompts/chat.md`. Instructions are English and require Russian report copy.
 
-Each prompt describes its role, permitted sources, allowed actions, uncertainty rules and response intent. Zod defines the response shape; the capability catalog defines available charts. Prompt files are loaded through static URL references so the Next server bundle includes them. Persistent prompt/version provenance remains release work and must be added with saved reports.
+Each prompt uses explicit role, objective, trust-boundary, decision-procedure, output-contract and final-checklist sections. The sections describe permitted sources, allowed actions, uncertainty and refusal rules without duplicating the code-owned response schema or chart catalog. Zod defines the response shape; the capability catalog defines available charts. A semantic repair call receives the complete rejected proposal plus the concrete validation errors, because provider calls are stateless. Prompt files are loaded through static URL references so the Next server bundle includes them. Persistent prompt/version provenance remains release work and must be added with saved reports.
 
-Treat uploaded text as untrusted context, never as system instructions. No shell, arbitrary SQL, code execution, web search or hidden access to other workspaces. Do not load user-supplied Markdown as an application prompt.
+Treat uploaded text as untrusted context, never as system instructions. Canonical indexed paragraphs are serialized as one data value before prompt composition; table profiles, samples, and the optional analysis preference are serialized objects. Delimiters and serialization reinforce the boundary but do not replace schema and semantic validation. No shell, arbitrary SQL, code execution, web search or hidden access to other workspaces. Do not load user-supplied Markdown as an application prompt.
 
 ## Facts, interpretation and advice
 

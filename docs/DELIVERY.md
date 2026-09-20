@@ -6,7 +6,7 @@ DataTale's production MVP delivers the complete assignment journey: CSV/XLSX/tex
 
 All Must Have features, the optional functional tour, owner-scoped history/reopen, guided analysis transition, and quota-flow polish are deployed from production code release `4be7bba`. The reproducible reviewer showcase is published in repository release `68ec1e1`. Migrations `0001`–`0005` remain current. The guarded production build runs the migration ledger before Next.js; the PR #26 rollout reached Ready. Branch and pull-request Vercel deployments remain disabled.
 
-The release gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 292 Vitest tests, and 72 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Production returns HTTPS 200 and renders the new input cards and empty-workspace explanation. A history read without a sealed guest cookie returns private, uncached `401 {"code":"expired"}` without creating a cookie. Earlier production probes verified a three-statement table report and the exact insufficient-data chat refusal.
+The release gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 301 Vitest tests, and 72 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Production returns HTTPS 200 and renders the new input cards and empty-workspace explanation. A history read without a sealed guest cookie returns private, uncached `401 {"code":"expired"}` without creating a cookie. Earlier production probes verified a three-statement table report and the exact insufficient-data chat refusal.
 
 ## Delivered work
 
