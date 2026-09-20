@@ -299,7 +299,10 @@ async function answerChatCore(
   let candidate = intent;
   for (let attempt = 0; ; attempt += 1) {
     try {
-      query = validateQuery(decodeQuery(candidate), context.source);
+      query = validateQuery(
+        decodeQuery(candidate, parsed.messageId),
+        context.source,
+      );
       break;
     } catch (error) {
       if (attempt >= MAX_PLAN_REPAIRS)

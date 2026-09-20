@@ -134,10 +134,12 @@ function decodeValue(
   return list ? filter.values.map(parse) : parse(filter.values[0] as string);
 }
 
-export function decodeQuery(input: ProviderEnvelope): DatasetQuery {
+export function decodeQuery(
+  input: ProviderEnvelope,
+  applicationQueryId: string,
+): DatasetQuery {
   if (input.outcome !== "query") throw new Error("Expected a query outcome.");
   if (
-    !input.queryId ||
     !input.limit ||
     input.answer ||
     input.message ||
@@ -150,7 +152,7 @@ export function decodeQuery(input: ProviderEnvelope): DatasetQuery {
   )
     throw new Error("Query outcome contains invalid sentinels.");
   return datasetQuerySchema.parse({
-    queryId: input.queryId,
+    queryId: applicationQueryId,
     filters: input.filters.map((filter) => ({
       fieldId: filter.fieldId,
       operator: filter.operator,

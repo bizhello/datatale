@@ -120,6 +120,7 @@ describe("planned grounded chat", () => {
   it("executes a model plan and grounds the second call in query references", async () => {
     const executor = {
       execute: vi.fn(async (_dataset, query) => {
+        expect(query.queryId).toBe(request.messageId);
         expect(query.filters[0]).toMatchObject({
           fieldId: "city",
           operator: "eq",
@@ -130,7 +131,7 @@ describe("planned grounded chat", () => {
           direction: "desc",
         });
         return {
-          queryId: "chat",
+          queryId: query.queryId,
           rows: [{ city: "Краснодар", sales: 10 }],
           groups: [],
           metrics: { total: 10 },
@@ -146,7 +147,6 @@ describe("planned grounded chat", () => {
       .fn()
       .mockResolvedValueOnce(
         wireQuery({
-          queryId: "chat",
           filters: [
             {
               fieldId: "city",
@@ -162,7 +162,7 @@ describe("planned grounded chat", () => {
         }),
       )
       .mockResolvedValueOnce(
-        wireAnswer("Продажи: 10.", [{ id: "query-chat" }]),
+        wireAnswer("Продажи: 10.", [{ id: `query-${request.messageId}` }]),
       );
     await expect(
       answerChat(
