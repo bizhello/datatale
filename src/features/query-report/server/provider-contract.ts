@@ -72,6 +72,7 @@ export const providerEnvelopeSchema = z
           .strict(),
       )
       .max(20),
+    // DatasetQuery owns semantic exclusivity so one repair call can inspect a malformed draft.
     orderBy: z
       .array(
         z
@@ -80,11 +81,7 @@ export const providerEnvelopeSchema = z
             metricId: z.string().max(160),
             direction: z.enum(["asc", "desc"]),
           })
-          .strict()
-          .refine(
-            (value) => (value.fieldId === "") !== (value.metricId === ""),
-            "Order must reference one field or metric.",
-          ),
+          .strict(),
       )
       .max(20),
     limit: z.number().int().min(0).max(100),

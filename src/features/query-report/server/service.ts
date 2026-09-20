@@ -389,7 +389,7 @@ async function answerChatCore(
           output.answer,
           output.references,
           finalAllowed,
-          Object.keys(result.metrics).length > 0
+          Object.keys(result.metrics).length > 0 && result.groups.length === 0
             ? `query-${result.queryId}`
             : undefined,
           {
