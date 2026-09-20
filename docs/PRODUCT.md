@@ -51,7 +51,7 @@ Cookie mechanisms: ARCHITECTURE.md. Cleanup: DEPLOYMENT.md.
 
 ## Analysis access
 
-An anonymous workspace may run one AI analysis per UTC day. The same salted-IP trial cap applies across new workspaces, so deleting browser cookies does not reset the free call. IP hashes are abuse counters, not account identifiers or recovery keys, and expire with the quota buckets.
+An anonymous workspace may run one AI analysis per UTC day. The same salted-IP trial cap applies across new workspaces, so deleting browser cookies does not reset the ordinary free call. The exact built-in synthetic demo has a separate one-call salted-IP bucket, allowing a new visitor to complete one real demo analysis even when the ordinary IP trial was already used. The workspace and global limits still apply, and copied filenames or altered demo values do not receive the demo allowance. IP hashes are abuse counters, not account identifiers or recovery keys, and expire with the quota buckets.
 
 Each saved analysis allows ten user chat turns per workspace per UTC day. Assistant messages and idempotent retries do not consume turns. Chat is available only while the workspace and saved analysis are active.
 

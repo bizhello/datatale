@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { datasetSchema, isShowcaseDemoSource } from "@/entities/dataset";
 import { ONBOARDING_STORAGE_KEY } from "@/features/onboarding";
 import { DashboardShell } from "./dashboard-shell";
 
@@ -45,6 +46,10 @@ describe("Dashboard input shell", () => {
           return Response.json({ expiresAt: "later" });
         expect(String(input)).toBe("/api/analyze");
         expect(init?.method).toBe("POST");
+        const body = JSON.parse(String(init?.body)) as { source: unknown };
+        expect(isShowcaseDemoSource(datasetSchema.parse(body.source))).toBe(
+          true,
+        );
         return Response.json({ code: "unavailable" }, { status: 503 });
       },
     );

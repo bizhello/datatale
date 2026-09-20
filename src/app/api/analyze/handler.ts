@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   type Dataset,
   datasetSchema,
+  isShowcaseDemoSource,
   type TextSource,
   textSourceSchema,
 } from "@/entities/dataset";
@@ -14,6 +15,7 @@ import {
 } from "@/features/analyze-data";
 import type { RunGateOutcome } from "@/features/analyze-data/server";
 import { inputLimits } from "@/shared/config";
+import { stableJson } from "@/shared/lib/stable-json";
 import {
   BodyTooLargeError,
   isSameOrigin,
@@ -110,16 +112,6 @@ function parseRequest(
         ...(parsedFocus.data ? { focus: parsedFocus.data } : {}),
       }
     : undefined;
-}
-
-function stableJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
-  if (value && typeof value === "object")
-    return `{${Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
-      .join(",")}}`;
-  return JSON.stringify(value);
 }
 
 function requestIp(request: Request) {
@@ -226,7 +218,9 @@ export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
           : undefined;
       outcome = await gate.claim({
         workspaceId: workspace.id,
-        ipHash,
+        ipHash: isShowcaseDemoSource(source)
+          ? `showcase-demo:${ipHash}`
+          : ipHash,
         key,
         fingerprint,
         ...(codeFingerprint ? { codeFingerprint } : {}),
