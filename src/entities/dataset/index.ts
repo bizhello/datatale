@@ -3,7 +3,7 @@ export {
   isShowcaseDemoSource,
 } from "./lib/showcase-demo";
 export { sourceDisplaySummary } from "./lib/source-display";
-export { executeDatasetQuery } from "./model/executor";
+export { executeDatasetQuery, validateDatasetQuery } from "./model/executor";
 export {
   DATASET_QUERY_MAX_FILTERS,
   DATASET_QUERY_MAX_GROUPS,

@@ -55,16 +55,22 @@ function validateFilter(filter: DatasetQueryFilter, dataset: Dataset): void {
     fail("The in operator requires an array value.");
   if (!Array.isArray(filter.value) && filter.operator === "in")
     fail("The in operator requires an array value.");
-  for (const value of values)
-    if (!compatible(value, field.scalarType))
-      fail(`Value for "${filter.fieldId}" does not match its column type.`);
   if (
     filter.operator === "contains" &&
-    (filter.value === null ||
+    (field.scalarType !== "string" ||
+      filter.value === null ||
       Array.isArray(filter.value) ||
       typeof filter.value !== "string")
   )
     fail("contains requires a non-null string field and value.");
+  if (
+    ["lt", "lte", "gt", "gte"].includes(filter.operator) &&
+    !["string", "number", "date"].includes(field.scalarType)
+  )
+    fail("Range comparisons require a string, number, or date field.");
+  for (const value of values)
+    if (!compatible(value, field.scalarType))
+      fail(`Value for "${filter.fieldId}" does not match its column type.`);
 }
 function matches(
   row: DatasetRow,
@@ -159,10 +165,10 @@ function aggregate(
   return Math.max(...numbers);
 }
 
-export function executeDatasetQuery(
+export function validateDatasetQuery(
   dataset: Dataset,
   input: DatasetQuery,
-): DatasetQueryResult {
+): NormalizedDatasetQuery {
   const query = datasetQuerySchema.parse(input);
   for (const selectedField of query.select)
     column(dataset, fieldId(selectedField));
@@ -176,6 +182,14 @@ export function executeDatasetQuery(
     else if (!query.metrics.some((metric) => metric.id === order.metricId))
       fail(`Unknown metric "${order.metricId}".`);
   }
+  return query;
+}
+
+export function executeDatasetQuery(
+  dataset: Dataset,
+  input: DatasetQuery,
+): DatasetQueryResult {
+  const query = validateDatasetQuery(dataset, input);
   const matched = dataset.rows.filter((row) =>
     query.filters.every((filter) => matches(row, filter, dataset)),
   );

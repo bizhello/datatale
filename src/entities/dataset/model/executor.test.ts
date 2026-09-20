@@ -68,6 +68,26 @@ describe("executeDatasetQuery", () => {
         ],
       }),
     ).toThrow(/does not match/);
+
+    expect(() =>
+      executeDatasetQuery(syntheticDatasetFixture, {
+        queryId: "validate-range-operator",
+        filters: [
+          { fieldId: "note", operator: "eq", value: "no match" },
+          { fieldId: "paid", operator: "gt", value: true },
+        ],
+      }),
+    ).toThrow(/Range comparisons require/);
+
+    expect(() =>
+      executeDatasetQuery(syntheticDatasetFixture, {
+        queryId: "validate-contains-field",
+        filters: [
+          { fieldId: "note", operator: "eq", value: "no match" },
+          { fieldId: "revenue", operator: "contains", value: "12" },
+        ],
+      }),
+    ).toThrow(/contains requires/);
   });
 
   it("supports contains, grouping, and every aggregate with nulls ignored", () => {
