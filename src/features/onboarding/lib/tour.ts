@@ -38,7 +38,7 @@ export const tourSteps: ReadonlyArray<DriveStep> = [
   {
     element: ".onboarding-demo-workspace [data-onboarding-ask]",
     popover: {
-      title: "Спросите данные",
+      title: "Задайте вопрос по отчёту",
       description:
         "Задайте вопрос по готовому отчёту — ответ будет основан на его источнике.",
     },

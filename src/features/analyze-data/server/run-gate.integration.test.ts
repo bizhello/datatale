@@ -83,6 +83,33 @@ describe("RunGate lifecycle", () => {
       ),
     ).resolves.toEqual({ kind: "quota", scope: "ip" });
   });
+  it("gives separate workspaces behind one IP their first run up to the anti-abuse ceiling", async () => {
+    const gate = new RunGate(new MemoryRunGateRepository(), {
+      workspaceDailyLimit: 1,
+      ipDailyLimit: 2,
+      codeDailyLimit: 10,
+      globalDailyLimit: 20,
+    });
+    await expect(gate.claim(input({ key: "first" }))).resolves.toMatchObject({
+      kind: "claimed",
+    });
+    await expect(
+      gate.claim(
+        input({
+          workspaceId: "00000000-0000-4000-8000-000000000002",
+          key: "second",
+        }),
+      ),
+    ).resolves.toMatchObject({ kind: "claimed" });
+    await expect(
+      gate.claim(
+        input({
+          workspaceId: "00000000-0000-4000-8000-000000000003",
+          key: "third",
+        }),
+      ),
+    ).resolves.toEqual({ kind: "quota", scope: "ip" });
+  });
   it("allows only one concurrent same-key claim and replays a completed matching receipt", async () => {
     const { gate } = setup();
     const first = await gate.claim(input());

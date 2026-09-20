@@ -51,11 +51,11 @@ Cookie mechanisms: ARCHITECTURE.md. Cleanup: DEPLOYMENT.md.
 
 ## Analysis access
 
-An anonymous workspace may run one AI analysis per UTC day. The same salted-IP trial cap applies across new workspaces, so deleting browser cookies does not reset the ordinary free call. The exact built-in synthetic demo has a separate one-call salted-IP bucket, allowing a new visitor to complete one real demo analysis even when the ordinary IP trial was already used. The workspace and global limits still apply, and copied filenames or altered demo values do not receive the demo allowance. IP hashes are abuse counters, not account identifiers or recovery keys, and expire with the quota buckets.
+An anonymous workspace may run one AI analysis per UTC day. A broader 20-analysis salted-IP ceiling applies across new workspaces, so separate visitors behind shared NAT can each complete a first run while repeated cookie resets remain bounded. The exact built-in synthetic demo uses a separate IP namespace. Workspace and global limits still apply, and copied filenames or altered demo values do not receive the demo allowance. IP hashes are abuse counters, not account identifiers or recovery keys, and expire with the quota buckets.
 
 Each saved analysis allows ten user chat turns per workspace per UTC day. Assistant messages and idempotent retries do not consume turns. Chat is available only while the workspace and saved analysis are active.
 
-After the free call, show the invite-code modal without clearing the accepted source. A valid high-entropy code grants a sealed session capability and shares an atomic ten-analysis UTC-day budget across every user of that code. Code and global exhaustion are terminal states for that day and must not reopen the unlock modal. Removing a configured code hash revokes existing capabilities. Raw codes and IP addresses are never persisted.
+After the workspace free call, show the invite-code modal without clearing the accepted source. A valid high-entropy code grants a sealed session capability and shares an atomic ten-analysis UTC-day budget across every user of that code. Code and global exhaustion are terminal states for that day and must not reopen the unlock modal. Removing a configured code hash revokes existing capabilities. Raw codes and IP addresses are never persisted.
 
 ## Acceptance against the assignment
 

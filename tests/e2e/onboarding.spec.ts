@@ -1,7 +1,27 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 const preferenceKey = "datatale:onboarding:v1";
+
+async function expectCloseOutsideTitle(page: Page) {
+  const controlsDoNotOverlap = await page
+    .locator(".driver-popover")
+    .evaluate((popover) => {
+      const title = popover.querySelector<HTMLElement>(".driver-popover-title");
+      const close = popover.querySelector<HTMLElement>(
+        ".driver-popover-close-btn",
+      );
+      if (!title || !close) throw new Error("Tour controls are incomplete.");
+      const titleRange = document.createRange();
+      titleRange.selectNodeContents(title);
+      const titleRect = titleRange.getBoundingClientRect();
+      const closeRect = close.getBoundingClientRect();
+      return (
+        titleRect.right <= closeRect.left || titleRect.left >= closeRect.right
+      );
+    });
+  expect(controlsDoNotOverlap).toBe(true);
+}
 
 test.beforeEach(async ({ page }, testInfo) => {
   await page.addInitScript(
@@ -33,6 +53,24 @@ test("shows the welcome, mounts stable demo targets, and restores focus after sk
   });
   await expect(welcome).toHaveCount(1);
   await expect(welcome).toBeVisible();
+  const welcomeLayout = await welcome.evaluate((dialog) => {
+    const header = dialog.querySelector<HTMLElement>(
+      '[data-slot="modal-header"]',
+    );
+    const body = dialog.querySelector<HTMLElement>('[data-slot="modal-body"]');
+    if (!header || !body) throw new Error("Welcome structure is incomplete.");
+    const dialogRect = dialog.getBoundingClientRect();
+    const headerRect = header.getBoundingClientRect();
+    const bodyRect = body.getBoundingClientRect();
+    return {
+      height: dialogRect.height,
+      width: dialogRect.width,
+      gap: bodyRect.top - headerRect.bottom,
+    };
+  });
+  expect(welcomeLayout.height).toBeLessThan(360);
+  expect(welcomeLayout.width).toBeLessThanOrEqual(512);
+  expect(welcomeLayout.gap).toBeGreaterThanOrEqual(0);
   for (const theme of ["light", "dark"]) {
     await page.evaluate((value) => {
       localStorage.setItem("theme", value);
@@ -52,6 +90,23 @@ test("shows the welcome, mounts stable demo targets, and restores focus after sk
     name: "Открыть знакомство с DataTale",
   });
   await page.getByRole("button", { name: "Начать знакомство" }).click();
+  const closeButton = page.getByRole("button", { name: "Закрыть знакомство" });
+  await expect(closeButton).toBeVisible();
+  const closeStyle = await closeButton.evaluate((button) => {
+    const style = getComputedStyle(button);
+    const rect = button.getBoundingClientRect();
+    return {
+      color: style.color,
+      opacity: style.opacity,
+      width: rect.width,
+      height: rect.height,
+    };
+  });
+  expect(closeStyle.color).not.toBe("rgba(0, 0, 0, 0)");
+  expect(closeStyle.opacity).toBe("1");
+  expect(closeStyle.width).toBeGreaterThanOrEqual(44);
+  expect(closeStyle.height).toBeGreaterThanOrEqual(44);
+  await expectCloseOutsideTitle(page);
   await expect(page.locator(".onboarding-demo-workspace")).toBeVisible();
   await expect(
     page.locator(".onboarding-demo-workspace .chart-heading button").first(),
@@ -146,6 +201,13 @@ test("keeps the highlighted input choices inside a narrow viewport", async ({
     expect(section.scrollWidth).toBeLessThanOrEqual(section.clientWidth);
   }
   expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewport);
+  const next = page.locator(".driver-popover-next-btn");
+  const done = page.locator(".driver-popover-done-btn");
+  for (let step = 0; step < 5; step += 1) {
+    await expectCloseOutsideTitle(page);
+    if (await done.isVisible()) break;
+    await next.click();
+  }
 });
 
 test("continues when localStorage is unavailable", async ({ page }) => {

@@ -25,6 +25,13 @@ function enterQuestion(question: string) {
 }
 
 describe("AskDataPanel", () => {
+  it("uses a clear report-question heading", () => {
+    render(<AskDataPanel send={vi.fn()} />);
+    expect(
+      screen.getByRole("heading", { name: "Задайте вопрос по отчёту" }),
+    ).toBeVisible();
+  });
+
   it("restores persisted transcript without making a request", () => {
     render(
       <AskDataPanel
