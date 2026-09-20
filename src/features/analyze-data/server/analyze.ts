@@ -35,6 +35,7 @@ import {
 } from "../model/calculate";
 import { validateFinalReportReferences } from "../model/final-report";
 import { boundedSourceDescription } from "../model/profile";
+import { chartCopy } from "../model/report-copy";
 import {
   SemanticValidationError,
   validateTableProposal,
@@ -413,7 +414,7 @@ function tableEvidence(source: Dataset) {
     {
       id: "rows-all",
       kind: "row-range" as const,
-      label: `All ${source.rows.length} accepted rows`,
+      label: `Все принятые строки: ${source.rows.length}`,
       coverage: { included: source.rows.length, total: source.rows.length },
     },
   ];
@@ -438,11 +439,12 @@ function reportFromTable(
                   (column) => column.id === aggregation.field.fieldId,
                 )
               : undefined;
+          const copy = chartCopy(source, chart);
           return {
             id: chart.id,
             kind: chart.kind,
-            title: chart.title,
-            rationale: chart.rationale,
+            title: copy.title,
+            rationale: copy.rationale,
             aggregation: reportChartCalculation(
               source,
               chart.aggregation,
@@ -573,7 +575,7 @@ async function analyzeText(
     evidence.push({
       id: `quote-${id}`,
       kind: "quote",
-      label: `Paragraph ${paragraphIndex}`,
+      label: `Абзац ${paragraphIndex}`,
       excerpt: quote,
     });
   };
@@ -623,7 +625,7 @@ async function analyzeText(
     evidence.push({
       id: `quote-${observation.id}`,
       kind: "quote",
-      label: `Paragraph ${observation.paragraphIndex}`,
+      label: `Абзац ${observation.paragraphIndex}`,
       excerpt: observation.quote,
     });
   }
@@ -637,7 +639,7 @@ async function analyzeText(
     evidence.push({
       id: "quote-source",
       kind: "quote",
-      label: `Paragraph ${paragraph.index}`,
+      label: `Абзац ${paragraph.index}`,
       excerpt: boundedExactExcerpt(paragraph.text),
     });
   }
@@ -663,7 +665,7 @@ async function analyzeText(
     evidence,
     recommendations: narrative.recommendations,
     noChartReason:
-      "Text analysis uses only exact, checked quotations; it does not create synthetic table relationships.",
+      "Для текстового отчёта используются только точные проверенные цитаты, поэтому искусственные связи для графиков не создаются.",
   });
 }
 export async function analyzeSource(

@@ -76,7 +76,14 @@ function parseMessage(
   row: unknown,
   validators: SavedAnalysisValidators,
 ): SavedAnalysisMessage | undefined {
-  const result = savedAnalysisMessageSchema.safeParse(row);
+  const normalizedRow =
+    typeof row === "object" &&
+    row !== null &&
+    "result" in row &&
+    row.result === null
+      ? { ...row, result: undefined }
+      : row;
+  const result = savedAnalysisMessageSchema.safeParse(normalizedRow);
   if (!result.success) return undefined;
   if (result.data.role === "assistant" && result.data.result === undefined)
     return undefined;

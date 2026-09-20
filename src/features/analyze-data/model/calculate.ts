@@ -6,6 +6,7 @@ import type {
   ReportCalculation,
   ReportChartCalculation,
 } from "@/entities/report";
+import { metricLabel } from "./report-copy";
 
 type Point = { label: string; value: number };
 type Group = { label: string; rows: Dataset["rows"] };
@@ -81,7 +82,7 @@ export function calculateMetric(
     : undefined;
   return {
     id: specification.id,
-    label: specification.label,
+    label: metricLabel(source, specification.aggregation),
     value: aggregateRows(source.rows, specification.aggregation),
     calculation: reportCalculation(source, specification.aggregation),
     ...(unit ? { unit } : {}),
@@ -120,7 +121,7 @@ export function calculateChart(
     const result = selected.map(({ label, value }) => ({ label, value }));
     if (other.length)
       result.push({
-        label: "Other",
+        label: "Другие",
         value: aggregateRows(
           other.flatMap((group) => group.rows),
           specification.aggregation,

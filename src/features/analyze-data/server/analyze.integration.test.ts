@@ -353,7 +353,7 @@ describe("analysis orchestration", () => {
       {
         id: "quote-tickets",
         kind: "quote",
-        label: "Paragraph 1",
+        label: "Абзац 1",
         excerpt: "За неделю обработано 128 заявок.",
       },
     ]);

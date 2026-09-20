@@ -21,7 +21,11 @@ describe("analysis prompt contracts", () => {
     }
     expect(table).toContain("untrusted data");
     expect(table).toContain("topN");
+    expect(table).toContain("user-visible label");
+    expect(table).toContain("in Russian");
     expect(text).toContain("exact, contiguous quotation");
+    expect(text).toContain("fact label in Russian");
     expect(narrative).toContain("checked facts and evidence");
+    expect(narrative).toContain("in Russian");
   });
 });

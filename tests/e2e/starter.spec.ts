@@ -126,6 +126,35 @@ test("accepts text locally and exposes an honest preview", async ({ page }) => {
     "data-hydrated",
     "true",
   );
+  const [uploadIcon, textIcon, uploadCard, uploadAction, textCard, textAction] =
+    await Promise.all([
+      page.locator(".dropzone .input-icon").boundingBox(),
+      page.locator(".text-input .input-icon").boundingBox(),
+      page.locator(".dropzone").boundingBox(),
+      page.locator(".dropzone .input-card-action button").boundingBox(),
+      page.locator(".text-input").boundingBox(),
+      page.locator(".text-input .input-card-action button").boundingBox(),
+    ]);
+  if (
+    !uploadIcon ||
+    !textIcon ||
+    !uploadCard ||
+    !uploadAction ||
+    !textCard ||
+    !textAction
+  )
+    throw new Error("Input card geometry is unavailable.");
+  expect(
+    Math.abs(uploadIcon.y - uploadCard.y - (textIcon.y - textCard.y)),
+  ).toBeLessThanOrEqual(1);
+  expect(
+    Math.abs(
+      uploadCard.y +
+        uploadCard.height -
+        (uploadAction.y + uploadAction.height) -
+        (textCard.y + textCard.height - (textAction.y + textAction.height)),
+    ),
+  ).toBeLessThanOrEqual(1);
   const text = page.getByLabel("Текст отчёта");
   await text.fill("Первый абзац.\n\nВторой абзац.");
   await expect(text).toHaveValue("Первый абзац.\n\nВторой абзац.");
@@ -138,6 +167,27 @@ test("accepts text locally and exposes an honest preview", async ({ page }) => {
   await expect(page.getByText(/Сам полный источник не хранится/)).toHaveCount(
     0,
   );
+  const previewSpacing = await page.locator(".preview").evaluate((preview) => {
+    const header = preview.querySelector<HTMLElement>(".preview-header");
+    const source = preview.querySelector<HTMLElement>(".text-preview");
+    const launch = preview.querySelector<HTMLElement>(".analysis-launch-panel");
+    if (!header || !source || !launch)
+      throw new Error("Preview geometry is unavailable.");
+    const previewBox = preview.getBoundingClientRect();
+    const headerBox = header.getBoundingClientRect();
+    const sourceBox = source.getBoundingClientRect();
+    const launchBox = launch.getBoundingClientRect();
+    return {
+      headerToSource: sourceBox.top - headerBox.bottom,
+      sourceToLaunch: launchBox.top - sourceBox.bottom,
+      launchTop: launchBox.top - previewBox.top,
+      launchBottom: previewBox.bottom - launchBox.bottom,
+    };
+  });
+  expect(previewSpacing.headerToSource).toBeGreaterThanOrEqual(20);
+  expect(previewSpacing.sourceToLaunch).toBeGreaterThanOrEqual(20);
+  expect(previewSpacing.launchTop).toBeGreaterThan(20);
+  expect(previewSpacing.launchBottom).toBeGreaterThanOrEqual(20);
 });
 
 test("renders a fixture dashboard and expands charts without another analysis request", async ({

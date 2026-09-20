@@ -41,7 +41,7 @@ describe("analysis calculations", () => {
       }),
     ).toEqual({
       id: "total",
-      label: "Total",
+      label: "Сумма: Revenue",
       value: 60,
       unit: "RUB",
       calculation: {
@@ -78,7 +78,7 @@ describe("analysis calculations", () => {
       [
         { label: "A", value: 100 },
         { label: "C", value: 100 },
-        { label: "Other", value: 140 },
+        { label: "Другие", value: 140 },
       ],
     ],
     [
@@ -86,7 +86,7 @@ describe("analysis calculations", () => {
       [
         { label: "D", value: 3 },
         { label: "C", value: 2 },
-        { label: "Other", value: 2 },
+        { label: "Другие", value: 2 },
       ],
     ],
     [
@@ -94,7 +94,7 @@ describe("analysis calculations", () => {
       [
         { label: "A", value: 100 },
         { label: "B", value: 80 },
-        { label: "Other", value: 32 },
+        { label: "Другие", value: 32 },
       ],
     ],
     [
@@ -102,7 +102,7 @@ describe("analysis calculations", () => {
       [
         { label: "A", value: 100 },
         { label: "B", value: 80 },
-        { label: "Other", value: 1 },
+        { label: "Другие", value: 1 },
       ],
     ],
     [
@@ -110,7 +110,7 @@ describe("analysis calculations", () => {
       [
         { label: "A", value: 100 },
         { label: "C", value: 99 },
-        { label: "Other", value: 80 },
+        { label: "Другие", value: 80 },
       ],
     ],
   ] as const)(
