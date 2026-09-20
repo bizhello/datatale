@@ -25,6 +25,7 @@ export const REPORT_PERIOD_MAX_LENGTH = 96;
 export const REPORT_QUOTE_MAX_LENGTH = 1_000;
 export const REPORT_NO_CHART_REASON_MAX_LENGTH = 300;
 export const REPORT_MAX_SERIALIZED_BYTES = 24 * 1_024;
+export const REPORT_MAX_TEXT_OBSERVATIONS = 32;
 
 const boundedNonblankString = (maxLength: number) =>
   z
@@ -237,6 +238,23 @@ export const reportFactSchema = z
     evidenceIds: z.array(identifierString).min(1).max(7),
   })
   .strict();
+export const textObservationRoleSchema = z.enum([
+  "snapshot",
+  "change",
+  "target",
+]);
+export const textObservationSchema = z
+  .object({
+    id: identifierString,
+    subject: labelString,
+    value: z.number().finite(),
+    unit: unitString.nullable(),
+    period: periodString.nullable(),
+    role: textObservationRoleSchema,
+    paragraphIndex: z.number().int().positive(),
+    quote: quoteString,
+  })
+  .strict();
 export const reportChartSchema = z
   .object({
     id: identifierString,
@@ -252,6 +270,11 @@ export const reportChartSchema = z
       .min(1)
       .max(LINE_MAX_POINTS),
     evidenceIds: z.array(identifierString).min(1).max(7),
+    observationIds: z
+      .array(identifierString)
+      .min(1)
+      .max(REPORT_MAX_TEXT_OBSERVATIONS)
+      .optional(),
   })
   .strict();
 export const reportNarrativeItemSchema = z
@@ -273,6 +296,10 @@ export const finalReportSchema = z
     version: z.literal(1),
     hero: z.array(reportNarrativeItemSchema).min(2).max(3),
     metrics: z.array(reportFactSchema).max(4),
+    observations: z
+      .array(textObservationSchema)
+      .max(REPORT_MAX_TEXT_OBSERVATIONS)
+      .optional(),
     charts: z.array(reportChartSchema).max(3),
     evidence: z.array(reportEvidenceSchema).min(1).max(7),
     recommendations: z.array(reportNarrativeItemSchema).max(3),
@@ -358,12 +385,17 @@ export const textExtractionResponseSchema = z
         z
           .object({
             id: identifierString,
+            subject: labelString.optional(),
+            value: z.number().finite().optional(),
+            unit: unitString.nullable().optional(),
+            period: periodString.nullable().optional(),
+            role: textObservationRoleSchema.optional(),
             paragraphIndex: z.number().int().positive(),
             quote: quoteString,
           })
           .strict(),
       )
-      .max(3),
+      .max(REPORT_MAX_TEXT_OBSERVATIONS),
   })
   .strict()
   .superRefine((value, context) =>
@@ -393,3 +425,4 @@ export type ReportChartCalculation = z.infer<
 export type TextExtractionResponse = z.infer<
   typeof textExtractionResponseSchema
 >;
+export type TextObservation = z.infer<typeof textObservationSchema>;

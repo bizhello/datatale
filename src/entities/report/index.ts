@@ -25,6 +25,7 @@ export type {
   ReportCalculation,
   ReportChartCalculation,
   TextExtractionResponse,
+  TextObservation,
 } from "./model/schema";
 export {
   aggregationSchema,
@@ -43,6 +44,7 @@ export {
   REPORT_ID_MAX_LENGTH,
   REPORT_LABEL_MAX_LENGTH,
   REPORT_MAX_SERIALIZED_BYTES,
+  REPORT_MAX_TEXT_OBSERVATIONS,
   REPORT_NARRATIVE_MAX_LENGTH,
   REPORT_NO_CHART_REASON_MAX_LENGTH,
   REPORT_PERIOD_MAX_LENGTH,
@@ -56,4 +58,6 @@ export {
   reportEvidenceSchema,
   reportFactSchema,
   textExtractionResponseSchema,
+  textObservationRoleSchema,
+  textObservationSchema,
 } from "./model/schema";

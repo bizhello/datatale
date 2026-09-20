@@ -293,6 +293,26 @@ describe("provider-facing structured output", () => {
     ).toMatchObject({ facts: [{ id: "fact", value: 12 }] });
   });
 
+  it("accepts nullable-period source observations with explicit roles", () => {
+    expect(
+      textExtractionFromProviderOutput({
+        facts: [],
+        observations: [
+          {
+            id: "dogs",
+            subject: "dogs",
+            value: 5,
+            unit: null,
+            period: null,
+            role: "snapshot",
+            paragraphIndex: 1,
+            quote: "There were 5 dogs.",
+          },
+        ],
+      }),
+    ).toMatchObject({ observations: [{ subject: "dogs", role: "snapshot" }] });
+  });
+
   it("rejects a one-sentence hero before it can reach the dashboard", () => {
     expect(() =>
       narrativeFromProviderOutput({

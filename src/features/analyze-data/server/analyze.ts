@@ -17,6 +17,7 @@ import {
   narrativeResponseSchema,
   REPORT_ID_MAX_LENGTH,
   REPORT_LABEL_MAX_LENGTH,
+  REPORT_MAX_TEXT_OBSERVATIONS,
   REPORT_NARRATIVE_MAX_LENGTH,
   REPORT_NO_CHART_REASON_MAX_LENGTH,
   REPORT_PERIOD_MAX_LENGTH,
@@ -34,6 +35,7 @@ import {
   reportChartCalculation,
 } from "../model/calculate";
 import { validateFinalReportReferences } from "../model/final-report";
+import { calculateObservationCharts } from "../model/observation-charts";
 import { boundedSourceDescription } from "../model/profile";
 import { chartCopy } from "../model/report-copy";
 import {
@@ -219,12 +221,17 @@ export const providerTextExtractionResponseSchema = z
         z
           .object({
             id: providerIdentifierString,
+            subject: providerLabelString,
+            value: z.number().finite(),
+            unit: providerUnitString.nullable(),
+            period: providerPeriodString.nullable(),
+            role: z.enum(["snapshot", "change", "target"]),
             paragraphIndex: z.number().int().positive(),
             quote: providerQuoteString,
           })
           .strict(),
       )
-      .max(3),
+      .max(REPORT_MAX_TEXT_OBSERVATIONS),
   })
   .strict();
 
@@ -860,6 +867,16 @@ async function analyzeText(
     });
     return evidenceId;
   };
+  const checkedObservations = [] as Array<{
+    id: string;
+    subject: string;
+    value: number;
+    unit: string | null;
+    period: string | null;
+    role: "snapshot" | "change" | "target";
+    paragraphIndex: number;
+    quote: string;
+  }>;
   const facts = extraction.facts
     .map((fact) => {
       const paragraph = source.paragraphs.find(
@@ -927,11 +944,31 @@ async function analyzeText(
     const paragraph = source.paragraphs.find(
       (candidate) => candidate.index === observation.paragraphIndex,
     );
+    if (!paragraph?.text.includes(observation.quote)) continue;
     if (
-      !paragraph?.text.includes(observation.quote) ||
-      evidenceByQuote.has(`${observation.paragraphIndex}:${observation.quote}`)
-    )
-      continue;
+      observation.subject !== undefined &&
+      observation.value !== undefined &&
+      observation.role !== undefined &&
+      quoteHasValue(observation.quote, observation.value) &&
+      quoteHasExactPhrase(observation.quote, observation.subject) &&
+      (observation.unit === undefined ||
+        observation.unit === null ||
+        quoteHasExactPhrase(observation.quote, observation.unit)) &&
+      (observation.period === undefined ||
+        observation.period === null ||
+        quoteHasExactPhrase(observation.quote, observation.period))
+    ) {
+      checkedObservations.push({
+        id: observation.id,
+        subject: observation.subject,
+        value: observation.value,
+        unit: observation.unit ?? null,
+        period: observation.period ?? null,
+        role: observation.role,
+        paragraphIndex: observation.paragraphIndex,
+        quote: observation.quote,
+      });
+    }
     addQuoteEvidence(
       observation.id,
       observation.paragraphIndex,
@@ -954,7 +991,21 @@ async function analyzeText(
   }
   const factIds = new Set(facts.map((fact) => fact.id));
   const evidenceIds = new Set(evidence.map((item) => item.id));
-  const checkedNarrativePrompt = `${narrativePrompt}\n\nChecked facts and evidence only:\n${JSON.stringify({ facts, evidence })}${focusContext(focus)}`;
+  const observationEvidence = new Map(
+    checkedObservations.map((observation) => [
+      observation.id,
+      addQuoteEvidence(
+        observation.id,
+        observation.paragraphIndex,
+        observation.quote,
+      ),
+    ]),
+  );
+  const charts = calculateObservationCharts(
+    checkedObservations,
+    (observationId) => observationEvidence.get(observationId) ?? "quote-source",
+  );
+  const checkedNarrativePrompt = `${narrativePrompt}\n\nChecked facts, source-backed observations, and evidence only:\n${JSON.stringify({ facts, observations: checkedObservations, evidence })}${focusContext(focus)}`;
   const narrate = (prompt: string) =>
     callModel({
       stage: "narrative",
@@ -975,11 +1026,16 @@ async function analyzeText(
     version: 1,
     hero: narrative.hero,
     metrics: facts,
-    charts: [],
+    observations: checkedObservations,
+    charts,
     evidence,
     recommendations: narrative.recommendations,
-    noChartReason:
-      "Для текстового отчёта используются только точные проверенные цитаты, поэтому искусственные связи для графиков не создаются.",
+    ...(charts.length === 0
+      ? {
+          noChartReason:
+            "Недостаточно совместимых количественных наблюдений для достоверного графика.",
+        }
+      : {}),
   });
 }
 export async function analyzeSource(
