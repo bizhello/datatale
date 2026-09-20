@@ -103,6 +103,51 @@ test("reduced motion keeps the welcome and replay usable on a narrow viewport", 
   ).toBeVisible();
 });
 
+test("keeps the highlighted input choices inside a narrow viewport", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 280, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Начать знакомство" }).click();
+  await expect(page.locator(".driver-popover")).toBeVisible();
+
+  const layout = await page.evaluate(() => {
+    const bounds = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) throw new Error(`Missing ${selector}.`);
+      const rect = element.getBoundingClientRect();
+      return {
+        left: rect.left,
+        right: rect.right,
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      };
+    };
+    return {
+      viewport: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      grid: bounds(".input-grid"),
+      upload: bounds(".dropzone"),
+      text: bounds(".text-input"),
+      demo: bounds(".demo-button"),
+      popover: bounds(".driver-popover"),
+    };
+  });
+
+  for (const section of [
+    layout.grid,
+    layout.upload,
+    layout.text,
+    layout.demo,
+    layout.popover,
+  ]) {
+    expect(section.left).toBeGreaterThanOrEqual(0);
+    expect(section.right).toBeLessThanOrEqual(layout.viewport);
+    expect(section.scrollWidth).toBeLessThanOrEqual(section.clientWidth);
+  }
+  expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewport);
+});
+
 test("continues when localStorage is unavailable", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(Storage.prototype, "getItem", {

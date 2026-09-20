@@ -1,5 +1,11 @@
 # AI development evidence
 
+## Mobile input and footer containment · 2026-09-20
+
+An iPhone screenshot exposed a min-content overflow in the source input grid: the mobile override used a plain `1fr` track, so HeroUI content could widen the upload card beyond the viewport. The footer's wrapped action row was also shifted right by its desktop auto margin, while the tagline kept a desktop divider and inset after wrapping.
+
+The mobile grid now uses a zero-minimum track and its cards, content, copy, and actions explicitly remain within their parent. The footer becomes two full-width mobile groups with the tagline divider removed and the action row aligned to both edges; below 360 px the actions stack from the left. Manual 390 px and 320 px Chromium renders also revealed an adjacent clipped demo button, which now wraps within the available width. Geometry regressions cover both source cards, the demo action, the footer action row, document width, and the active onboarding popover. `bun run check` passed Biome, Steiger, strict TypeScript, 310 Vitest tests, and the production build; `bun run test:e2e` passed all 75 cases across desktop Chromium, mobile Chromium, and mobile WebKit.
+
 ## Demo chart omission recovery · 2026-09-20
 
 A production run over the built-in four-month demo returned four checked metrics but no charts. The model treated Russian month names as non-temporal and selected `no-chart`, even though the same source supported separate categorical comparisons for revenue and orders. Shape and chart validators were correct, but the semantic boundary accepted the model's refusal without checking whether supported chart stories existed.
