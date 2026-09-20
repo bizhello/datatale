@@ -57,7 +57,12 @@ export const chatResultSchema = z.discriminatedUnion("outcome", [
       message: z.literal(CHAT_REFUSAL),
     })
     .strict(),
-  z.object({ outcome: z.literal("clarification"), message: boundedText(CHAT_ANSWER_MAX_LENGTH) }).strict(),
+  z
+    .object({
+      outcome: z.literal("clarification"),
+      message: boundedText(CHAT_ANSWER_MAX_LENGTH),
+    })
+    .strict(),
   z
     .object({
       outcome: z.literal("unsupported_operation"),
