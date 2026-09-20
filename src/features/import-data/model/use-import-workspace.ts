@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { useDropzone } from "react-dropzone";
-import { demoTable, demoText } from "../config/import-workspace";
+import { createShowcaseDemoSource } from "@/entities/dataset";
+import { showcaseDemoText } from "@/shared/config";
 import { ImportError } from "../lib/import-error";
 import { errorMessage, isAbort } from "../lib/import-errors";
 import { isTextSource } from "../lib/source-guards";
 import { importWorkspaceReducer } from "./import-workspace-reducer";
 import type { ParserController } from "./import-workspace-state";
-import { normalizeTable, normalizeText } from "./normalize";
+import { normalizeText } from "./normalize";
 import { parseFileInWorker } from "./parse-file";
 import type { ImportResult } from "./types";
 
@@ -140,12 +141,9 @@ export function useImportWorkspace() {
       type: "ready",
       state: {
         status: "ready",
-        text: demoText,
+        text: showcaseDemoText,
         isDemo: true,
-        result: normalizeTable(demoTable, {
-          kind: "csv",
-          filename: "demo.csv",
-        }),
+        result: { source: createShowcaseDemoSource(), warnings: [] },
       },
     });
   }, [cancelActive]);

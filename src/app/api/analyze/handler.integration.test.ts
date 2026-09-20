@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Dataset } from "@/entities/dataset";
+import { createShowcaseDemoSource, type Dataset } from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
 import { inputLimits } from "@/shared/config";
 import { createAnalyzeHandler } from "./handler";
@@ -212,6 +212,34 @@ describe("POST /api/analyze handler", () => {
     expect((await handler(request({ source, focus: 1 }))).status).toBe(422);
     expect((await handler(request({ source, focus: "  " }))).status).toBe(503);
     expect(claim).toHaveBeenCalledOnce();
+  });
+
+  it("uses an isolated IP quota only for the exact built-in demo", async () => {
+    const claim = vi.fn(async () => ({ kind: "unavailable" as const }));
+    const handler = createAnalyzeHandler(
+      dependencies({ gate: () => ({ claim }) }),
+    );
+    const demo = createShowcaseDemoSource();
+
+    expect(
+      (
+        await handler(
+          request({ source: demo, focus: "Покажите главные выводы" }),
+        )
+      ).status,
+    ).toBe(503);
+    expect(claim).toHaveBeenLastCalledWith(
+      expect.objectContaining({ ipHash: "showcase-demo:hashed-ip" }),
+    );
+
+    const changedDemo = structuredClone(demo);
+    const firstRow = changedDemo.rows[0];
+    if (!firstRow) throw new Error("Expected the canonical demo rows.");
+    firstRow.values.column_2 = 999_999;
+    expect((await handler(request({ source: changedDemo }))).status).toBe(503);
+    expect(claim).toHaveBeenLastCalledWith(
+      expect.objectContaining({ ipHash: "hashed-ip" }),
+    );
   });
 
   it("rejects a source over one MiB before claim even inside the expanded body cap", async () => {

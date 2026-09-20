@@ -41,7 +41,7 @@ DataTale supports local CSV/XLSX parsing, workbook sheet selection, pasted text,
 
 Analysis creates a sealed guest workspace. The accepted canonical source, validated report, and chat are stored for seven days; original binary uploads are not stored. History is owner-scoped and reopens a report without consuming analysis or chat quota. Losing the sealed cookie ends access, while confirmed delete-all removes the workspace data and clears the client state.
 
-Guests receive one analysis per UTC day, protected by atomic workspace and salted-IP claims. Clearing cookies does not reset the anonymous allowance. A high-entropy invite code can unlock a separate ten-analysis daily budget; only SHA-256 code fingerprints are configured or persisted. Raw invite codes and IP addresses are never stored.
+Guests receive one analysis per workspace and ordinary salted-IP bucket per UTC day. The exact built-in synthetic demo has a separate one-call salted-IP bucket so an evaluator can complete one real demo analysis after the ordinary IP trial was used; workspace and global limits still apply. Clearing cookies resets neither IP bucket. A high-entropy invite code can unlock a separate ten-analysis daily budget; only SHA-256 code fingerprints are configured or persisted. Raw invite codes and IP addresses are never stored.
 
 ## Stack and quality gates
 

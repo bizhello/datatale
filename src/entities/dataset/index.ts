@@ -1,3 +1,7 @@
+export {
+  createShowcaseDemoSource,
+  isShowcaseDemoSource,
+} from "./lib/showcase-demo";
 export { sourceDisplaySummary } from "./lib/source-display";
 export type {
   Dataset,

@@ -261,3 +261,11 @@ The review also exposed a stateless-repair defect: the second table-planning cal
 **Correction:** the server now exposes hero items as typed canonical claims and derives their references from both direct evidence IDs and referenced checked facts. The model remains a claim selector; application code still builds the answer from validated stored text and rejects unknown claim IDs. The selector prompt uses observation claims for general summaries and keeps hypotheses/actions from being presented as observed facts.
 
 **Evidence:** a regression using the exact Russian question proves both narrative reference paths and fail-closed unknown IDs. A live local Spiro probe with `gpt-5.6-terra` selected both supplied observation IDs for the exact question. The existing local credential was neither printed nor committed.
+
+## 2026-09-20 — first-run showcase quota
+
+**Observed failure:** a fresh guest workspace could immediately open the invitation modal for the built-in synthetic demo because a previous workspace on the same IP had consumed the ordinary anonymous IP bucket. This protected spend but prevented the evaluator from completing the product tour.
+
+**Correction:** the exact entity-owned synthetic dataset now uses a separate namespaced one-call IP bucket inside the existing atomic quota transaction. Workspace and global limits still apply, arbitrary sources retain the ordinary bucket, and server-side matching checks the complete canonical columns, values, row identities, filename, and provenance rather than trusting a client demo flag.
+
+**Evidence:** entity regressions reject modified demo sources, the route proves exact demo and focused-demo requests use the isolated bucket while changed data does not, and the dashboard test proves the client submits the same canonical fixture recognized by the server.
