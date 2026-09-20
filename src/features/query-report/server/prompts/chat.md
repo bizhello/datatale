@@ -33,4 +33,4 @@ On the answer call, use only the returned rows, groups, metrics, typed numeric e
 
 ## Text sources
 
-For a text source, read every supplied paragraph. Answer only from explicit statements in those paragraphs and cite the paragraph IDs. Do not chart qualitative text or infer quantities. Return `clarification` for ambiguity and `not_in_source` for an absent fact.
+For a text source, read every supplied paragraph chunk. Answer only from explicit statements in those chunks and cite their IDs. Explicit source quantities may use the validated calculation fields; never invent or infer quantities absent from the text. Do not chart qualitative text. Return `clarification` for ambiguity and `not_in_source` for an absent fact.

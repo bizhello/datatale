@@ -1,11 +1,7 @@
 import "server-only";
 import { readFile } from "node:fs/promises";
 import { generateText, Output } from "ai";
-import { z } from "zod";
 import {
-  CHAT_ANSWER_MAX_LENGTH,
-  CHAT_HISTORY_MAX_MESSAGES,
-  CHAT_HISTORY_MESSAGE_MAX_LENGTH,
   CHAT_REFUSAL,
   type ChatMessage,
   type ChatRequest,
@@ -23,28 +19,30 @@ import {
 } from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
+import { validateAnswerReferences } from "./answer-validation";
 import {
-  type ArithmeticInput,
-  type NumericEvidence,
-  validateArithmetic,
-} from "./arithmetic";
+  decodeOutcome,
+  decodeQuery,
+  type ProviderEnvelope,
+  providerEnvelopeSchema,
+} from "./provider-contract";
+import {
+  boundedHistory as buildBoundedHistory,
+  columns as buildColumns,
+  resultReferences as buildResultReferences,
+  sourceReferences as buildSourceReferences,
+  textEvidence as buildTextEvidence,
+} from "./source-context";
 
 export const CHAT_TIMEOUT_MS = 60_000;
-const MAX_DISTINCT_VALUES = 40;
 const MAX_PLAN_REPAIRS = 1;
 const PROVIDER_OUTPUT_MAX_TOKENS = 900;
-const CHAT_EVIDENCE_MAX_LENGTH = 1_000;
 
 /** Query validation and result shape are owned by the dataset entity. */
 export const sourceQueryPlanSchema = datasetQuerySchema;
 export type SourceQueryPlan = DatasetQuery;
 export type QueryResult = DatasetQueryResult;
-export type QueryResultReference = {
-  id: string;
-  excerpt?: string;
-  numericValues?: number[];
-  numericEvidence?: NumericEvidence[];
-};
+export type { QueryResultReference } from "./source-context";
 export type QueryExecutor = {
   execute(
     dataset: Dataset,
@@ -86,201 +84,6 @@ export class ChatProviderError extends Error {
   }
 }
 
-/* One flat, all-required envelope avoids oneOf/anyOf in the Spiro JSON schema. */
-const providerEnvelopeSchema = z
-  .object({
-    outcome: z.enum([
-      "answer",
-      "clarification",
-      "not_in_source",
-      "unsupported_operation",
-      "query",
-    ]),
-    answer: z.string().max(CHAT_ANSWER_MAX_LENGTH),
-    message: z.string().max(CHAT_ANSWER_MAX_LENGTH),
-    references: z
-      .array(
-        z
-          .object({ id: z.string().max(160), excerpt: z.string().max(1_000) })
-          .strict(),
-      )
-      .max(7),
-    queryId: z.string().max(160),
-    filters: z
-      .array(
-        z
-          .object({
-            fieldId: z.string().max(160),
-            operator: z.enum([
-              "eq",
-              "ne",
-              "in",
-              "lt",
-              "lte",
-              "gt",
-              "gte",
-              "contains",
-            ]),
-            valueKind: z.enum([
-              "string",
-              "number",
-              "boolean",
-              "null",
-              "string_list",
-              "number_list",
-              "boolean_list",
-              "null_list",
-            ]),
-            values: z.array(z.string().max(160)).max(100),
-          })
-          .strict(),
-      )
-      .max(20),
-    groupBy: z.string().max(160),
-    select: z.array(z.string().max(160)).max(30),
-    metrics: z
-      .array(
-        z
-          .object({
-            id: z.string().max(160),
-            aggregation: z.enum([
-              "count",
-              "sum",
-              "average",
-              "min",
-              "max",
-              "distinctCount",
-            ]),
-            fieldId: z.string().max(160),
-          })
-          .strict(),
-      )
-      .max(20),
-    orderBy: z
-      .array(
-        z
-          .object({
-            fieldId: z.string().max(160),
-            metricId: z.string().max(160),
-            direction: z.enum(["asc", "desc"]),
-          })
-          .strict()
-          .refine(
-            (value) => (value.fieldId === "") !== (value.metricId === ""),
-            "Order must reference one field or metric.",
-          ),
-      )
-      .max(20),
-    limit: z.number().int().min(0).max(100),
-    calculationKind: z.enum([
-      "none",
-      "sum",
-      "difference",
-      "ratio",
-      "percentage_of",
-      "percentage_change",
-    ]),
-    calculationReferenceIds: z.array(z.string().max(160)).max(2),
-    calculationValues: z.array(z.number().finite()).max(2),
-    calculationResult: z.number().finite(),
-    calculationUnit: z.string().max(80),
-  })
-  .strict();
-type ProviderEnvelope = z.output<typeof providerEnvelopeSchema>;
-function decodeValue(
-  filter: ProviderEnvelope["filters"][number],
-): string | number | boolean | null | Array<string | number | boolean | null> {
-  const list = filter.valueKind.endsWith("_list");
-  if (
-    (list && filter.values.length < 1) ||
-    (!list && filter.values.length !== 1)
-  )
-    throw new Error("Filter valueKind and values do not agree.");
-  const parse = (value: string): string | number | boolean | null => {
-    if (filter.valueKind.startsWith("number")) {
-      const number = Number(value);
-      if (!Number.isFinite(number))
-        throw new Error("Filter number is invalid.");
-      return number;
-    }
-    if (filter.valueKind.startsWith("boolean")) {
-      if (value !== "true" && value !== "false")
-        throw new Error("Filter boolean is invalid.");
-      return value === "true";
-    }
-    if (filter.valueKind.startsWith("null")) {
-      if (value !== "") throw new Error("Filter null sentinel is invalid.");
-      return null;
-    }
-    return value;
-  };
-  return list ? filter.values.map(parse) : parse(filter.values[0] as string);
-}
-function decodeQuery(input: ProviderEnvelope): DatasetQuery {
-  if (input.outcome !== "query") throw new Error("Expected a query outcome.");
-  if (
-    !input.queryId ||
-    !input.limit ||
-    input.answer ||
-    input.message ||
-    input.references.length ||
-    input.calculationKind !== "none" ||
-    input.calculationReferenceIds.length ||
-    input.calculationValues.length ||
-    input.calculationResult !== 0 ||
-    input.calculationUnit
-  )
-    throw new Error("Query outcome contains invalid sentinels.");
-  return datasetQuerySchema.parse({
-    queryId: input.queryId,
-    filters: input.filters.map((filter) => ({
-      fieldId: filter.fieldId,
-      operator: filter.operator,
-      value: decodeValue(filter),
-    })),
-    groupBy: input.groupBy ? { fieldId: input.groupBy } : undefined,
-    select: input.select,
-    metrics: input.metrics.map((metric) => ({
-      ...metric,
-      fieldId: metric.fieldId || undefined,
-    })),
-    orderBy: input.orderBy.map((order) => ({
-      ...order,
-      fieldId: order.fieldId || undefined,
-      metricId: order.metricId || undefined,
-    })),
-    limit: input.limit,
-  });
-}
-function decodeOutcome(raw: unknown): ProviderEnvelope {
-  const output = providerEnvelopeSchema.parse(raw);
-  if (
-    output.outcome !== "answer" &&
-    (output.calculationKind !== "none" ||
-      output.calculationReferenceIds.length > 0 ||
-      output.calculationValues.length > 0 ||
-      output.calculationResult !== 0 ||
-      output.calculationUnit !== "")
-  )
-    throw new Error("Non-answer outcome contains calculation fields.");
-  if (
-    output.outcome === "answer" &&
-    (!output.answer.trim() || output.references.length === 0)
-  )
-    throw new Error("Answer outcome requires answer and references.");
-  if (
-    ["clarification", "unsupported_operation"].includes(output.outcome) &&
-    !output.message.trim()
-  )
-    throw new Error("Message outcome requires a message.");
-  if (
-    output.outcome === "not_in_source" &&
-    (output.answer || output.message || output.references.length)
-  )
-    throw new Error("Missing-source outcome contains invalid sentinels.");
-  return output;
-}
-
 const clarification = (
   message = "Уточните, пожалуйста, что именно нужно найти в источнике.",
 ): ChatResult => ({ outcome: "clarification", message });
@@ -292,183 +95,6 @@ const unsupported = (
   message = "Эта операция не поддерживается для данного источника.",
 ): ChatResult => ({ outcome: "unsupported_operation", message });
 
-function boundedHistory(history: ChatMessage[]) {
-  return history.slice(-CHAT_HISTORY_MAX_MESSAGES).map((message) => ({
-    role: message.role,
-    content: message.content.slice(0, CHAT_HISTORY_MESSAGE_MAX_LENGTH),
-  }));
-}
-function rowExcerpt(row: { values: Record<string, unknown> }) {
-  return boundedEvidence(
-    Object.entries(row.values)
-      .map(([key, value]) => `${key}: ${String(value)}`)
-      .join("; "),
-  );
-}
-function boundedEvidence(value: string) {
-  return value.slice(0, CHAT_EVIDENCE_MAX_LENGTH);
-}
-const numericToken =
-  /(?<![\p{L}\d])[+\-−]?(?:\d+(?:[.,]\d+)?|\d*[.,]\d+)(?![\p{L}\d])/gu;
-function numericValues(value: string) {
-  return (
-    value
-      .match(numericToken)
-      ?.map((token) => Number(token.replace(",", ".").replace("−", "-"))) ?? []
-  );
-}
-function sourceReferences(
-  source: Dataset | TextSource,
-): QueryResultReference[] {
-  return "rows" in source
-    ? source.rows.map((row) => {
-        const excerpt = rowExcerpt(row);
-        const numericEvidence = source.columns.flatMap((column) => {
-          const value = row.values[column.id];
-          return typeof value === "number"
-            ? [{ value, ...(column.unit ? { unit: column.unit } : {}) }]
-            : [];
-        });
-        return {
-          id: `row-${row.id}`,
-          excerpt,
-          numericValues: numericEvidence.map((item) => item.value),
-          numericEvidence,
-        };
-      })
-    : textEvidence(source).map((paragraph) => {
-        const excerpt = paragraph.text;
-        const values = numericValues(excerpt);
-        return {
-          id: paragraph.id,
-          excerpt,
-          numericValues: values,
-          numericEvidence: values.map((value) => ({ value })),
-        };
-      });
-}
-function textEvidence(source: TextSource) {
-  return source.paragraphs.flatMap((paragraph) => {
-    const chunks: Array<{ id: string; text: string }> = [];
-    for (
-      let offset = 0;
-      offset < paragraph.text.length;
-      offset += CHAT_EVIDENCE_MAX_LENGTH
-    ) {
-      const chunk = paragraph.text.slice(
-        offset,
-        offset + CHAT_EVIDENCE_MAX_LENGTH,
-      );
-      const suffix =
-        paragraph.text.length <= CHAT_EVIDENCE_MAX_LENGTH
-          ? ""
-          : `-${Math.floor(offset / CHAT_EVIDENCE_MAX_LENGTH) + 1}`;
-      chunks.push({ id: `paragraph-${paragraph.index}${suffix}`, text: chunk });
-    }
-    return chunks;
-  });
-}
-const russianWordEndings =
-  /(ами|ями|ого|ему|ому|ее|ие|ые|ой|ий|ый|ая|яя|ое|ее|ие|ые|ам|ям|ом|ем|ым|им|ах|ях|ов|ев|ей|ью|ою|ею|ов|ев|ью|ю|я|а|ы|и|е|о|у|э|ь|й)$/u;
-function normalizedWords(value: string) {
-  return (
-    value
-      .toLocaleLowerCase("ru-RU")
-      .replaceAll("ё", "е")
-      .match(/[\p{L}\p{N}]+/gu)
-      ?.map((word) => word.replace(russianWordEndings, ""))
-      .filter((word) => word.length >= 3) ?? []
-  );
-}
-function valueMentionedInQuestion(value: string, question: string) {
-  const normalizedValue = value.toLocaleLowerCase("ru-RU");
-  const normalizedQuestion = question.toLocaleLowerCase("ru-RU");
-  if (
-    normalizedQuestion.includes(normalizedValue) ||
-    normalizedValue.includes(normalizedQuestion)
-  )
-    return true;
-  const questionWords = new Set(normalizedWords(question));
-  return normalizedWords(value).some((word) => questionWords.has(word));
-}
-function columns(source: Dataset, question: string, history: ChatMessage[]) {
-  const candidateText = [
-    question,
-    ...history.map((message) => message.content),
-  ].join(" ");
-  return source.columns.map((column) => {
-    const counts = new Map<string | number | boolean, number>();
-    for (const value of source.rows.map((row) => row.values[column.id])) {
-      if (value !== null && value !== undefined)
-        counts.set(value, (counts.get(value) ?? 0) + 1);
-    }
-    const values = [...counts.keys()];
-    const frequent = values
-      .sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0))
-      .slice(0, MAX_DISTINCT_VALUES);
-    const questionCandidates = values.filter(
-      (value): value is string =>
-        typeof value === "string" &&
-        valueMentionedInQuestion(value, candidateText),
-    );
-    const candidates = [...new Set([...questionCandidates, ...frequent])].slice(
-      0,
-      MAX_DISTINCT_VALUES,
-    );
-    return {
-      id: column.id,
-      label: column.label,
-      scalarType: column.scalarType,
-      ...(column.unit ? { unit: column.unit } : {}),
-      values: candidates,
-      ...(values.length > MAX_DISTINCT_VALUES
-        ? { candidateCount: values.length }
-        : {}),
-    };
-  });
-}
-function validateReferences(
-  answer: string,
-  references: Array<{ id: string; excerpt?: string | undefined }>,
-  evidence: Map<string, QueryResultReference>,
-  requiredId?: string,
-  arithmetic?: ArithmeticInput,
-) {
-  if (references.length < 1 || references.length > 7)
-    throw new Error("Answer must cite source references.");
-  const seen = new Set<string>();
-  const trusted = references.map((reference) => {
-    if (seen.has(reference.id) || !evidence.has(reference.id))
-      throw new Error("Answer cited unknown or duplicate source reference.");
-    seen.add(reference.id);
-    return {
-      id: reference.id,
-      excerpt: evidence.get(reference.id)?.excerpt as string,
-    };
-  });
-  if (requiredId && !seen.has(requiredId))
-    throw new Error("Numeric answer must cite the query result reference.");
-  const evidenceNumbers = new Set(
-    trusted.flatMap(
-      (reference) => evidence.get(reference.id)?.numericValues ?? [],
-    ),
-  );
-  const derivedValue = arithmetic
-    ? validateArithmetic(arithmetic, seen, evidence)
-    : undefined;
-  for (const value of numericValues(answer))
-    if (
-      !evidenceNumbers.has(value) &&
-      (derivedValue === undefined ||
-        Math.abs(value - derivedValue) >
-          1e-9 * Math.max(1, Math.abs(derivedValue)))
-    )
-      throw new Error("Answer contains a number absent from cited evidence.");
-  return trusted.map((reference) => ({
-    id: reference.id,
-    excerpt: evidence.get(reference.id)?.excerpt as string,
-  }));
-}
 function fieldId(field: string | { fieldId: string }) {
   return typeof field === "string" ? field : field.fieldId;
 }
@@ -554,91 +180,6 @@ async function callProvider(
     );
   }
 }
-function resultReferences(
-  result: DatasetQueryResult,
-  source: Dataset,
-  query: DatasetQuery,
-): QueryResultReference[] {
-  const rows = new Map(source.rows.map((row) => [row.id, row]));
-  const metricUnits = new Map(
-    (query.metrics ?? []).flatMap((metric) => {
-      const unit = metric.fieldId
-        ? source.columns.find((column) => column.id === metric.fieldId)?.unit
-        : undefined;
-      return unit ? [[metric.id, unit] as const] : [];
-    }),
-  );
-  const metricEvidence = (metrics: Record<string, number | null>) =>
-    Object.entries(metrics).flatMap(([id, value]) =>
-      value === null
-        ? []
-        : [
-            {
-              value,
-              ...(metricUnits.get(id)
-                ? { unit: metricUnits.get(id) as string }
-                : {}),
-            },
-          ],
-    );
-  const queryNumericEvidence = metricEvidence(result.metrics);
-  const references: QueryResultReference[] = [
-    {
-      id: `query-${result.queryId}`,
-      excerpt: boundedEvidence(
-        `Метрики: ${JSON.stringify(result.metrics)}; найдено строк: ${result.matchedRows}; просмотрено строк: ${result.scannedRows}.`,
-      ),
-      numericValues: queryNumericEvidence.map((item) => item.value),
-      numericEvidence: queryNumericEvidence,
-    },
-  ];
-  references[0]?.numericValues?.push(result.matchedRows, result.scannedRows);
-  references[0]?.numericEvidence?.push(
-    { value: result.matchedRows },
-    { value: result.scannedRows },
-  );
-  for (const [index, group] of result.groups.entries()) {
-    const groupNumericEvidence = metricEvidence(group.metrics);
-    references.push({
-      id: `group-${result.queryId}-${index}`,
-      excerpt: boundedEvidence(
-        `Группа ${String(group.key)}; метрики: ${JSON.stringify(group.metrics)}.`,
-      ),
-      numericValues: [
-        ...(typeof group.key === "number" ? [group.key] : []),
-        ...groupNumericEvidence.map((item) => item.value),
-      ],
-      numericEvidence: [
-        ...(typeof group.key === "number" ? [{ value: group.key }] : []),
-        ...groupNumericEvidence,
-      ],
-    });
-  }
-  const seen = new Set<string>();
-  for (const reference of [
-    ...result.rowReferences,
-    ...result.groups.flatMap((group) => group.rowReferences),
-  ]) {
-    if (seen.has(reference.rowId)) continue;
-    const row = rows.get(reference.rowId);
-    if (!row) continue;
-    seen.add(reference.rowId);
-    const excerpt = rowExcerpt(row);
-    const rowEvidence = sourceReferences({ ...source, rows: [row] })[0];
-    references.push({
-      id: `row-${row.id}`,
-      excerpt,
-      ...(rowEvidence?.numericValues
-        ? { numericValues: rowEvidence.numericValues }
-        : {}),
-      ...(rowEvidence?.numericEvidence
-        ? { numericEvidence: rowEvidence.numericEvidence }
-        : {}),
-    });
-    if (references.length >= 100) break;
-  }
-  return references;
-}
 async function answerChatCore(
   request: ChatRequest,
   dependencies: ChatDependencies,
@@ -667,9 +208,9 @@ async function answerChatCore(
   if (!context || context.analysisId !== parsed.analysisId)
     return notInSource();
   const provider = dependencies.provider ?? defaultProvider;
-  const history = boundedHistory(context.history);
+  const history = buildBoundedHistory(context.history);
   const allowed = new Map(
-    sourceReferences(context.source).map((reference) => [
+    buildSourceReferences(context.source).map((reference) => [
       reference.id,
       reference,
     ]),
@@ -683,7 +224,7 @@ async function answerChatCore(
       provider,
       {
         kind: "text",
-        paragraphs: textEvidence(context.source),
+        paragraphs: buildTextEvidence(context.source),
         question: parsed.question,
         history,
       },
@@ -695,7 +236,7 @@ async function answerChatCore(
         return chatResultSchema.parse({
           outcome: "answered",
           answer: output.answer,
-          references: validateReferences(
+          references: validateAnswerReferences(
             output.answer,
             output.references,
             allowed,
@@ -729,7 +270,7 @@ async function answerChatCore(
     return unsupported("Операции с таблицей временно недоступны.");
   const profile = {
     kind: "dataset",
-    columns: columns(context.source, parsed.question, history),
+    columns: buildColumns(context.source, parsed.question, history),
     rowCount: context.source.rows.length,
     question: parsed.question,
     history,
@@ -806,7 +347,7 @@ async function answerChatCore(
       );
     throw error;
   }
-  const references = resultReferences(result, context.source, query);
+  const references = buildResultReferences(result, context.source, query);
   const finalAllowed = new Map(
     references.map((reference) => [reference.id, reference]),
   );
@@ -836,7 +377,7 @@ async function answerChatCore(
       return chatResultSchema.parse({
         outcome: "answered",
         answer: output.answer,
-        references: validateReferences(
+        references: validateAnswerReferences(
           output.answer,
           output.references,
           finalAllowed,
