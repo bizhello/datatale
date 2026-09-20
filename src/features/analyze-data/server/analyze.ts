@@ -1,5 +1,5 @@
 import "server-only";
-import { generateText, Output } from "ai";
+import { generateText, NoObjectGeneratedError, Output } from "ai";
 import { z } from "zod";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import {
@@ -793,6 +793,20 @@ function boundedExactExcerpt(text: string) {
   const excerpt = text.slice(0, REPORT_QUOTE_MAX_LENGTH);
   return /[\uD800-\uDBFF]$/.test(excerpt) ? excerpt.slice(0, -1) : excerpt;
 }
+
+function repairableModelOutput(error: unknown) {
+  return (
+    NoObjectGeneratedError.isInstance(error) ||
+    error instanceof z.ZodError ||
+    (error instanceof AnalysisError && error.code === "invalid-model-output")
+  );
+}
+
+function repairPrompt(prompt: string, error: unknown) {
+  const reason = error instanceof Error ? error.message : "Invalid output.";
+  return `${prompt}\n\n# Repair task\n\nThe previous response was rejected by the trusted application validator. Return a complete replacement that follows the same output contract and fixes this validation failure:\n${reason}`;
+}
+
 async function analyzeText(
   source: TextSource,
   callModel: ModelCall,
@@ -803,16 +817,23 @@ async function analyzeText(
     loadPrompt("text"),
     loadPrompt("narrative"),
   ]);
-  const extraction = textExtractionResponseSchema.parse(
-    await callModel({
+  const extractionPrompt = `${extractPrompt}\n\n${boundedSourceDescription(source)}${focusContext(focus)}`;
+  const extract = (prompt: string) =>
+    callModel({
       stage: "text-extraction",
       schema: textExtractionResponseSchema,
       providerSchema: providerTextExtractionResponseSchema,
       decodeProviderOutput: textExtractionFromProviderOutput,
       signal,
-      prompt: `${extractPrompt}\n\n${boundedSourceDescription(source)}${focusContext(focus)}`,
-    }),
-  );
+      prompt,
+    }).then((output) => textExtractionResponseSchema.parse(output));
+  let extraction: z.infer<typeof textExtractionResponseSchema>;
+  try {
+    extraction = await extract(extractionPrompt);
+  } catch (error) {
+    if (!repairableModelOutput(error)) throw error;
+    extraction = await extract(repairPrompt(extractionPrompt, error));
+  }
   const evidenceByQuote = new Map<string, string>();
   const acceptedSubjectsByOccurrence = new Map<string, TextRange[]>();
   const evidence = [] as Array<{
@@ -845,11 +866,7 @@ async function analyzeText(
         (candidate) => candidate.index === fact.paragraphIndex,
       );
       const quoteStart = paragraph?.text.indexOf(fact.quote) ?? -1;
-      if (!paragraph || quoteStart < 0)
-        throw new AnalysisError(
-          "invalid-model-output",
-          "Text fact must use an exact paragraph quotation.",
-        );
+      if (!paragraph || quoteStart < 0) return undefined;
       const factContext =
         quoteHasValue(fact.quote, fact.value) &&
         quoteHasExactPhrase(fact.quote, fact.subject) &&
@@ -914,10 +931,7 @@ async function analyzeText(
       !paragraph?.text.includes(observation.quote) ||
       evidenceByQuote.has(`${observation.paragraphIndex}:${observation.quote}`)
     )
-      throw new AnalysisError(
-        "invalid-model-output",
-        "Text observation must use one exact, unused paragraph quotation.",
-      );
+      continue;
     addQuoteEvidence(
       observation.id,
       observation.paragraphIndex,
@@ -940,18 +954,23 @@ async function analyzeText(
   }
   const factIds = new Set(facts.map((fact) => fact.id));
   const evidenceIds = new Set(evidence.map((item) => item.id));
-  const narrative = checkedNarrative(
-    await callModel({
+  const checkedNarrativePrompt = `${narrativePrompt}\n\nChecked facts and evidence only:\n${JSON.stringify({ facts, evidence })}${focusContext(focus)}`;
+  const narrate = (prompt: string) =>
+    callModel({
       stage: "narrative",
       schema: narrativeResponseSchema,
       providerSchema: providerNarrativeResponseSchema,
       decodeProviderOutput: narrativeFromProviderOutput,
       signal,
-      prompt: `${narrativePrompt}\n\nChecked facts and evidence only:\n${JSON.stringify({ facts, evidence })}${focusContext(focus)}`,
-    }),
-    factIds,
-    evidenceIds,
-  );
+      prompt,
+    }).then((output) => checkedNarrative(output, factIds, evidenceIds));
+  let narrative: z.infer<typeof narrativeResponseSchema>;
+  try {
+    narrative = await narrate(checkedNarrativePrompt);
+  } catch (error) {
+    if (!repairableModelOutput(error)) throw error;
+    narrative = await narrate(repairPrompt(checkedNarrativePrompt, error));
+  }
   return finalReportSchema.parse({
     version: 1,
     hero: narrative.hero,

@@ -19,11 +19,13 @@ Classify one user question as `answered`, `insufficient_data`, or `unsupported_o
 
 1. Determine the exact information requested, including measure, entity, category, and period when present.
 2. Check whether the supplied canonical claim catalog explicitly contains that information. A request for the report's main conclusions, summary, or most important points is answered from relevant `observation` claims when they are present.
+   `retrieval.matchedSources` is the number of source rows or paragraphs matched by the question and recent history, `includedSources` is the number represented in the catalog, and `truncated` says whether matching source material was omitted to keep the request bounded. `decisiveSourceId`, when present, identifies the one source ranked strictly above every other match; trusted application code independently enforces this boundary.
 3. If one or more claims directly answer the question without a new calculation or inference, return `answered` and select only those IDs.
 4. For a before/after question, when source claims explicitly state a baseline and a later change but do not state the computed result, return `answered` with those source claim IDs. The application will quote the grounded components without inventing or calculating a final value.
 5. If the accepted source and checked report do not contain the requested information, return `insufficient_data` with no claim IDs.
 6. If answering requires an operation outside the validated catalog and explicit source claims cannot safely convey the relevant components, return `unsupported_operation` with no claim IDs.
 7. When ambiguity would change the answer and the claims do not resolve it, prefer `insufficient_data`.
+8. When `retrieval.truncated` is true, never treat the included source claims as an exhaustive set. Source claims may answer only a point lookup grounded in `decisiveSourceId`; otherwise use `unsupported_operation`. Checked report claims may still answer a complete aggregate or summary because they were validated before retrieval.
 
 # Allowed and disallowed reasoning
 

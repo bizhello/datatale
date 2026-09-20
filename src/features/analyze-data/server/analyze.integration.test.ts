@@ -1,3 +1,4 @@
+import { NoObjectGeneratedError } from "ai";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -297,7 +298,105 @@ describe("analysis orchestration", () => {
     await expect(
       analyzeSource(text, { callModel: invalidQuote }),
     ).rejects.toMatchObject({ code: "invalid-model-output" });
-    expect(calls).toEqual(["text-extraction"]);
+    expect(calls).toEqual(["text-extraction", "narrative", "narrative"]);
+  });
+
+  it("repairs an incomplete text extraction response once", async () => {
+    const text: TextSource = {
+      version: 1,
+      id: "text-repair",
+      source: { kind: "text" },
+      rawText: "Revenue was 12 RUB in January.",
+      paragraphs: [{ index: 1, text: "Revenue was 12 RUB in January." }],
+    };
+    const stages: string[] = [];
+    let extractionAttempts = 0;
+    const report = await analyzeSource(text, {
+      callModel: async ({ stage, prompt }) => {
+        stages.push(stage);
+        if (stage === "text-extraction") {
+          extractionAttempts += 1;
+          if (extractionAttempts === 1)
+            throw new NoObjectGeneratedError({
+              message: "Provider returned an incomplete object.",
+              cause: new Error("Required property facts is missing."),
+              text: '{"observations":[]}',
+              response: undefined as never,
+              usage: undefined as never,
+              finishReason: undefined as never,
+            });
+          expect(prompt).toContain("# Repair task");
+          expect(prompt).toContain("Return a complete replacement");
+          return {
+            facts: [
+              {
+                id: "revenue",
+                label: "Revenue",
+                subject: "Revenue",
+                value: 12,
+                unit: "RUB",
+                period: "January",
+                paragraphIndex: 1,
+                quote: "Revenue was 12 RUB in January.",
+              },
+            ],
+            observations: [],
+          };
+        }
+        return textNarrative;
+      },
+    });
+
+    expect(stages).toEqual(["text-extraction", "text-extraction", "narrative"]);
+    expect(report.metrics).toMatchObject([{ id: "revenue", value: 12 }]);
+  });
+
+  it("repairs a text narrative that references an unchecked fact", async () => {
+    const text: TextSource = {
+      version: 1,
+      id: "narrative-repair",
+      source: { kind: "text" },
+      rawText: "Revenue was 12 RUB in January.",
+      paragraphs: [{ index: 1, text: "Revenue was 12 RUB in January." }],
+    };
+    const stages: string[] = [];
+    let narrativeAttempts = 0;
+    const report = await analyzeSource(text, {
+      callModel: async ({ stage, prompt }) => {
+        stages.push(stage);
+        if (stage === "text-extraction")
+          return {
+            facts: [
+              {
+                id: "revenue",
+                label: "Revenue",
+                subject: "Revenue",
+                value: 12,
+                unit: "RUB",
+                period: "January",
+                paragraphIndex: 1,
+                quote: "Revenue was 12 RUB in January.",
+              },
+            ],
+            observations: [],
+          };
+        narrativeAttempts += 1;
+        if (narrativeAttempts === 1)
+          return {
+            ...textNarrative,
+            hero: textNarrative.hero.map((item) => ({
+              ...item,
+              factIds: ["unchecked"],
+            })),
+          };
+        expect(prompt).toContain("# Repair task");
+        expect(prompt).toContain("unchecked fact or evidence");
+        return textNarrative;
+      },
+    });
+
+    expect(stages).toEqual(["text-extraction", "narrative", "narrative"]);
+    expect(report.hero).toHaveLength(2);
   });
 
   it("propagates an injection-like focus through text extraction and narrative without changing source grounding", async () => {

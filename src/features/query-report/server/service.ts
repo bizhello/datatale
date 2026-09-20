@@ -5,7 +5,6 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import {
   CHAT_ANSWER_MAX_LENGTH,
-  CHAT_CONTEXT_MAX_SERIALIZED_BYTES,
   CHAT_HISTORY_MAX_MESSAGES,
   CHAT_HISTORY_MESSAGE_MAX_LENGTH,
   CHAT_REFUSAL,
@@ -18,8 +17,18 @@ import {
 import type { Dataset, TextSource } from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
+import { compensatedSum } from "@/shared/lib/compensated-sum";
 import { chartExtremum } from "./chart-extremum";
-import { labelMentionedInQuestion } from "./label-match";
+import {
+  buildProviderContext,
+  type CanonicalClaim,
+  numberText,
+  reportReferenceId,
+} from "./claim-context";
+import {
+  labelFollowsMarkerInQuestion,
+  labelMentionedInQuestion,
+} from "./label-match";
 import { checkedReportSummary } from "./report-summary";
 
 export const CHAT_TIMEOUT_MS = 30_000;
@@ -76,10 +85,6 @@ function unsupported(
   return { outcome: "unsupported_operation", message };
 }
 
-function bytes(value: unknown) {
-  return new TextEncoder().encode(JSON.stringify(value)).byteLength;
-}
-
 function boundedHistory(history: ChatMessage[]) {
   return history.slice(-CHAT_HISTORY_MAX_MESSAGES).map((message) => ({
     role: message.role,
@@ -91,45 +96,12 @@ function sourceEvidence(report: FinalReport, id: string) {
   return report.evidence.find((item) => item.id === id);
 }
 
-function reportReferenceId(report: FinalReport, id: string) {
-  const index = report.evidence.findIndex((item) => item.id === id);
-  return index >= 0 ? `evidence-${index}` : undefined;
-}
-
 type SourceReference = {
   id: string;
   values: Array<string | number | boolean>;
   excerpt?: string;
   factIds: string[];
 };
-
-type CanonicalClaim = {
-  id: string;
-  text: string;
-  references: string[];
-  kind: "fact" | "source" | FinalReport["hero"][number]["kind"];
-};
-
-function narrativeReferenceIds(
-  item: FinalReport["hero"][number],
-  report: FinalReport,
-) {
-  const evidenceIds = [
-    ...item.evidenceIds,
-    ...item.factIds.flatMap(
-      (factId) =>
-        report.metrics.find((fact) => fact.id === factId)?.evidenceIds ?? [],
-    ),
-  ];
-  return [
-    ...new Set(
-      evidenceIds.flatMap((id) => {
-        const referenceId = reportReferenceId(report, id);
-        return referenceId ? [referenceId] : [];
-      }),
-    ),
-  ];
-}
 
 function sourceReferences(
   source: Dataset | TextSource,
@@ -151,9 +123,9 @@ function sourceReferences(
     }),
   );
   if ("rows" in source) {
-    for (const row of source.rows) {
+    for (const [index, row] of source.rows.entries()) {
       references.push({
-        id: `row-${source.rows.indexOf(row)}`,
+        id: `row-${index}`,
         values: Object.values(row.values).filter(
           (value): value is string | number | boolean => value !== null,
         ),
@@ -161,77 +133,15 @@ function sourceReferences(
       });
     }
   } else {
-    for (const paragraph of source.paragraphs)
+    for (const [index, paragraph] of source.paragraphs.entries())
       references.push({
-        id: `paragraph-${source.paragraphs.indexOf(paragraph)}`,
+        id: `paragraph-${index}`,
         values: [paragraph.text],
         excerpt: paragraph.text,
         factIds: [],
       });
   }
   return references;
-}
-
-function formatCell(value: string | number | boolean | null, unit?: string) {
-  if (value === null) return "нет значения";
-  if (typeof value === "number")
-    return `${numberText(value)}${unit ? ` ${unit}` : ""}`;
-  return String(value);
-}
-
-function canonicalClaims(
-  source: Dataset | TextSource,
-  report: FinalReport,
-): CanonicalClaim[] {
-  const claims: CanonicalClaim[] = [];
-  for (const [index, fact] of report.metrics.entries()) {
-    const evidenceId = reportReferenceId(report, fact.evidenceIds[0] ?? "");
-    if (evidenceId)
-      claims.push({
-        id: `fact-${index}`,
-        text: `${fact.label}: ${formatCell(fact.value, fact.unit)}.`,
-        references: [evidenceId],
-        kind: "fact",
-      });
-  }
-  for (const [index, item] of report.hero.entries()) {
-    const references = narrativeReferenceIds(item, report);
-    if (references.length > 0)
-      claims.push({
-        id: `hero-${index}`,
-        text: item.text,
-        references,
-        kind: item.kind,
-      });
-  }
-  if ("rows" in source) {
-    for (const [rowIndex, row] of source.rows.entries()) {
-      const referenceId = `row-${rowIndex}`;
-      for (const [columnIndex, column] of source.columns.entries()) {
-        claims.push({
-          id: `cell-${rowIndex}-${columnIndex}`,
-          text: `${column.label}: ${formatCell(row.values[column.id] ?? null, column.unit)}.`,
-          references: [referenceId],
-          kind: "source",
-        });
-      }
-    }
-  } else {
-    for (const [index, paragraph] of source.paragraphs.entries())
-      claims.push({
-        id: `paragraph-${index}`,
-        text: paragraph.text,
-        references: [`paragraph-${index}`],
-        kind: "source",
-      });
-  }
-  return claims;
-}
-
-function numberText(value: number) {
-  return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 6 }).format(
-    value,
-  );
 }
 
 function deterministicFact(
@@ -261,17 +171,168 @@ function deterministicFact(
 }
 
 type Aggregation = "count" | "sum" | "average" | "min" | "max";
+
+function escapedPattern(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function stringValueMentioned(question: string, value: string) {
+  const normalized = value.trim().toLocaleLowerCase("ru-RU");
+  if (normalized.length < 2 || normalized.length > 80) return false;
+  return (
+    new RegExp(
+      `(?:^|[^\\p{L}\\p{N}])${escapedPattern(normalized)}(?:$|[^\\p{L}\\p{N}])`,
+      "u",
+    ).test(question) || labelMentionedInQuestion(normalized, question)
+  );
+}
+
+function numberValueMentioned(question: string, value: number) {
+  const compactQuestion = question.replace(/[\s\u00a0\u202f]/gu, "");
+  const compactValue = numberText(value).replace(/[\s\u00a0\u202f]/gu, "");
+  return new RegExp(
+    `(?:^|[^\\p{L}\\p{N}])${escapedPattern(compactValue)}(?:$|[^\\p{L}\\p{N}])`,
+    "u",
+  ).test(compactQuestion);
+}
+
+function filteredRows(
+  question: string,
+  source: Dataset,
+  measureColumnId: string | undefined,
+) {
+  const normalizedQuestion = question.toLocaleLowerCase("ru-RU");
+  const aggregationVocabulary = new Set([
+    "average",
+    "avg",
+    "count",
+    "sum",
+    "total",
+    "всего",
+    "итог",
+    "итого",
+    "количество",
+    "среднее",
+    "сумма",
+  ]);
+  const filters = source.columns.flatMap((column) => {
+    const matched = new Map<string, string | number | boolean>();
+    for (const row of source.rows) {
+      const value = row.values[column.id];
+      if (value === null || value === undefined) continue;
+      if (
+        typeof value === "string" &&
+        aggregationVocabulary.has(value.trim().toLocaleLowerCase("ru-RU"))
+      )
+        continue;
+      const mentioned =
+        typeof value === "number"
+          ? numberValueMentioned(normalizedQuestion, value)
+          : stringValueMentioned(normalizedQuestion, String(value));
+      if (mentioned) matched.set(`${typeof value}:${String(value)}`, value);
+    }
+    return matched.size === 0 ? [] : [{ columnId: column.id, values: matched }];
+  });
+  if (filters.some((filter) => filter.values.size > 1)) return undefined;
+  if (filters.some((filter) => filter.columnId === measureColumnId))
+    return undefined;
+  const withoutGenericScope = normalizedQuestion
+    .replace(/\b(?:in|for)\s+(?:the\s+)?(?:report|table|dataset|data)\b/gu, "")
+    .replace(
+      /(?<!\p{L})(?:в|во|по)\s+(?:этом\s+)?(?:отч[её]те|таблице|данных|всем\s+строкам|всем\s+данным)(?!\p{L})/gu,
+      "",
+    );
+  const constraintMarkers = [
+    ...(withoutGenericScope.match(
+      /\b(?:in|for|from|at|where|when|during|before|after)\b/gu,
+    ) ?? []),
+    ...(withoutGenericScope.match(
+      /(?<!\p{L})(?:в|во|на|для|по|у|из|за|при|где|когда|до|после)(?!\p{L})/gu,
+    ) ?? []),
+  ];
+  const equalityMarkers = [
+    ...(withoutGenericScope.match(/\b(?:in|for|at|where)\b/gu) ?? []),
+    ...(withoutGenericScope.match(
+      /(?<!\p{L})(?:в|во|на|для|по|у|при)(?!\p{L})/gu,
+    ) ?? []),
+  ];
+  const soleFilter = filters.length === 1 ? filters[0] : undefined;
+  const soleFilterValue = soleFilter
+    ? [...soleFilter.values.values()][0]
+    : undefined;
+  const hasDirectEqualityFilter =
+    soleFilterValue !== undefined &&
+    labelFollowsMarkerInQuestion(
+      String(soleFilterValue),
+      withoutGenericScope,
+      new Set([
+        "in",
+        "for",
+        "at",
+        "where",
+        "в",
+        "во",
+        "на",
+        "для",
+        "по",
+        "у",
+        "при",
+      ]),
+    );
+  const hasNumericOrRangeConstraint =
+    /\d/u.test(withoutGenericScope) ||
+    /(?:[<>]=?|!=|≥|≤)|\b(?:above|below|between|over|under|greater|less)\b|больше|меньше|между|выше|ниже/u.test(
+      withoutGenericScope,
+    );
+  const hasNegativeConstraint =
+    /\b(?:not|except\w*|exclud\w*|without|outside)\b|(?<!\p{L})(?:не|кроме|без|исключ\p{L}*)(?!\p{L})/u.test(
+      withoutGenericScope,
+    );
+  const hasRelationalConstraint =
+    /\b(?:before|after|from|since|until|through|starting)\b|(?<!\p{L})(?:до|после|из|с|к|начиная|включительно)(?!\p{L})/u.test(
+      withoutGenericScope,
+    );
+  if (
+    hasNumericOrRangeConstraint ||
+    hasNegativeConstraint ||
+    hasRelationalConstraint ||
+    filters.length > 1 ||
+    constraintMarkers.length > filters.length ||
+    (filters.length === 1 &&
+      (equalityMarkers.length !== 1 || !hasDirectEqualityFilter))
+  )
+    return undefined;
+  if (filters.length === 0) return { rows: source.rows, filtered: false };
+  return {
+    rows: source.rows.filter((row) =>
+      filters.every((filter) => {
+        const value = row.values[filter.columnId];
+        return (
+          value !== null &&
+          filter.values.has(`${typeof value}:${String(value)}`)
+        );
+      }),
+    ),
+    filtered: true,
+  };
+}
+
 function requestedAggregation(
   question: string,
 ): Aggregation | "unsupported" | undefined {
   const lower = question.toLocaleLowerCase("ru-RU");
   if (
-    /\b(median|медиан|процент|дол[яи]|корреляц|регресс|тренд|рост|изменен)/u.test(
+    /\bmedian\b|медиан|процент|дол[яи]|корреляц|регресс|тренд|рост|изменен/u.test(
       lower,
     )
   )
     return "unsupported";
-  if (/(?:\b(count)\b|числ|сколько|количеств)/u.test(lower)) return "count";
+  if (
+    /\b(?:count|how\s+many)\b|(?<!\p{L})числ(?:о|а|у|ом|е)?(?!\p{L})|сколько|количеств/u.test(
+      lower,
+    )
+  )
+    return "count";
   if (/(?:\b(sum|total)\b|сумм|итог|всего)/u.test(lower)) return "sum";
   if (/(?:\b(average|avg)\b|средн)/u.test(lower)) return "average";
   if (/(?:\b(min)\b|миним|наименьш)/u.test(lower)) return "min";
@@ -296,13 +357,16 @@ function deterministicAggregation(
   if (
     aggregation === "count" &&
     columns.length === 0 &&
-    !/\b(row|record|rows|records|строк|запис)/u.test(lowerQuestion)
+    !/\b(?:row|record|rows|records)\b|строк|запис/u.test(lowerQuestion)
   )
     return insufficient();
   if (aggregation !== "count" && column?.scalarType !== "number")
     return insufficient();
+  const selection = filteredRows(question, source, column?.id);
+  if (!selection) return undefined;
+  const selectedRows = selection.rows;
   const values = column
-    ? source.rows
+    ? selectedRows
         .map((row) => row.values[column.id])
         .filter((value): value is number => typeof value === "number")
     : [];
@@ -310,23 +374,32 @@ function deterministicAggregation(
   const value =
     aggregation === "count"
       ? column
-        ? source.rows.filter((row) => row.values[column.id] !== null).length
-        : source.rows.length
+        ? selectedRows.filter((row) => row.values[column.id] !== null).length
+        : selectedRows.length
       : aggregation === "sum"
-        ? values.reduce((total, current) => total + current, 0)
+        ? compensatedSum(values)
         : aggregation === "average"
-          ? values.reduce((total, current) => total + current, 0) /
-            values.length
+          ? compensatedSum(values) / values.length
           : aggregation === "min"
             ? Math.min(...values)
             : Math.max(...values);
-  const evidence = sourceEvidence(report, "rows-all");
-  if (!evidence) return insufficient();
   const label = column?.label ?? "Строки";
+  const references = selection.filtered
+    ? selectedRows.slice(0, 7).map((row) => {
+        const sourceIndex = source.rows.indexOf(row);
+        return { id: `row-${sourceIndex}` };
+      })
+    : (() => {
+        const evidence = sourceEvidence(report, "rows-all");
+        return evidence
+          ? [{ id: reportReferenceId(report, evidence.id) ?? evidence.id }]
+          : [];
+      })();
+  if (references.length === 0) return insufficient();
   return {
     outcome: "answered",
     answer: `${label}: ${numberText(value)}${column?.unit ? ` ${column.unit}` : ""}.`,
-    references: [{ id: reportReferenceId(report, evidence.id) ?? evidence.id }],
+    references,
   };
 }
 
@@ -334,6 +407,7 @@ function validateProviderResult(
   output: unknown,
   claims: CanonicalClaim[],
   references: SourceReference[],
+  retrieval: ReturnType<typeof buildProviderContext>["retrieval"],
 ): ChatResult {
   const value = providerResponseSchema.parse(output);
   if (value.outcome === "insufficient_data") return insufficient();
@@ -349,6 +423,18 @@ function validateProviderResult(
     if (!claim) throw new Error("Provider selected an unknown claim.");
     selected.push(claim);
   }
+  if (
+    retrieval.truncated &&
+    selected.some(
+      (claim) =>
+        claim.kind === "source" &&
+        (!retrieval.decisiveSourceId ||
+          claim.references.some(
+            (reference) => reference !== retrieval.decisiveSourceId,
+          )),
+    )
+  )
+    return unsupported();
   const answer = selected.map((claim) => claim.text).join(" ");
   if (answer.length > CHAT_ANSWER_MAX_LENGTH)
     throw new Error("Selected claims are too long.");
@@ -464,17 +550,21 @@ async function answerChatCore(
   const direct = deterministicFact(parsed.question, context.report);
   if (
     direct &&
-    !/\b(which|where|when|region|row|paragraph|какой|какая|где|когда|строк|абзац)/u.test(
+    !requested &&
+    !/\b(?:which|where|when|region|row|paragraph)\b|какой|какая|где|когда|строк|абзац/u.test(
       parsed.question.toLocaleLowerCase("ru-RU"),
     )
   ) {
     ensureActive();
     return direct;
   }
-  const claims = canonicalClaims(context.source, context.report);
-  const sourceContext = { claims, history, question: parsed.question };
-  if (bytes(sourceContext) > CHAT_CONTEXT_MAX_SERIALIZED_BYTES)
-    return unsupported("Контекст отчета слишком велик для безопасного ответа.");
+  const sourceContext = buildProviderContext({
+    source: context.source,
+    report: context.report,
+    history,
+    question: parsed.question,
+  });
+  const { claims } = sourceContext;
   ensureActive();
   try {
     const provider = dependencies.provider ?? defaultProvider;
@@ -487,6 +577,7 @@ async function answerChatCore(
         output,
         claims,
         sourceReferences(context.source, context.report),
+        sourceContext.retrieval,
       );
     } catch (error) {
       if (error instanceof ChatProviderError) throw error;

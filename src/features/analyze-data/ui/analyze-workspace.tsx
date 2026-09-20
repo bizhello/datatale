@@ -149,12 +149,14 @@ export function AnalyzeWorkspace({
           <div>
             <h2>Анализ не завершён</h2>
             <p>{errorMessage(state.error, state.quotaScope)}</p>
-            {state.retryable && <Button onPress={retry}>Повторить</Button>}
-            {canUnlock && onAccessRequired && (
-              <Button onPress={() => onAccessRequired?.(() => void run())}>
-                Ввести код доступа
-              </Button>
-            )}
+            <div className="error-actions">
+              {state.retryable && <Button onPress={retry}>Повторить</Button>}
+              {canUnlock && onAccessRequired && (
+                <Button onPress={() => onAccessRequired?.(() => void run())}>
+                  Ввести код доступа
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}

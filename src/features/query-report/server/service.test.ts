@@ -3,7 +3,11 @@ import { z } from "zod";
 
 vi.mock("server-only", () => ({}));
 
-import { CHAT_REFUSAL, chatRequestSchema } from "@/entities/chat";
+import {
+  CHAT_CONTEXT_MAX_SERIALIZED_BYTES,
+  CHAT_REFUSAL,
+  chatRequestSchema,
+} from "@/entities/chat";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
 import { answerChat, ChatProviderError } from "./service";
@@ -137,6 +141,202 @@ describe("grounded chat service", () => {
     });
   });
 
+  it("applies exact source-value filters to deterministic aggregations", async () => {
+    await expect(
+      answerChat(
+        { ...request, question: "Сколько строк в North?" },
+        { loadContext: async (_analysisId, _signal) => context },
+      ),
+    ).resolves.toEqual({
+      outcome: "answered",
+      answer: "Строки: 1.",
+      references: [{ id: "row-0" }],
+    });
+
+    await expect(
+      answerChat(
+        { ...request, question: "How many rows are in the North?" },
+        { loadContext: async (_analysisId, _signal) => context },
+      ),
+    ).resolves.toMatchObject({ outcome: "answered", answer: "Строки: 1." });
+
+    await expect(
+      answerChat(
+        { ...request, question: "Какова сумма Revenue в North?" },
+        { loadContext: async (_analysisId, _signal) => context },
+      ),
+    ).resolves.toEqual({
+      outcome: "answered",
+      answer: "Revenue: 120 RUB.",
+      references: [{ id: "row-0" }],
+    });
+  });
+
+  it("does not use an unfiltered shortcut for ambiguous source-value constraints", async () => {
+    const provider = vi.fn(async () => ({
+      outcome: "insufficient_data" as const,
+      claimIds: [],
+    }));
+
+    await answerChat(
+      { ...request, question: "Сравни сумму Revenue в North и South" },
+      { loadContext: async (_analysisId, _signal) => context, provider },
+    );
+
+    expect(provider).toHaveBeenCalledOnce();
+
+    await answerChat(
+      { ...request, question: "Какова сумма Revenue без North?" },
+      { loadContext: async (_analysisId, _signal) => context, provider },
+    );
+
+    expect(provider).toHaveBeenCalledTimes(2);
+
+    await answerChat(
+      { ...request, question: "What is the sum of Revenue before North?" },
+      { loadContext: async (_analysisId, _signal) => context, provider },
+    );
+
+    expect(provider).toHaveBeenCalledTimes(3);
+
+    await answerChat(
+      { ...request, question: "Exclude North from the Revenue sum" },
+      { loadContext: async (_analysisId, _signal) => context, provider },
+    );
+    await answerChat(
+      { ...request, question: "Сумма Revenue за исключением North" },
+      { loadContext: async (_analysisId, _signal) => context, provider },
+    );
+    await answerChat(
+      { ...request, question: "Revenue sum since North" },
+      { loadContext: async (_analysisId, _signal) => context, provider },
+    );
+
+    await answerChat(
+      {
+        ...request,
+        question: "What is the sum of Revenue in regions other than North?",
+      },
+      { loadContext: async (_analysisId, _signal) => context, provider },
+    );
+
+    expect(provider).toHaveBeenCalledTimes(7);
+  });
+
+  it("does not mistake aggregation vocabulary for a source-value filter", async () => {
+    const sourceWithTotal = {
+      ...source,
+      rows: [
+        {
+          id: "r1",
+          values: { region: "Total", revenue: 120 },
+          provenance: { sourceRowNumber: 2 },
+        },
+        {
+          id: "r2",
+          values: { region: "South", revenue: 80 },
+          provenance: { sourceRowNumber: 3 },
+        },
+      ],
+    } satisfies Dataset;
+
+    await expect(
+      answerChat(
+        { ...request, question: "What is the total Revenue?" },
+        {
+          loadContext: async (_analysisId, _signal) => ({
+            ...context,
+            source: sourceWithTotal,
+          }),
+        },
+      ),
+    ).resolves.toMatchObject({
+      outcome: "answered",
+      answer: "Revenue: 200 RUB.",
+    });
+  });
+
+  it("matches inflected Russian source filters and yields unresolved constraints to the provider", async () => {
+    const localizedSource = {
+      ...source,
+      columns: [
+        { id: "region", label: "Город", scalarType: "string" as const },
+        { id: "revenue", label: "Выручка", scalarType: "number" as const },
+        { id: "date", label: "Дата", scalarType: "date" as const },
+      ],
+      rows: [
+        {
+          id: "r1",
+          values: { region: "Москва", revenue: 120, date: "2024-01-01" },
+          provenance: { sourceRowNumber: 2 },
+        },
+        {
+          id: "r2",
+          values: { region: "Казань", revenue: 80, date: "2025-01-01" },
+          provenance: { sourceRowNumber: 3 },
+        },
+      ],
+    } satisfies Dataset;
+
+    await expect(
+      answerChat(
+        { ...request, question: "Какова сумма выручки в Москве?" },
+        {
+          loadContext: async (_analysisId, _signal) => ({
+            ...context,
+            source: localizedSource,
+          }),
+        },
+      ),
+    ).resolves.toMatchObject({
+      outcome: "answered",
+      answer: "Выручка: 120.",
+    });
+
+    const provider = vi.fn(async () => ({
+      outcome: "insufficient_data" as const,
+      claimIds: [],
+    }));
+    await answerChat(
+      { ...request, question: "Какова сумма выручки за 2024 год?" },
+      {
+        loadContext: async (_analysisId, _signal) => ({
+          ...context,
+          source: localizedSource,
+        }),
+        provider,
+      },
+    );
+    expect(provider).toHaveBeenCalledOnce();
+
+    await answerChat(
+      {
+        ...request,
+        question: "Какова сумма выручки в Москве за 2024 год?",
+      },
+      {
+        loadContext: async (_analysisId, _signal) => ({
+          ...context,
+          source: localizedSource,
+        }),
+        provider,
+      },
+    );
+    expect(provider).toHaveBeenCalledTimes(2);
+
+    await answerChat(
+      { ...request, question: "Сумма выручки больше 100" },
+      {
+        loadContext: async (_analysisId, _signal) => ({
+          ...context,
+          source: localizedSource,
+        }),
+        provider,
+      },
+    );
+    expect(provider).toHaveBeenCalledTimes(3);
+  });
+
   it("recognizes an inflected Russian column label in an aggregation question", async () => {
     const localizedSource: Dataset = {
       ...source,
@@ -261,6 +461,209 @@ describe("grounded chat service", () => {
       references: [{ id: "evidence-0" }],
     });
     expect(provider).not.toHaveBeenCalled();
+  });
+
+  it("answers an arbitrary lookup from a bounded 4,500-row source context", async () => {
+    const largeSource: Dataset = {
+      ...source,
+      rows: Array.from({ length: 4_500 }, (_, index) => ({
+        id: `row-${index}`,
+        values: { region: `Region ${index}`, revenue: index },
+        provenance: { sourceRowNumber: index + 2 },
+      })),
+    };
+    const provider = vi.fn(async ({ prompt }: { prompt: string }) => {
+      expect(new TextEncoder().encode(prompt).byteLength).toBeLessThanOrEqual(
+        CHAT_CONTEXT_MAX_SERIALIZED_BYTES,
+      );
+      const providerContext = z
+        .object({
+          claims: z.array(z.object({ id: z.string(), text: z.string() })),
+          retrieval: z.object({
+            matchedSources: z.number(),
+            includedSources: z.number(),
+            truncated: z.boolean(),
+          }),
+        })
+        .parse(JSON.parse(prompt));
+      expect(providerContext.claims).toEqual(
+        expect.arrayContaining([
+          { id: "cell-4499-0", text: "Region: Region 4499." },
+          { id: "cell-4499-1", text: "Revenue: 4 499 RUB." },
+        ]),
+      );
+      return { outcome: "answered" as const, claimIds: ["cell-4499-0"] };
+    });
+
+    await expect(
+      answerChat(
+        { ...request, question: "Which region has revenue 4499?" },
+        {
+          loadContext: async (_analysisId, _signal) => ({
+            ...context,
+            source: largeSource,
+          }),
+          provider,
+        },
+      ),
+    ).resolves.toEqual({
+      outcome: "answered",
+      answer: "Region: Region 4499.",
+      references: [{ id: "row-4499" }],
+    });
+    expect(provider).toHaveBeenCalledOnce();
+  });
+
+  it("asks the provider with bounded report claims when no large-table row matches", async () => {
+    const largeSource: Dataset = {
+      ...source,
+      rows: Array.from({ length: 4_500 }, (_, index) => ({
+        id: `row-${index}`,
+        values: { region: `Region ${index}`, revenue: index },
+        provenance: { sourceRowNumber: index + 2 },
+      })),
+    };
+    const provider = vi.fn(async ({ prompt }: { prompt: string }) => {
+      expect(new TextEncoder().encode(prompt).byteLength).toBeLessThanOrEqual(
+        CHAT_CONTEXT_MAX_SERIALIZED_BYTES,
+      );
+      expect(JSON.parse(prompt)).toMatchObject({
+        retrieval: {
+          kind: "table",
+          matchedSources: 0,
+          includedSources: 0,
+          truncated: false,
+        },
+      });
+      return { outcome: "insufficient_data" as const, claimIds: [] };
+    });
+
+    await expect(
+      answerChat(
+        { ...request, question: "Какой любимый цвет у директора?" },
+        {
+          loadContext: async (_analysisId, _signal) => ({
+            ...context,
+            source: largeSource,
+          }),
+          provider,
+        },
+      ),
+    ).resolves.toEqual({ outcome: "insufficient_data", message: CHAT_REFUSAL });
+    expect(provider).toHaveBeenCalledOnce();
+  });
+
+  it("uses recent history to retrieve source claims for a pronoun follow-up", async () => {
+    const largeSource: Dataset = {
+      ...source,
+      rows: Array.from({ length: 4_500 }, (_, index) => ({
+        id: `row-${index}`,
+        values: { region: `Region ${index}`, revenue: index },
+        provenance: { sourceRowNumber: index + 2 },
+      })),
+    };
+    const provider = vi.fn(async ({ prompt }: { prompt: string }) => {
+      const providerContext = z
+        .object({
+          claims: z.array(z.object({ id: z.string(), text: z.string() })),
+        })
+        .parse(JSON.parse(prompt));
+      expect(providerContext.claims).toContainEqual(
+        expect.objectContaining({
+          id: "cell-4499-1",
+          text: "Revenue: 4 499 RUB.",
+        }),
+      );
+      return { outcome: "answered" as const, claimIds: ["cell-4499-1"] };
+    });
+
+    await expect(
+      answerChat(
+        { ...request, question: "А у него какая выручка?" },
+        {
+          loadContext: async (_analysisId, _signal) => ({
+            ...context,
+            source: largeSource,
+            history: [
+              { role: "user", content: "Расскажи про Region 4499" },
+              { role: "assistant", content: "Region: Region 4499." },
+            ],
+          }),
+          provider,
+        },
+      ),
+    ).resolves.toEqual({
+      outcome: "answered",
+      answer: "Revenue: 4 499 RUB.",
+      references: [{ id: "row-4499" }],
+    });
+  });
+
+  it("does not accept a partial source answer as exhaustive after retrieval truncation", async () => {
+    const largeSource: Dataset = {
+      ...source,
+      rows: Array.from({ length: 4_500 }, (_, index) => ({
+        id: `row-${index}`,
+        values: { region: "Moscow", revenue: index },
+        provenance: { sourceRowNumber: index + 2 },
+      })),
+    };
+
+    await expect(
+      answerChat(
+        { ...request, question: "Перечисли все строки Moscow" },
+        {
+          loadContext: async (_analysisId, _signal) => ({
+            ...context,
+            source: largeSource,
+          }),
+          provider: async ({ prompt }) => {
+            expect(JSON.parse(prompt)).toMatchObject({
+              retrieval: { truncated: true },
+            });
+            return { outcome: "answered", claimIds: ["cell-0-0"] };
+          },
+        },
+      ),
+    ).resolves.toEqual({
+      outcome: "unsupported_operation",
+      message: "Эта операция не поддерживается для данного отчета.",
+    });
+  });
+
+  it("does not mistake an emphasized row for a point lookup in an exhaustive question", async () => {
+    const largeSource: Dataset = {
+      ...source,
+      rows: Array.from({ length: 4_500 }, (_, index) => ({
+        id: `row-${index}`,
+        values: {
+          region: index === 4_499 ? "Moscow Region 4499" : "Moscow",
+          revenue: index,
+        },
+        provenance: { sourceRowNumber: index + 2 },
+      })),
+    };
+
+    await expect(
+      answerChat(
+        {
+          ...request,
+          question: "Перечисли все строки Moscow, особенно Region 4499",
+        },
+        {
+          loadContext: async (_analysisId, _signal) => ({
+            ...context,
+            source: largeSource,
+          }),
+          provider: async ({ prompt }) => {
+            expect(JSON.parse(prompt)).toMatchObject({
+              retrieval: { truncated: true },
+            });
+            return { outcome: "answered", claimIds: ["cell-4499-0"] };
+          },
+        },
+      ),
+    ).resolves.toMatchObject({ outcome: "unsupported_operation" });
   });
 
   it("rejects an unknown narrative claim selected by the provider", async () => {

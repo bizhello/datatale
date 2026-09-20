@@ -6,22 +6,11 @@ import type {
   ReportCalculation,
   ReportChartCalculation,
 } from "@/entities/report";
+import { compensatedSum } from "@/shared/lib/compensated-sum";
 import { metricLabel } from "./report-copy";
 
 type Point = { label: string; value: number };
 type Group = { label: string; rows: Dataset["rows"] };
-
-function compensatedSum(values: number[]) {
-  let sum = 0;
-  let correction = 0;
-  for (const value of values) {
-    const adjusted = value - correction;
-    const next = sum + adjusted;
-    correction = next - sum - adjusted;
-    sum = next;
-  }
-  return sum;
-}
 
 export function reportCalculation(
   source: Dataset,

@@ -684,6 +684,37 @@ test("shows an approximate analysis estimate while the server request is pending
   await expect(page.getByRole("button", { name: "Повторить" })).toBeVisible();
 });
 
+test("separates analysis retry actions from error copy", async ({ page }) => {
+  await page.route("**/api/guest", async (route) => {
+    await route.fulfill({ json: { expiresAt: "2026-10-19T00:00:00.000Z" } });
+  });
+  await page.route("**/api/analyze", async (route) => {
+    await route.fulfill({ status: 502, json: { code: "invalid-report" } });
+  });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Загрузить синтетический демо-набор" })
+    .click();
+  await page.getByRole("button", { name: "Запустить AI-анализ" }).click();
+
+  const alert = page.locator(".analysis-workspace .error-state");
+  const actions = alert.locator(".error-actions");
+  await expect(alert).toContainText("Провайдер вернул неполный отчёт");
+  await expect(
+    actions.getByRole("button", { name: "Повторить" }),
+  ).toBeVisible();
+  await expect(actions).toHaveCSS("margin-top", "16px");
+  const gap = await alert.evaluate((element) => {
+    const copy = element.querySelector("p")?.getBoundingClientRect();
+    const actionRow = element
+      .querySelector(".error-actions")
+      ?.getBoundingClientRect();
+    if (!copy || !actionRow) throw new Error("Missing error geometry.");
+    return actionRow.top - copy.bottom;
+  });
+  expect(gap).toBeGreaterThanOrEqual(16);
+});
+
 test("unlocks workspace quota with invite retry and preserves the source", async ({
   page,
 }) => {

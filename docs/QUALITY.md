@@ -2,7 +2,7 @@
 
 **Make failures visible at the boundary that owns the rule.** Type checking, runtime validation, semantic tests and browser review protect different risks. None makes the project impossible to break.
 
-Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Coverage includes parser contracts, strict provider wire-schema compatibility, semantic plan validation, deterministic calculations, provider doubles, guest/deletion/cleanup lifecycle, owner-scoped saved-analysis persistence and reopen, immutable source/report payloads, chat replay/quota/refusal/claim validation, exact showcase-demo quota isolation, source replacement and stale-history races, onboarding, responsive dashboard containment, expanded charts, viewport overflow and automated accessibility in Chromium and WebKit. The current repository gate passes 393 Vitest tests and 78 Playwright scenarios; production Vercel/Neon/provider smoke checks separately prove the deployed integration.
+Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Coverage includes parser contracts, strict provider wire-schema compatibility, semantic plan validation, deterministic calculations, provider doubles, guest/deletion/cleanup lifecycle, owner-scoped saved-analysis persistence and reopen, immutable source/report payloads, chat replay/quota/refusal/claim validation, bounded large-source retrieval, text-output repair, exact showcase-demo quota isolation, source replacement and stale-history races, onboarding, responsive dashboard containment, expanded charts, viewport overflow and automated accessibility in Chromium and WebKit. The current repository gate passes 408 Vitest tests and 81 Playwright scenarios; production Vercel/Neon/provider smoke checks separately prove the deployed integration.
 
 ## Gate design
 
@@ -32,7 +32,7 @@ A behavioral feature is incomplete without tests for its acceptance and meaningf
 | Boundary between real components | Integration test exercising the connected components, including error propagation and validation |
 | Route plus persistence/session | Integration against isolated test storage for ownership, transaction behavior, expiry and failure; mock external inference rather than the entire data path |
 | AI orchestration | Integration of actual validators/calculations with controlled provider responses; separate live-model evaluations for output quality |
-| Grounded chat and persistence | Route integration with isolated storage: owner isolation, immutable source/report, seven-day fixed expiry, aggregate 5/20 workspace tiers, unlock retry with the same message ID, exact refusal and canonical claim-ID validation |
+| Grounded chat and persistence | Route integration with isolated storage: owner isolation, immutable source/report, seven-day fixed expiry, aggregate 5/20 workspace tiers, unlock retry with the same message ID, exact refusal, canonical claim-ID validation, bounded large-source retrieval and explicit truncation coverage |
 | Bug fix | Regression test that reproduces the defect and passes after the correction |
 | Documentation or cosmetic formatting only | Relevant static/manual verification; no artificial behavioral tests |
 
@@ -53,6 +53,8 @@ Parser integration exercises synthetic CSV/XLSX and canonical Dataset validation
 | Catalog/prompt/renderer drift | Enumerate catalog kinds; every kind has supported schema/validator and renderer; generated prompt lists exactly those capabilities |
 | Prompt regression | Versioned fixtures with expected properties, source refs and rejection reasons; no brittle exact prose snapshots |
 | Unsupported information | Exact required refusal on an absent fact; separate unsupported-operation test |
+| Large-source chat | Arbitrary row lookup stays below the context byte budget; unmatched questions still reach grounded refusal; truncated retrieval cannot be treated as exhaustive |
+| Invalid text model output | One validation-guided extraction/narrative replacement succeeds; repeated invalid output fails closed; ungrounded quotations never become evidence |
 | Prompt injection | Instructions embedded in cells/paragraphs do not change policy/tools or expose other sources |
 | Guest isolation | Two independent cookies cannot read/chat/delete each other's reports even with known IDs |
 | Cookie/retention | Missing/tampered/expired cookie, workspace revocation, report expiry, refresh cadence and CSRF mutation cases |

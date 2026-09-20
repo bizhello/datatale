@@ -1007,12 +1007,13 @@ footer {
   color: var(--danger);
 }
 .error-state [data-slot="alert-description"] {
-  margin: 5px 0 14px;
+  margin: 5px 0 0;
 }
 .error-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-top: 16px;
 }
 .preview {
   margin-top: 28px;
