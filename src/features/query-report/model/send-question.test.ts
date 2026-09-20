@@ -39,12 +39,31 @@ describe("query report API adapter", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
-        Response.json({ outcome: "insufficient_data", message: CHAT_REFUSAL }),
+        Response.json({ outcome: "not_in_source", message: CHAT_REFUSAL }),
       ),
     );
     await expect(
       createAskDataSend(analysisId)(turn, new AbortController().signal),
-    ).resolves.toEqual({ status: "insufficient_data" });
+    ).resolves.toEqual({
+      status: "not_in_source",
+      message: CHAT_REFUSAL,
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          outcome: "clarification",
+          message: "Уточните, какой регион вас интересует.",
+        }),
+      ),
+    );
+    await expect(
+      createAskDataSend(analysisId)(turn, new AbortController().signal),
+    ).resolves.toEqual({
+      status: "clarification",
+      message: "Уточните, какой регион вас интересует.",
+    });
 
     vi.stubGlobal(
       "fetch",

@@ -17,6 +17,9 @@ import {
   narrativeResponseSchema,
   REPORT_ID_MAX_LENGTH,
   REPORT_LABEL_MAX_LENGTH,
+  REPORT_MAX_EVIDENCE,
+  REPORT_MAX_TEXT_CHART_GROUPS,
+  REPORT_MAX_TEXT_OBSERVATIONS,
   REPORT_NARRATIVE_MAX_LENGTH,
   REPORT_NO_CHART_REASON_MAX_LENGTH,
   REPORT_PERIOD_MAX_LENGTH,
@@ -34,6 +37,7 @@ import {
   reportChartCalculation,
 } from "../model/calculate";
 import { validateFinalReportReferences } from "../model/final-report";
+import { calculateObservationCharts } from "../model/observation-charts";
 import { boundedSourceDescription } from "../model/profile";
 import { chartCopy } from "../model/report-copy";
 import {
@@ -61,7 +65,7 @@ export type AnalysisStage =
   | "table-repair"
   | "text-extraction"
   | "narrative";
-export const MODEL_CALL_TIMEOUT_MS = 30_000;
+export const MODEL_CALL_TIMEOUT_MS = 45_000;
 export const TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS = 60_000;
 export const ANALYSIS_TIMEOUT_MS = 105_000;
 export const MODEL_OUTPUT_TOKEN_LIMITS: Readonly<
@@ -184,7 +188,7 @@ const providerNarrativeItemSchema = z
   .object({
     text: providerNarrativeString,
     factIds: z.array(providerIdentifierString).max(4),
-    evidenceIds: z.array(providerIdentifierString).max(7),
+    evidenceIds: z.array(providerIdentifierString).max(REPORT_MAX_EVIDENCE),
     kind: z.enum(["observation", "hypothesis", "action"]),
   })
   .strict();
@@ -198,33 +202,50 @@ export const providerNarrativeResponseSchema = z
   .strict();
 export const providerTextExtractionResponseSchema = z
   .object({
-    facts: z
-      .array(
-        z
-          .object({
-            id: providerIdentifierString,
-            label: providerLabelString,
-            subject: providerLabelString,
-            value: z.number().finite(),
-            unit: providerUnitString,
-            period: providerPeriodString,
-            paragraphIndex: z.number().int().positive(),
-            quote: providerQuoteString,
-          })
-          .strict(),
-      )
-      .max(4),
     observations: z
       .array(
         z
           .object({
             id: providerIdentifierString,
+            subject: providerLabelString.nullable(),
+            value: z.number().finite().nullable(),
+            unit: providerUnitString.nullable(),
+            period: providerPeriodString.nullable(),
+            role: z.enum(["snapshot", "change", "target"]).nullable(),
             paragraphIndex: z.number().int().positive(),
             quote: providerQuoteString,
           })
           .strict(),
       )
-      .max(3),
+      .max(REPORT_MAX_TEXT_OBSERVATIONS),
+    chartGroups: z
+      .array(
+        z
+          .object({
+            id: providerIdentifierString,
+            kind: z.enum(["bar", "line"]),
+            title: providerTitleString,
+            rationale: providerRationaleString,
+            observationIds: z
+              .array(providerIdentifierString)
+              .min(2)
+              .max(REPORT_MAX_EVIDENCE),
+            derivation: z.enum(["direct", "current-target", "baseline-change"]),
+            operation: z.enum(["none", "increase", "decrease"]),
+          })
+          .strict()
+          .superRefine((group, context) => {
+            if (
+              new Set(group.observationIds).size !== group.observationIds.length
+            )
+              context.addIssue({
+                code: "custom",
+                message: "Chart observation IDs must be unique.",
+                path: ["observationIds"],
+              });
+          }),
+      )
+      .max(REPORT_MAX_TEXT_CHART_GROUPS),
   })
   .strict();
 
@@ -485,43 +506,42 @@ function tableEvidence(source: Dataset) {
     },
   ];
 }
+function calculateTableCharts(source: Dataset, proposal: AnalysisProposal) {
+  return proposal.outcome === "charts"
+    ? proposal.charts.map((chart) => {
+        const aggregation = chart.aggregation;
+        const numeric =
+          "field" in aggregation
+            ? source.columns.find(
+                (column) => column.id === aggregation.field.fieldId,
+              )
+            : undefined;
+        const copy = chartCopy(source, chart);
+        return {
+          id: chart.id,
+          kind: chart.kind,
+          title: copy.title,
+          rationale: copy.rationale,
+          aggregation: reportChartCalculation(
+            source,
+            chart.aggregation,
+            chart.dimension.fieldId,
+          ),
+          points: calculateChart(source, chart),
+          evidenceIds: ["rows-all"],
+          ...(numeric?.unit ? { unit: numeric.unit } : {}),
+        };
+      })
+    : [];
+}
 function reportFromTable(
   source: Dataset,
   proposal: AnalysisProposal,
   narrative: ReturnType<typeof narrativeResponseSchema.parse>,
+  metrics: ReturnType<typeof calculateMetric>[],
+  charts: ReturnType<typeof calculateTableCharts>,
 ): FinalReport {
   const evidence = tableEvidence(source);
-  const metrics = proposal.metrics.map((metric) => ({
-    ...calculateMetric(source, metric),
-    evidenceIds: ["rows-all"],
-  }));
-  const charts =
-    proposal.outcome === "charts"
-      ? proposal.charts.map((chart) => {
-          const aggregation = chart.aggregation;
-          const numeric =
-            "field" in aggregation
-              ? source.columns.find(
-                  (column) => column.id === aggregation.field.fieldId,
-                )
-              : undefined;
-          const copy = chartCopy(source, chart);
-          return {
-            id: chart.id,
-            kind: chart.kind,
-            title: copy.title,
-            rationale: copy.rationale,
-            aggregation: reportChartCalculation(
-              source,
-              chart.aggregation,
-              chart.dimension.fieldId,
-            ),
-            points: calculateChart(source, chart),
-            evidenceIds: ["rows-all"],
-            ...(numeric?.unit ? { unit: numeric.unit } : {}),
-          };
-        })
-      : [];
   return finalReportSchema.parse({
     version: 1,
     hero: narrative.hero,
@@ -609,186 +629,6 @@ function quoteHasExactPhrase(quote: string, phrase: string): boolean {
   return exactPhraseRanges(quote, phrase).length > 0;
 }
 
-function rangeDistance(left: TextRange, right: TextRange) {
-  if (left.end <= right.start) return right.start - left.end;
-  if (right.end <= left.start) return left.start - right.end;
-  return 0;
-}
-
-type GroundedFactContext = {
-  number: TextRange;
-  period: TextRange;
-  subject: TextRange;
-  unit: TextRange;
-};
-const measurementStopwords = new Set([
-  "a",
-  "an",
-  "and",
-  "but",
-  "or",
-  "the",
-  "was",
-  "were",
-  "а",
-  "был",
-  "была",
-  "были",
-  "и",
-  "или",
-  "но",
-]);
-
-function hasMeasuredNumber(
-  text: string,
-  range: TextRange,
-  periodRange: TextRange,
-) {
-  for (const match of text.matchAll(numericTokenPattern)) {
-    const token = match[0];
-    const start = match.index ?? 0;
-    const end = start + token.length;
-    if (start < range.start || end > range.end) continue;
-    if (start < periodRange.end && periodRange.start < end) continue;
-    if (canonicalNumericToken(token) === undefined) continue;
-    const before = text.slice(Math.max(range.start, start - 24), start);
-    const after = text.slice(end, Math.min(range.end, end + 24));
-    const prefix = before.match(
-      /([\p{L}\p{Sc}\p{So}%‰°]+)[\s\u00a0\u202f]*$/u,
-    )?.[1];
-    const suffix = after.match(
-      /^[\s\u00a0\u202f]*([\p{L}\p{Sc}\p{So}%‰°]+)/u,
-    )?.[1];
-    if (
-      [prefix, suffix].some(
-        (candidate) =>
-          candidate &&
-          !measurementStopwords.has(candidate.toLocaleLowerCase("ru-RU")),
-      )
-    )
-      return true;
-  }
-  return false;
-}
-
-function crossesFactBoundary(
-  left: TextRange,
-  right: TextRange,
-  periodRange: TextRange,
-  text: string,
-) {
-  const start = Math.min(left.end, right.end);
-  const end = Math.max(left.start, right.start);
-  if (start >= end) return false;
-  const gap = text.slice(start, end);
-  if (/[,;.!?\n]|\s(?:а|но|but|while|whereas)\s|\sтогда\s+как\s/iu.test(gap))
-    return true;
-  for (const match of gap.matchAll(/\s(?:и|and)\s/giu)) {
-    const boundaryStart = start + (match.index ?? 0);
-    const boundaryEnd = boundaryStart + match[0].length;
-    const beforeSentence = text.slice(0, boundaryStart);
-    const afterSentence = text.slice(boundaryEnd);
-    const sentenceStart =
-      Math.max(
-        beforeSentence.lastIndexOf("."),
-        beforeSentence.lastIndexOf("!"),
-        beforeSentence.lastIndexOf("?"),
-        beforeSentence.lastIndexOf(";"),
-        beforeSentence.lastIndexOf("\n"),
-      ) + 1;
-    const nextBoundary = afterSentence.search(/[.!?;\n]/u);
-    const sentenceEnd =
-      nextBoundary === -1 ? text.length : boundaryEnd + nextBoundary;
-    if (
-      hasMeasuredNumber(
-        text,
-        { start: sentenceStart, end: boundaryStart },
-        periodRange,
-      ) &&
-      hasMeasuredNumber(
-        text,
-        { start: boundaryEnd, end: sentenceEnd },
-        periodRange,
-      )
-    )
-      return true;
-  }
-  for (const match of gap.matchAll(/[—–:]/gu)) {
-    const boundary = start + (match.index ?? 0);
-    if (
-      hasMeasuredNumber(text, { start: 0, end: boundary }, periodRange) &&
-      hasMeasuredNumber(
-        text,
-        { start: boundary + match[0].length, end: text.length },
-        periodRange,
-      )
-    )
-      return true;
-  }
-  return false;
-}
-
-function quoteFactContext(
-  quote: string,
-  value: number,
-  subject: string,
-  unit: string,
-  period: string,
-): GroundedFactContext | undefined {
-  const subjectRanges = exactPhraseRanges(quote, subject);
-  const unitRanges = exactPhraseRanges(quote, unit);
-  const periodRanges = exactPhraseRanges(quote, period);
-  if (
-    subjectRanges.length !== 1 ||
-    unitRanges.length !== 1 ||
-    periodRanges.length !== 1
-  )
-    return undefined;
-  const numbers = [...quote.matchAll(numericTokenPattern)].flatMap((match) => {
-    const token = match[0];
-    const start = match.index ?? 0;
-    const before = quote[start - 1] ?? "";
-    const after = quote[start + token.length] ?? "";
-    if (/^[\p{L}\p{N}_]$/u.test(before) || /^[\p{L}\p{N}_]$/u.test(after))
-      return [];
-    const numericValue = canonicalNumericToken(token);
-    return numericValue === undefined
-      ? []
-      : [{ value: numericValue, start, end: start + token.length }];
-  });
-  const [subjectRange] = subjectRanges;
-  const [unitRange] = unitRanges;
-  const [periodRange] = periodRanges;
-  if (!subjectRange || !unitRange || !periodRange) return undefined;
-  const distances = numbers.map((number) => ({
-    number,
-    distance: rangeDistance(number, unitRange),
-  }));
-  const minimum = Math.min(...distances.map(({ distance }) => distance));
-  const nearest = distances.filter(({ distance }) => distance === minimum);
-  const selected = nearest.length === 1 ? nearest[0]?.number : undefined;
-  if (
-    !selected ||
-    !Object.is(selected.value, value) ||
-    crossesFactBoundary(subjectRange, selected, periodRange, quote)
-  )
-    return undefined;
-  return {
-    number: selected,
-    period: periodRange,
-    subject: subjectRange,
-    unit: unitRange,
-  };
-}
-
-function absoluteRange(range: TextRange, quoteStart: number): TextRange {
-  return { start: quoteStart + range.start, end: quoteStart + range.end };
-}
-
-function rangesOverlap(left: TextRange, right: TextRange) {
-  return left.start < right.end && right.start < left.end;
-}
-
 function boundedExactExcerpt(text: string) {
   const excerpt = text.slice(0, REPORT_QUOTE_MAX_LENGTH);
   return /[\uD800-\uDBFF]$/.test(excerpt) ? excerpt.slice(0, -1) : excerpt;
@@ -835,7 +675,6 @@ async function analyzeText(
     extraction = await extract(repairPrompt(extractionPrompt, error));
   }
   const evidenceByQuote = new Map<string, string>();
-  const acceptedSubjectsByOccurrence = new Map<string, TextRange[]>();
   const evidence = [] as Array<{
     id: string;
     kind: "quote";
@@ -846,10 +685,11 @@ async function analyzeText(
     id: string,
     paragraphIndex: number,
     quote: string,
-  ) => {
+  ): string | undefined => {
     const key = `${paragraphIndex}:${quote}`;
     const existing = evidenceByQuote.get(key);
     if (existing) return existing;
+    if (evidence.length >= REPORT_MAX_EVIDENCE) return undefined;
     const evidenceId = `quote-${id}`;
     evidenceByQuote.set(key, evidenceId);
     evidence.push({
@@ -860,83 +700,57 @@ async function analyzeText(
     });
     return evidenceId;
   };
-  const facts = extraction.facts
-    .map((fact) => {
-      const paragraph = source.paragraphs.find(
-        (candidate) => candidate.index === fact.paragraphIndex,
-      );
-      const quoteStart = paragraph?.text.indexOf(fact.quote) ?? -1;
-      if (!paragraph || quoteStart < 0) return undefined;
-      const factContext =
-        quoteHasValue(fact.quote, fact.value) &&
-        quoteHasExactPhrase(fact.quote, fact.subject) &&
-        quoteHasExactPhrase(fact.quote, fact.unit) &&
-        quoteHasExactPhrase(fact.quote, fact.period) &&
-        quoteFactContext(
-          fact.quote,
-          fact.value,
-          fact.subject,
-          fact.unit,
-          fact.period,
-        );
-      // A provider can preserve the source quote while slightly paraphrasing a
-      // numeric field. Keep the exact quote as evidence, but never promote the
-      // ungrounded number to a metric.
-      if (!factContext) {
-        addQuoteEvidence(fact.id, fact.paragraphIndex, fact.quote);
-        return undefined;
-      }
-      const absoluteContext = {
-        number: absoluteRange(factContext.number, quoteStart),
-        period: absoluteRange(factContext.period, quoteStart),
-        subject: absoluteRange(factContext.subject, quoteStart),
-        unit: absoluteRange(factContext.unit, quoteStart),
-      };
-      const occurrenceKey = JSON.stringify([
-        fact.paragraphIndex,
-        absoluteContext.number,
-        absoluteContext.unit,
-      ]);
-      const acceptedSubjects = acceptedSubjectsByOccurrence.get(occurrenceKey);
-      if (
-        acceptedSubjects?.some((subjectRange) =>
-          rangesOverlap(subjectRange, absoluteContext.subject),
-        )
-      )
-        return undefined;
-      acceptedSubjectsByOccurrence.set(occurrenceKey, [
-        ...(acceptedSubjects ?? []),
-        absoluteContext.subject,
-      ]);
-      const evidenceId = addQuoteEvidence(
-        fact.id,
-        fact.paragraphIndex,
-        fact.quote,
-      );
-      return {
-        id: fact.id,
-        label: fact.label,
-        value: fact.value,
-        calculation: { kind: "direct-source" as const },
-        ...(fact.unit ? { unit: fact.unit } : {}),
-        evidenceIds: [evidenceId],
-      };
-    })
-    .filter((fact): fact is NonNullable<typeof fact> => fact !== undefined);
+  const checkedObservations = [] as Array<{
+    id: string;
+    subject: string;
+    value: number;
+    unit: string | null;
+    period: string | null;
+    role: "snapshot" | "change" | "target";
+    paragraphIndex: number;
+    quote: string;
+  }>;
   for (const observation of extraction.observations) {
     const paragraph = source.paragraphs.find(
       (candidate) => candidate.index === observation.paragraphIndex,
     );
+    if (!paragraph?.text.includes(observation.quote)) continue;
     if (
-      !paragraph?.text.includes(observation.quote) ||
-      evidenceByQuote.has(`${observation.paragraphIndex}:${observation.quote}`)
-    )
-      continue;
-    addQuoteEvidence(
-      observation.id,
-      observation.paragraphIndex,
-      observation.quote,
-    );
+      observation.subject !== null &&
+      observation.value !== null &&
+      observation.role !== null &&
+      quoteHasValue(observation.quote, observation.value) &&
+      quoteHasExactPhrase(observation.quote, observation.subject) &&
+      (observation.unit === undefined ||
+        observation.unit === null ||
+        quoteHasExactPhrase(observation.quote, observation.unit)) &&
+      (observation.period === undefined ||
+        observation.period === null ||
+        quoteHasExactPhrase(observation.quote, observation.period))
+    ) {
+      const observationEvidenceId = addQuoteEvidence(
+        observation.id,
+        observation.paragraphIndex,
+        observation.quote,
+      );
+      if (!observationEvidenceId) continue;
+      checkedObservations.push({
+        id: observation.id,
+        subject: observation.subject,
+        value: observation.value,
+        unit: observation.unit ?? null,
+        period: observation.period ?? null,
+        role: observation.role,
+        paragraphIndex: observation.paragraphIndex,
+        quote: observation.quote,
+      });
+    }
+    if (observation.subject === null)
+      addQuoteEvidence(
+        observation.id,
+        observation.paragraphIndex,
+        observation.quote,
+      );
   }
   if (!evidence.length) {
     const paragraph = source.paragraphs[0];
@@ -952,9 +766,32 @@ async function analyzeText(
       excerpt: boundedExactExcerpt(paragraph.text),
     });
   }
+  const observationEvidence = new Map(
+    checkedObservations.map((observation) => [
+      observation.id,
+      addQuoteEvidence(
+        observation.id,
+        observation.paragraphIndex,
+        observation.quote,
+      ) ?? "",
+    ]),
+  );
+  const facts = checkedObservations.slice(0, 4).map((observation) => ({
+    id: observation.id,
+    label: observation.subject,
+    value: observation.value,
+    ...(observation.unit ? { unit: observation.unit } : {}),
+    calculation: { kind: "direct-source" as const },
+    evidenceIds: [observationEvidence.get(observation.id) ?? "quote-source"],
+  }));
   const factIds = new Set(facts.map((fact) => fact.id));
   const evidenceIds = new Set(evidence.map((item) => item.id));
-  const checkedNarrativePrompt = `${narrativePrompt}\n\nChecked facts and evidence only:\n${JSON.stringify({ facts, evidence })}${focusContext(focus)}`;
+  const charts = calculateObservationCharts(
+    checkedObservations,
+    extraction.chartGroups,
+    (observationId) => observationEvidence.get(observationId) ?? "",
+  );
+  const checkedNarrativePrompt = `${narrativePrompt}\n\nChecked facts, source-backed observations, calculated chart series, and evidence only:\n${JSON.stringify({ facts, observations: checkedObservations, charts, evidence })}\nEvery chart point is deterministic code output. Change observations are signed deltas: a decrease is negative, and calculated totals add the signed change once. Explain calculated current totals or change totals only when their chart provenance supports it; never invent a value or relationship.${focusContext(focus)}`;
   const narrate = (prompt: string) =>
     callModel({
       stage: "narrative",
@@ -975,11 +812,16 @@ async function analyzeText(
     version: 1,
     hero: narrative.hero,
     metrics: facts,
-    charts: [],
+    observations: checkedObservations,
+    charts,
     evidence,
     recommendations: narrative.recommendations,
-    noChartReason:
-      "Для текстового отчёта используются только точные проверенные цитаты, поэтому искусственные связи для графиков не создаются.",
+    ...(charts.length === 0
+      ? {
+          noChartReason:
+            "Недостаточно совместимых количественных наблюдений для достоверного графика.",
+        }
+      : {}),
   });
 }
 export async function analyzeSource(
@@ -1042,6 +884,7 @@ export async function analyzeSource(
       ...calculateMetric(source, metric),
       evidenceIds: ["rows-all"],
     }));
+    const charts = calculateTableCharts(source, proposal);
     const narrative = checkedNarrative(
       await callModel({
         stage: "narrative",
@@ -1049,13 +892,13 @@ export async function analyzeSource(
         providerSchema: providerNarrativeResponseSchema,
         decodeProviderOutput: narrativeFromProviderOutput,
         signal: controller.signal,
-        prompt: `${narrativePrompt}\n\nChecked facts only; do not add values:\n${JSON.stringify({ facts: metrics, evidence: tableEvidence(source) })}${focusContext(focus)}`,
+        prompt: `${narrativePrompt}\n\nChecked facts and calculated chart series only; do not add values:\n${JSON.stringify({ facts: metrics, charts, evidence: tableEvidence(source) })}\nEvery chart point is deterministic code output and may be explained when its evidence supports the statement.${focusContext(focus)}`,
       }),
       new Set(metrics.map((metric) => metric.id)),
       new Set(["rows-all"]),
     );
     return validateFinalReportReferences(
-      reportFromTable(source, proposal, narrative),
+      reportFromTable(source, proposal, narrative, metrics, charts),
     );
   } catch (error) {
     if (error instanceof AnalysisError) throw error;

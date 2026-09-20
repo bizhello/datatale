@@ -86,7 +86,7 @@ const providerProposal = {
 
 describe("provider-facing structured output", () => {
   it("keeps a bounded timeout budget for the three-stage repair flow", () => {
-    expect(MODEL_CALL_TIMEOUT_MS).toBe(30_000);
+    expect(MODEL_CALL_TIMEOUT_MS).toBe(45_000);
     expect(TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS).toBe(60_000);
     expect(ANALYSIS_TIMEOUT_MS).toBe(105_000);
     expect(ANALYSIS_TIMEOUT_MS).toBeLessThanOrEqual(
@@ -276,21 +276,158 @@ describe("provider-facing structured output", () => {
     });
     expect(
       textExtractionFromProviderOutput({
-        facts: [
+        observations: [
           {
             id: "fact",
-            label: "Revenue",
             subject: "Revenue",
             value: 12,
             unit: "RUB",
             period: "January",
+            role: "snapshot",
             paragraphIndex: 1,
             quote: "Revenue was 12 RUB in January.",
           },
         ],
-        observations: [],
+        chartGroups: [],
       }),
-    ).toMatchObject({ facts: [{ id: "fact", value: 12 }] });
+    ).toMatchObject({ observations: [{ id: "fact", value: 12 }] });
+  });
+
+  it("accepts nullable-period source observations with explicit roles", () => {
+    expect(
+      textExtractionFromProviderOutput({
+        observations: [
+          {
+            id: "dogs",
+            subject: "dogs",
+            value: 5,
+            unit: null,
+            period: null,
+            role: "snapshot",
+            paragraphIndex: 1,
+            quote: "There were 5 dogs.",
+          },
+        ],
+        chartGroups: [
+          {
+            id: "animals",
+            kind: "bar",
+            title: "Животные",
+            rationale: "Сравнение",
+            observationIds: ["dogs", "cats"],
+            derivation: "direct",
+            operation: "none",
+          },
+        ],
+      }),
+    ).toMatchObject({
+      observations: [{ subject: "dogs", role: "snapshot" }],
+      chartGroups: [{ observationIds: ["dogs", "cats"] }],
+    });
+  });
+
+  it("allows the complete eight-observation chart evidence bound", () => {
+    const observations = Array.from({ length: 8 }, (_, index) => ({
+      id: `metric-${index + 1}`,
+      subject: `Metric ${index + 1}`,
+      value: index + 1,
+      unit: null,
+      period: null,
+      role: "snapshot" as const,
+      paragraphIndex: index + 1,
+      quote: `Metric ${index + 1}: ${index + 1}`,
+    }));
+    const output = textExtractionFromProviderOutput({
+      observations,
+      chartGroups: [
+        {
+          id: "all",
+          kind: "bar",
+          title: "All metrics",
+          rationale: "Comparison",
+          observationIds: observations.map((item) => item.id),
+          derivation: "direct",
+          operation: "none",
+        },
+      ],
+    });
+    expect(output.chartGroups[0]?.observationIds).toHaveLength(8);
+    expect(() =>
+      textExtractionFromProviderOutput({
+        observations,
+        chartGroups: [
+          {
+            id: "too-many",
+            kind: "bar",
+            title: "Too many",
+            rationale: "Boundary",
+            observationIds: [...observations.map((item) => item.id), "extra"],
+            derivation: "direct",
+            operation: "none",
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects duplicate observation IDs in a provider chart group", () => {
+    expect(() =>
+      textExtractionFromProviderOutput({
+        observations: [
+          {
+            id: "a",
+            subject: "A",
+            value: 1,
+            unit: null,
+            period: null,
+            role: "snapshot",
+            paragraphIndex: 1,
+            quote: "A: 1",
+          },
+          {
+            id: "target",
+            subject: "Target",
+            value: 2,
+            unit: null,
+            period: null,
+            role: "target",
+            paragraphIndex: 1,
+            quote: "Target: 2",
+          },
+        ],
+        chartGroups: [
+          {
+            id: "duplicate",
+            kind: "bar",
+            title: "Duplicate",
+            rationale: "Invalid",
+            observationIds: ["a", "a", "target"],
+            derivation: "current-target",
+            operation: "none",
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it("keeps qualitative quotations without inventing numeric fields", () => {
+    expect(
+      textExtractionFromProviderOutput({
+        observations: [
+          {
+            id: "direct-observation",
+            subject: null,
+            value: null,
+            unit: null,
+            period: null,
+            role: null,
+            paragraphIndex: 1,
+            quote: "Команда отметила задержку согласования.",
+          },
+        ],
+        chartGroups: [],
+      }),
+    ).toMatchObject({ observations: [{ value: null, role: null }] });
   });
 
   it("rejects a one-sentence hero before it can reach the dashboard", () => {

@@ -4,6 +4,12 @@ import styles from "./ask-data.module.css";
 
 type MessageBubbleProps = { message: AskDataMessage };
 
+const messageKindLabel = {
+  clarification: "Нужно уточнение",
+  not_in_source: "Нет в источнике",
+  unsupported: "Операция недоступна",
+} as const;
+
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === "user";
   return (
@@ -14,6 +20,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         aria-label={isUser ? "Ваш вопрос" : "Ответ DataTale"}
         className={`${styles.bubble} ${isUser ? styles.userBubble : styles.assistantBubble}`}
       >
+        {message.kind && message.kind in messageKindLabel ? (
+          <Chip className={styles.outcome ?? ""} size="sm" variant="secondary">
+            {messageKindLabel[message.kind as keyof typeof messageKindLabel]}
+          </Chip>
+        ) : null}
         <p>{message.text}</p>
         {message.evidenceLabels?.length ? (
           <div className={styles.evidence}>

@@ -71,13 +71,32 @@ describe("AskDataPanel", () => {
 
   it("renders the exact insufficient-data refusal", async () => {
     const send = vi.fn(
-      async (): Promise<AskDataResult> => ({ status: "insufficient_data" }),
+      async (): Promise<AskDataResult> => ({
+        status: "not_in_source",
+        message: "В этом отчете нет такой информации",
+      }),
     );
     render(<AskDataPanel send={send} />);
     enterQuestion("Какой прогноз на 2030 год?");
     expect(
       await screen.findByText("В этом отчете нет такой информации"),
     ).toBeVisible();
+    expect(screen.getByText("Нет в источнике")).toBeVisible();
+  });
+
+  it("renders clarification separately from missing information", async () => {
+    const send = vi.fn(
+      async (): Promise<AskDataResult> => ({
+        status: "clarification",
+        message: "Уточните, о каком периоде вы спрашиваете.",
+      }),
+    );
+    render(<AskDataPanel send={send} />);
+    enterQuestion("Что изменилось?");
+    expect(
+      await screen.findByText("Уточните, о каком периоде вы спрашиваете."),
+    ).toBeVisible();
+    expect(screen.getByText("Нужно уточнение")).toBeVisible();
   });
 
   it("renders an unsupported-operation result", async () => {
@@ -90,6 +109,7 @@ describe("AskDataPanel", () => {
     render(<AskDataPanel send={send} />);
     enterQuestion("Постройте прогноз");
     expect(await screen.findByText("Я не выполняю прогнозы.")).toBeVisible();
+    expect(screen.getByText("Операция недоступна")).toBeVisible();
   });
 
   it("shows an actionable retry and preserves the message id", async () => {

@@ -24,7 +24,7 @@ Show the two- or three-sentence hero, metrics, and two or three supported charts
 
 > The model proposes supported metrics and chart types. The application validates that plan, calculates displayed values over the complete accepted table, and stores the source references and formulas with the result. Unsupported or incomplete chart proposals are rejected or omitted.
 
-Show the evidence coverage and a source row or paragraph. If the source is text-only, explain that DataTale uses exact quotations for facts and deliberately avoids inventing table relationships or charts from prose.
+Show the evidence coverage and a source row or paragraph. If the source is text-only, explain that DataTale uses exact quotations and builds a chart only when compatible explicit quantities support a relationship that code can validate and calculate.
 
 ## 2:30–3:15 — Ask the Data
 
@@ -32,7 +32,7 @@ Ask one answerable question about the displayed data, then ask for a fact that i
 
 Explain:
 
-> Chat uses the immutable accepted source and checked report claims. The server validates the answer before saving it, so a replay does not call the model again and a question cannot read another guest workspace.
+> Chat reloads the immutable accepted source. For a table, the model proposes a bounded query and code executes it over all accepted rows; for text, the model reads the complete bounded source. The server checks citations and arithmetic before saving the answer, so a replay does not call the model again and a question cannot read another guest workspace.
 
 ## 3:15–4:30 — AI orchestration and review evidence
 

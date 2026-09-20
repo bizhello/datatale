@@ -5,7 +5,6 @@ export const CHAT_ANSWER_MAX_LENGTH = 1_200;
 export const CHAT_HISTORY_MAX_MESSAGES = 12;
 export const CHAT_HISTORY_MESSAGE_MAX_LENGTH = 1_000;
 export const CHAT_REFERENCE_MAX_COUNT = 7;
-export const CHAT_CONTEXT_MAX_SERIALIZED_BYTES = 96 * 1_024;
 export const CHAT_REFUSAL = "В этом отчете нет такой информации";
 
 const boundedText = (max: number) =>
@@ -53,8 +52,14 @@ export const chatResultSchema = z.discriminatedUnion("outcome", [
   chatAnswerSchema,
   z
     .object({
-      outcome: z.literal("insufficient_data"),
+      outcome: z.literal("not_in_source"),
       message: z.literal(CHAT_REFUSAL),
+    })
+    .strict(),
+  z
+    .object({
+      outcome: z.literal("clarification"),
+      message: boundedText(CHAT_ANSWER_MAX_LENGTH),
     })
     .strict(),
   z

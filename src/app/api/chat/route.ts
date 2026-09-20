@@ -4,7 +4,11 @@ import {
   type ChatResult,
   chatResultSchema,
 } from "@/entities/chat";
-import { datasetSchema, textSourceSchema } from "@/entities/dataset";
+import {
+  datasetSchema,
+  executeDatasetQuery,
+  textSourceSchema,
+} from "@/entities/dataset";
 import {
   readGuestWorkspace,
   readInviteCodeFingerprint,
@@ -85,6 +89,12 @@ export const POST = createChatHandler({
   answer: ({ workspaceId, request, signal }) =>
     answerChat(request, {
       signal,
+      queryExecutor: {
+        execute: async (dataset, query, querySignal) => {
+          if (querySignal.aborted) throw new Error("Query cancelled.");
+          return executeDatasetQuery(dataset, query);
+        },
+      },
       loadContext: async (analysisId, contextSignal) => {
         if (contextSignal.aborted) return undefined;
         const [stored, storedMessages] = await Promise.all([

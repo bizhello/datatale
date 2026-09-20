@@ -86,19 +86,26 @@ export function restoreMessages(
                 reference.excerpt ?? `Источник ${index + 1}`,
             ),
           }
-        : result.outcome === "insufficient_data"
+        : result.outcome === "not_in_source"
           ? {
               id: `${message.id}:assistant`,
               role: "assistant",
-              text: "В этом отчете нет такой информации",
-              kind: "insufficient",
-            }
-          : {
-              id: `${message.id}:assistant`,
-              role: "assistant",
               text: result.message,
-              kind: "unsupported",
-            };
+              kind: "not_in_source",
+            }
+          : result.outcome === "clarification"
+            ? {
+                id: `${message.id}:assistant`,
+                role: "assistant",
+                text: result.message,
+                kind: "clarification",
+              }
+            : {
+                id: `${message.id}:assistant`,
+                role: "assistant",
+                text: result.message,
+                kind: "unsupported",
+              };
     return [assistant];
   });
 }

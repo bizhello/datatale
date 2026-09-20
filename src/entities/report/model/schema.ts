@@ -25,6 +25,9 @@ export const REPORT_PERIOD_MAX_LENGTH = 96;
 export const REPORT_QUOTE_MAX_LENGTH = 1_000;
 export const REPORT_NO_CHART_REASON_MAX_LENGTH = 300;
 export const REPORT_MAX_SERIALIZED_BYTES = 24 * 1_024;
+export const REPORT_MAX_EVIDENCE = 8;
+export const REPORT_MAX_TEXT_OBSERVATIONS = 24;
+export const REPORT_MAX_TEXT_CHART_GROUPS = 3;
 
 const boundedNonblankString = (maxLength: number) =>
   z
@@ -234,9 +237,45 @@ export const reportFactSchema = z
     value: z.number().finite(),
     unit: unitString.optional(),
     calculation: reportCalculationSchema,
-    evidenceIds: z.array(identifierString).min(1).max(7),
+    evidenceIds: z.array(identifierString).min(1).max(REPORT_MAX_EVIDENCE),
   })
   .strict();
+export const textObservationRoleSchema = z.enum([
+  "snapshot",
+  "change",
+  "target",
+]);
+export const textObservationSchema = z
+  .object({
+    id: identifierString,
+    subject: labelString,
+    value: z.number().finite(),
+    unit: unitString.nullable(),
+    period: periodString.nullable(),
+    role: textObservationRoleSchema,
+    paragraphIndex: z.number().int().positive(),
+    quote: quoteString,
+  })
+  .strict();
+export const textChartGroupSchema = z
+  .object({
+    id: identifierString,
+    kind: z.enum(["bar", "line"]),
+    title: titleString,
+    rationale: rationaleString,
+    observationIds: z.array(identifierString).min(2).max(REPORT_MAX_EVIDENCE),
+    derivation: z.enum(["direct", "current-target", "baseline-change"]),
+    operation: z.enum(["none", "increase", "decrease"]).default("none"),
+  })
+  .strict()
+  .superRefine((group, context) => {
+    if (new Set(group.observationIds).size !== group.observationIds.length)
+      context.addIssue({
+        code: "custom",
+        message: "Chart observation IDs must be unique.",
+        path: ["observationIds"],
+      });
+  });
 export const reportChartSchema = z
   .object({
     id: identifierString,
@@ -251,14 +290,19 @@ export const reportChartSchema = z
       )
       .min(1)
       .max(LINE_MAX_POINTS),
-    evidenceIds: z.array(identifierString).min(1).max(7),
+    evidenceIds: z.array(identifierString).min(1).max(REPORT_MAX_EVIDENCE),
+    observationIds: z
+      .array(identifierString)
+      .min(1)
+      .max(REPORT_MAX_EVIDENCE)
+      .optional(),
   })
   .strict();
 export const reportNarrativeItemSchema = z
   .object({
     text: narrativeString,
     factIds: z.array(identifierString).max(4).default([]),
-    evidenceIds: z.array(identifierString).max(7).default([]),
+    evidenceIds: z.array(identifierString).max(REPORT_MAX_EVIDENCE).default([]),
     kind: z
       .enum(["observation", "hypothesis", "action"])
       .default("observation"),
@@ -273,8 +317,12 @@ export const finalReportSchema = z
     version: z.literal(1),
     hero: z.array(reportNarrativeItemSchema).min(2).max(3),
     metrics: z.array(reportFactSchema).max(4),
+    observations: z
+      .array(textObservationSchema)
+      .max(REPORT_MAX_TEXT_OBSERVATIONS)
+      .optional(),
     charts: z.array(reportChartSchema).max(3),
-    evidence: z.array(reportEvidenceSchema).min(1).max(7),
+    evidence: z.array(reportEvidenceSchema).min(1).max(REPORT_MAX_EVIDENCE),
     recommendations: z.array(reportNarrativeItemSchema).max(3),
     noChartReason: noChartReasonString.optional(),
   })
@@ -312,7 +360,10 @@ export const narrativeResponseSchema = z
           .object({
             text: narrativeString,
             factIds: z.array(identifierString).max(4),
-            evidenceIds: z.array(identifierString).max(7).default([]),
+            evidenceIds: z
+              .array(identifierString)
+              .max(REPORT_MAX_EVIDENCE)
+              .default([]),
             kind: z
               .enum(["observation", "hypothesis", "action"])
               .default("observation"),
@@ -327,7 +378,10 @@ export const narrativeResponseSchema = z
           .object({
             text: narrativeString,
             factIds: z.array(identifierString).max(4),
-            evidenceIds: z.array(identifierString).max(7).default([]),
+            evidenceIds: z
+              .array(identifierString)
+              .max(REPORT_MAX_EVIDENCE)
+              .default([]),
             kind: z.literal("action").default("action"),
           })
           .strict(),
@@ -337,37 +391,30 @@ export const narrativeResponseSchema = z
   .strict();
 export const textExtractionResponseSchema = z
   .object({
-    facts: z
-      .array(
-        z
-          .object({
-            id: identifierString,
-            label: labelString,
-            subject: labelString,
-            value: z.number().finite(),
-            unit: unitString,
-            period: periodString,
-            paragraphIndex: z.number().int().positive(),
-            quote: quoteString,
-          })
-          .strict(),
-      )
-      .max(4),
     observations: z
       .array(
         z
           .object({
             id: identifierString,
+            subject: labelString.nullable(),
+            value: z.number().finite().nullable(),
+            unit: unitString.nullable(),
+            period: periodString.nullable(),
+            role: textObservationRoleSchema.nullable(),
             paragraphIndex: z.number().int().positive(),
             quote: quoteString,
           })
           .strict(),
       )
-      .max(3),
+      .max(REPORT_MAX_TEXT_OBSERVATIONS),
+    chartGroups: z
+      .array(textChartGroupSchema)
+      .max(REPORT_MAX_TEXT_CHART_GROUPS)
+      .default([]),
   })
   .strict()
   .superRefine((value, context) =>
-    idsAreUnique([...value.facts, ...value.observations], context, "facts"),
+    idsAreUnique(value.observations, context, "observations"),
   );
 
 export type FieldReference = z.infer<typeof fieldReferenceSchema>;
@@ -393,3 +440,5 @@ export type ReportChartCalculation = z.infer<
 export type TextExtractionResponse = z.infer<
   typeof textExtractionResponseSchema
 >;
+export type TextObservation = z.infer<typeof textObservationSchema>;
+export type TextChartGroup = z.input<typeof textChartGroupSchema>;

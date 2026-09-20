@@ -83,8 +83,11 @@ function resultMessage(
     if (result.evidenceLabels) answer.evidenceLabels = result.evidenceLabels;
     return answer;
   }
-  if (result.status === "insufficient_data") {
-    return { text: "В этом отчете нет такой информации", kind: "insufficient" };
+  if (result.status === "not_in_source") {
+    return { text: result.message, kind: "not_in_source" };
+  }
+  if (result.status === "clarification") {
+    return { text: result.message, kind: "clarification" };
   }
   return { text: result.message, kind: "unsupported" };
 }

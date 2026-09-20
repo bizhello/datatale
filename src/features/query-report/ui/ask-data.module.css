@@ -71,6 +71,9 @@
   background: var(--surface-raised);
   border-bottom-left-radius: 0.35rem;
 }
+.outcome {
+  margin-bottom: 0.55rem;
+}
 .pending {
   display: flex;
   align-items: center;

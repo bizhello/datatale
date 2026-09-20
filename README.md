@@ -20,7 +20,7 @@ _The screenshot uses DataTale's deterministic synthetic onboarding report. The l
 
 - **The model proposes; code decides.** The LLM may select metrics and bar, line, or donut charts from a bounded catalog. Zod and semantic validators reject unsupported fields, incomplete totals, invalid time axes, and ungrounded output.
 - **Application code calculates every displayed value.** Metrics and chart points are derived from the complete accepted table. The narrative may reference only checked fact and evidence IDs.
-- **Chat reads immutable server-owned context.** Ask the Data answers from canonical source/report claims, persists validated results for replay, and returns an exact refusal when the source lacks the requested information.
+- **Chat reads the immutable original source.** For tables, the model proposes a bounded query that code validates and executes over every accepted row; for text, it reads every bounded source chunk. Typed evidence and checked arithmetic support lookups, comparisons, totals, shares, and changes without trusting model calculations.
 - **Failures stay explicit.** Input limits, corrupt workbooks, model timeouts, invalid model output, quota exhaustion, expired sessions, and persistence failures have separate actionable states.
 
 ```mermaid
@@ -31,13 +31,13 @@ flowchart LR
   Guard --> Calculate["Deterministic full-source calculations"]
   Calculate --> Dashboard["Narrative, metrics, charts, evidence"]
   Dashboard --> Neon["Owner-scoped report and chat in Neon"]
-  Dashboard --> Chat["Ask the Data: canonical claims only"]
+  Dashboard --> Chat["Ask the Data: original source + checked queries"]
   Chat --> Model
 ```
 
 ## Product behavior
 
-DataTale supports local CSV/XLSX parsing, workbook sheet selection, pasted text, bounded previews, cancellation, responsive loading, light/dark/system themes, expanded charts, evidence drill-down, recommendations, and grounded chat. Pasted text produces quotation-backed facts and an explicit no-chart explanation; chart planning is limited to suitable tables. A skippable first-visit tour uses a deterministic local demo and spends no model request.
+DataTale supports local CSV/XLSX parsing, workbook sheet selection, pasted text, bounded previews, cancellation, responsive loading, light/dark/system themes, expanded charts, evidence drill-down, recommendations, and grounded chat. Pasted text produces exact-quotation observations and code-calculated bar or line charts when compatible quantities support them; qualitative or incompatible text receives an honest no-chart explanation. A skippable first-visit tour uses a deterministic local demo and spends no model request.
 
 Analysis creates a sealed guest workspace. The accepted canonical source, validated report, and chat are stored for seven days; original binary uploads are not stored. History is owner-scoped and reopens a report without consuming analysis or chat quota. Losing the sealed cookie ends access, while confirmed delete-all removes the workspace data and clears the client state.
 
