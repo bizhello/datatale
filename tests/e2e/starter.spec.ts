@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, type Route, test } from "@playwright/test";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { createMultiSheetXlsx } from "../fixtures/import/xlsx";
 
@@ -121,7 +121,47 @@ function xlsxWithInvalidFirstSheet() {
 }
 
 test("accepts text locally and exposes an honest preview", async ({ page }) => {
+  let historyRoute: Route | undefined;
+  await page.route("**/api/saved-analysis", async (route) => {
+    historyRoute = route;
+  });
   await page.goto("/");
+  const historyLoading = page.locator(".history-picker-loading");
+  await expect(historyLoading).toBeVisible();
+  const historyLoadingBounds = await historyLoading.evaluate((status) => {
+    const spinner = status.querySelector<HTMLElement>('[aria-hidden="true"]');
+    if (!spinner) throw new Error("History spinner is missing.");
+    const statusRect = status.getBoundingClientRect();
+    const spinnerRect = spinner.getBoundingClientRect();
+    return {
+      statusCenter: statusRect.left + statusRect.width / 2,
+      contentCenter:
+        (spinnerRect.left +
+          (status.lastElementChild?.getBoundingClientRect().right ??
+            spinnerRect.right)) /
+        2,
+      spinnerTop: spinnerRect.top,
+      spinnerBottom: spinnerRect.bottom,
+      statusTop: statusRect.top,
+      statusBottom: statusRect.bottom,
+    };
+  });
+  expect(
+    Math.abs(
+      historyLoadingBounds.statusCenter - historyLoadingBounds.contentCenter,
+    ),
+  ).toBeLessThanOrEqual(4);
+  expect(historyLoadingBounds.spinnerTop).toBeGreaterThanOrEqual(
+    historyLoadingBounds.statusTop,
+  );
+  expect(historyLoadingBounds.spinnerBottom).toBeLessThanOrEqual(
+    historyLoadingBounds.statusBottom,
+  );
+  if (!historyRoute) throw new Error("History request was not captured.");
+  await historyRoute.fulfill({
+    status: 401,
+    json: { code: "expired" },
+  });
   await expect(page.locator(".page-shell")).toHaveAttribute(
     "data-hydrated",
     "true",

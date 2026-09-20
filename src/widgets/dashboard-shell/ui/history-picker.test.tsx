@@ -23,12 +23,29 @@ describe("history picker labels", () => {
     expect(first).toMatch(/\d{2}:\d{2}/);
   });
 
-  it("announces opening and completion for assistive technology", () => {
+  it("announces loading, opening and completion for assistive technology", () => {
     const analysis = {
       ...base,
       id: "00000000-0000-4000-8000-000000000002",
     };
     const view = render(
+      <HistoryPicker
+        analyses={[]}
+        loading
+        error={false}
+        opening={false}
+        openError={false}
+        loaded={false}
+        onOpen={() => undefined}
+        onRetry={() => undefined}
+        onRetryList={() => undefined}
+      />,
+    );
+    const status = screen.getByRole("status");
+    expect(status).toHaveClass("history-picker-loading");
+    expect(status).toHaveTextContent("Загружаем историю отчётов…");
+    expect(status.querySelector('[aria-hidden="true"]')).not.toBeNull();
+    view.rerender(
       <HistoryPicker
         analyses={[analysis]}
         loading={false}

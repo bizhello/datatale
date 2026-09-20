@@ -393,6 +393,14 @@ footer {
   justify-content: flex-end;
   padding-top: 20px;
 }
+.history-picker.history-picker-loading {
+  min-height: 4rem;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 0.65rem;
+  color: var(--muted);
+  padding-top: 1rem;
+}
 .history-picker-error {
   display: flex;
   flex: 1 1 100%;
@@ -411,6 +419,9 @@ footer {
 }
 .history-picker > * {
   width: min(100%, 320px);
+}
+.history-picker.history-picker-loading > * {
+  width: auto;
 }
 .input-grid {
   display: grid;
