@@ -223,3 +223,11 @@ The README now leads evaluators through the live product, a synthetic production
 Independent review rejected the first guide because “Which channel contributes the most revenue?” required a grouped calculation that the current chat contract does not permit. The same review found that the guide promised more deterministic chart selection than the runtime schema guarantees. The guide now asks the supported “What is the sum of revenue?” question and states that the model may select any supported two- or three-chart subset. This correction kept the demo truthful without adding product scope for the presentation.
 
 `bun run check` passed 292 Vitest tests and the production build; `bun run test:e2e` passed 72 scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Independent review approved exact candidate `be2fe5f`; [PR #26](https://github.com/bizhello/datatale/pull/26) passed hosted CI, squash-merged as `68ec1e1`, and reached Vercel production.
+
+## 2026-09-20 — saved-report recovery and Russian report copy
+
+Production request logs traced saved-report reopen failures and unavailable follow-up chat to the PostgreSQL repository boundary: Neon returned SQL `NULL` for the optional user-message result, while the domain contract represents absence as `undefined`. The adapter now normalizes that database value before canonical validation. Existing affected rows reopen without a migration, assistant messages still require a validated result, and regressions cover both history reads and newly appended user messages.
+
+Code now owns deterministic Russian metric labels, chart titles, rationales, evidence labels, top-N grouping, and no-chart explanations. Prompts explicitly require Russian for remaining model-authored labels and narrative while preserving source terminology. Input cards use matching top and bottom alignment, and accepted-source sections use measured spacing across desktop and mobile layouts.
+
+Exact candidate `f84b2d3ddfce6209ca8720637acc983dfd6f5fcb` passed Biome, Steiger, strict TypeScript, 295 Vitest tests, the production build, and 72 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Independent review approved it without material findings. [PR #27](https://github.com/bizhello/datatale/pull/27) merged as `308bdea`; hosted CI passed before merge.
