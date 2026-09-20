@@ -1,5 +1,13 @@
 # AI development evidence
 
+> **Historical record:** entries below describe the repository and verification state at the date shown. They are evidence of AI-assisted development, including mistakes and superseded designs, not current setup or operating instructions. Use [README.md](../README.md), [DELIVERY.md](DELIVERY.md), [DEPLOYMENT.md](DEPLOYMENT.md), [PRODUCT.md](PRODUCT.md), and [QUALITY.md](QUALITY.md) for the current project state.
+
+## Reproducible local setup and documentation audit · 2026-09-20
+
+A full canonical-document pass found that local setup omitted Neon provisioning, secret generation, environment requirements, command purpose, browser installation, and failure recovery. It also found stale 367/75 test counts, an outdated `0001`–`0005` production migration claim, an omitted access endpoint/feature, an inaccurate runtime description of Drizzle, a receipt-only persistence description, and an unsafe rollback promise after a destructive migration. README now distinguishes UI-only and full Neon/gateway modes, documents every package script and required variable, and explains that local development never migrates automatically. Historical worklog entries are explicitly separated from current operating instructions.
+
+Frozen Bun installation made no dependency changes. Biome, Steiger, strict TypeScript, 392 Vitest tests, the Turbopack production build, and all 78 Playwright scenarios passed. A repository-relative link audit checked all 14 canonical Markdown files with zero missing targets, and a stale-claim scan found no remaining current-document matches for the corrected test counts, migration range, access-hash configuration, or npm/ESLint setup.
+
 ## Daily workspace quota tiers · 2026-09-20
 
 The previous access gate charged every recipient of one invite code to a shared ten-analysis bucket, while chat used a separate hard-coded ten-message allowance and ignored access capability. The replacement counts analysis and user chat independently per sealed guest workspace and UTC day: five free calls of each kind, raised to a total of 20 after today's code. Usage before unlock remains charged, questions aggregate across reports, and different workspaces using the same code do not consume each other's budget. Assistant messages and idempotent replays remain free. Anonymous IP and global analysis ceilings still bound cookie-reset and total spend.
