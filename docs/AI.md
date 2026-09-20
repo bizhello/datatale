@@ -26,7 +26,7 @@ Start with at most 12 visible bar categories, 2–6 donut segments and a bounded
 4. Validate shape and semantic compatibility against real columns and units. Reject nonexistent IDs and unsupported operations. A `no-chart` plan is also rejected when the same validator can prove at least two distinct supported dimension-and-aggregation stories; the model must repair its choice. Allow at most one bounded repair attempt using specific errors; never silently accept a different chart as if it was the model recommendation.
 5. Execute accepted metrics against all accepted rows. The preview informs planning, never the reported population totals.
 6. Supply checked Facts to the model for a 2–3 sentence narrative and recommendations referencing fact IDs.
-7. Validate the versioned Report and store it only in the short-lived idempotency receipt. UI renders only supported checked specifications and code-computed series. Show a short “Why this chart” rationale.
+7. Validate the versioned Report, complete the short-lived idempotency receipt, and atomically persist the accepted source and report under the owner workspace for the seven-day history window. UI renders only supported checked specifications and code-computed series. Show a short “Why this chart” rationale.
 
 For text, extract explicitly stated quantities with exact source quotations before the narrative call. Signed/localized numeric tokens and standalone unit/period phrases must match the quotation exactly. If extraction finds nothing, use a bounded exact excerpt from the first paragraph as narrative evidence. Text analysis deliberately returns no charts in this feature; chart selection is enabled for suitable tables.
 

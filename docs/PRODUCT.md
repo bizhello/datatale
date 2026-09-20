@@ -62,7 +62,7 @@ After either free allowance is exhausted, show the access-code modal without cle
 | Requirement | Observable acceptance |
 | --- | --- |
 | File DnD OR text | Plan supports both; picker also works on mobile/keyboard. Parse errors precede AI calls |
-| Polished loading | Skeleton shapes, real stages, measured progress only where available; otherwise use a clearly labeled time estimate and a brief completion acknowledgment after validation |
+| Polished loading | Skeleton shapes, named approximate stages, measured progress only where available, and a brief completion acknowledgment after validation |
 | Hero insight | Prominent 2–3 sentence grounded summary |
 | AI-selected charts | Model selects from supported kinds; suitable fixture renders 2–3 useful interactive charts |
 | Ask the Data | Composer below analysis; owner-scoped answers derive exclusively from the immutable accepted source or checked calculations; persisted assistant results replay by message ID |

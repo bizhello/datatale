@@ -15,7 +15,7 @@ This document records the installed production stack. `package.json` and `bun.lo
 | Charts/evidence | Recharts with native semantic table equivalents |
 | Runtime contracts | Zod with inferred TypeScript types |
 | AI | AI SDK `ai` plus `@ai-sdk/openai` |
-| Persistence | Neon PostgreSQL and Drizzle ORM |
+| Persistence | Neon PostgreSQL via `@neondatabase/serverless`; Drizzle schema/config for parity and tooling |
 | Guest access | iron-session with a server-owned GuestWorkspace |
 | Request state | Feature-owned hooks and native fetch with abort/request ownership guards |
 | Local UI state | React state/reducers at the nearest owner |

@@ -14,6 +14,7 @@ src/
     import-data/                picker, preview, parsing orchestration
     analyze-data/               client lifecycle, prompt orchestration, calculations, verified report UI
     query-report/               grounded chat UI and server orchestration
+    unlock-workspace/           daily access-code validation and analysis/chat retry lifecycle
     onboarding/                 first-visit tour lifecycle and preference
   entities/
     dataset/                    source schema, normalization and pure calculations
@@ -122,6 +123,7 @@ The workspace cookie is the quota identity. A free workspace has independent 5-a
 
 ```text
 POST/DELETE /api/guest            implemented
+POST        /api/access           implemented, upgrades the current workspace with today's code
 POST        /api/analyze          implemented
 GET         /api/cron/cleanup     implemented, Bearer CRON_SECRET
 GET         /api/saved-analysis   implemented owner-scoped summaries
