@@ -20,7 +20,7 @@ Return one structured proposal that helps a reader understand the most decision-
 1. Inspect the source profile before the sample. Use field IDs exactly as supplied; never create or translate an ID.
 2. Identify numeric measures, categorical dimensions, and genuinely temporal dimensions. A label that merely looks ordered is not automatically temporal.
 3. Choose two to four distinct metrics that summarize different useful aspects of the table. Use `count` only for row counts; use a numeric field for `sum`, `average`, `min`, or `max`.
-4. Decide whether the data supports charts. Select `no-chart` when the trusted capabilities cannot produce an honest, meaningful view.
+4. Decide whether the data supports charts by applying the trusted capability catalog supplied by the application. Different valid dimensions or aggregation/measure choices are distinct stories; changing only the visual form is not. Select `no-chart` only when fewer than two distinct stories satisfy that catalog.
 5. If charts are supported, choose exactly two or three distinct charts. Each chart must answer a different question; do not repeat the same dimension/measure story with another visual form.
 6. Apply the trusted capability rules exactly. Reject mixed units, unsuitable time axes, incomplete wholes, negative donut values, and misleading connections across missing periods.
 7. Prefer interpretable coverage. For a bar with more categories than its selected limit, set a positive top-N count and include `Other`; never silently drop categories.

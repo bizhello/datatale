@@ -23,7 +23,7 @@ Start with at most 12 visible bar categories, 2–6 donut segments and a bounded
 1. Validate and normalize the complete accepted dataset; compute a deterministic profile (types, cardinality, missingness, units and ranges).
 2. Send the goal, profile, bounded semantic preview, supported capabilities and constraints to the model.
 3. Receive an `AnalysisPlan`: chosen chart kinds, field IDs, aggregation, grouping/sort/bucket rules, title, short rationale and intended metric definitions. No executable code or model-invented data series.
-4. Validate shape and semantic compatibility against real columns and units. Reject nonexistent IDs and unsupported operations. Allow at most one bounded repair attempt using specific errors; never silently accept a different chart as if it was the model recommendation.
+4. Validate shape and semantic compatibility against real columns and units. Reject nonexistent IDs and unsupported operations. A `no-chart` plan is also rejected when the same validator can prove at least two distinct supported dimension-and-aggregation stories; the model must repair its choice. Allow at most one bounded repair attempt using specific errors; never silently accept a different chart as if it was the model recommendation.
 5. Execute accepted metrics against all accepted rows. The preview informs planning, never the reported population totals.
 6. Supply checked Facts to the model for a 2–3 sentence narrative and recommendations referencing fact IDs.
 7. Validate the versioned Report and store it only in the short-lived idempotency receipt. UI renders only supported checked specifications and code-computed series. Show a short “Why this chart” rationale.

@@ -44,7 +44,139 @@ const donutProposal = () => ({
   ],
 });
 
+const noChartProposal = (fieldId: string) => ({
+  outcome: "no-chart" as const,
+  reason: "No supported relationships.",
+  metrics: [
+    {
+      id: "total",
+      label: "Total",
+      aggregation: { kind: "sum" as const, field: { fieldId } },
+    },
+    {
+      id: "average",
+      label: "Average",
+      aggregation: { kind: "average" as const, field: { fieldId } },
+    },
+  ],
+});
+
 describe("table proposal semantics", () => {
+  it("rejects no-chart for the demo shape with two numeric category stories", () => {
+    const source: Dataset = {
+      version: 1,
+      id: "demo",
+      source: { kind: "csv", filename: "demo.csv" },
+      columns: [
+        { id: "month", label: "Месяц", scalarType: "string" },
+        { id: "revenue", label: "Выручка", scalarType: "number" },
+        { id: "orders", label: "Заказы", scalarType: "number" },
+      ],
+      rows: [
+        {
+          id: "1",
+          values: { month: "Январь", revenue: 128000, orders: 120 },
+          provenance: { sourceRowNumber: 2 },
+        },
+        {
+          id: "2",
+          values: { month: "Февраль", revenue: 146000, orders: 132 },
+          provenance: { sourceRowNumber: 3 },
+        },
+      ],
+    };
+    const invalid = {
+      outcome: "no-chart" as const,
+      reason: "No supported relationships.",
+      metrics: [
+        {
+          id: "revenue",
+          label: "Revenue",
+          aggregation: {
+            kind: "sum" as const,
+            field: { fieldId: "revenue" },
+          },
+        },
+        {
+          id: "orders",
+          label: "Orders",
+          aggregation: {
+            kind: "sum" as const,
+            field: { fieldId: "orders" },
+          },
+        },
+      ],
+    };
+
+    expect(() => validateTableProposal(source, invalid)).toThrow(
+      /at least two distinct chart stories accepted by the trusted catalog/,
+    );
+  });
+
+  it("counts valid count charts as distinct stories", () => {
+    const source: Dataset = {
+      version: 1,
+      id: "categories",
+      source: { kind: "csv" },
+      columns: [
+        { id: "region", label: "Region", scalarType: "string" },
+        { id: "channel", label: "Channel", scalarType: "string" },
+      ],
+      rows: [
+        {
+          id: "1",
+          values: { region: "North", channel: "Online" },
+          provenance: { sourceRowNumber: 2 },
+        },
+        {
+          id: "2",
+          values: { region: "South", channel: "Retail" },
+          provenance: { sourceRowNumber: 3 },
+        },
+      ],
+    };
+    const invalid = {
+      outcome: "no-chart" as const,
+      reason: "No supported relationships.",
+      metrics: [
+        { id: "rows", label: "Rows", aggregation: { kind: "count" as const } },
+        {
+          id: "records",
+          label: "Records",
+          aggregation: { kind: "count" as const },
+        },
+      ],
+    };
+
+    expect(() => validateTableProposal(source, invalid)).toThrow(
+      /at least two distinct chart stories/,
+    );
+  });
+
+  it("accepts no-chart when fewer than two chart stories are supported", () => {
+    const source: Dataset = {
+      version: 1,
+      id: "measure-only",
+      source: { kind: "csv" },
+      columns: [{ id: "amount", label: "Amount", scalarType: "number" }],
+      rows: [
+        {
+          id: "1",
+          values: { amount: 20 },
+          provenance: { sourceRowNumber: 2 },
+        },
+        {
+          id: "2",
+          values: { amount: 10 },
+          provenance: { sourceRowNumber: 3 },
+        },
+      ],
+    };
+    expect(() =>
+      validateTableProposal(source, noChartProposal("amount")),
+    ).not.toThrow();
+  });
+
   it("rejects a line that would connect missing periods", () => {
     const source = structuredClone(syntheticDatasetFixture);
     source.columns = [

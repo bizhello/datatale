@@ -32,6 +32,10 @@ describe("analysis prompt contracts", () => {
       expect(prompt).toContain("Return only");
     }
     expect(table).toContain("Do not treat a bounded sample");
+    expect(table).toContain("trusted capability catalog");
+    expect(table).toContain(
+      "Select `no-chart` only when fewer than two distinct stories satisfy that catalog",
+    );
     expect(table).toContain("topNCount");
     expect(table).toContain("user-visible metric label");
     expect(table).toContain("in Russian");
