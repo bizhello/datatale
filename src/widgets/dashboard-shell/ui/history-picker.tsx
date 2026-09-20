@@ -28,8 +28,13 @@ export function HistoryPicker({
 }: HistoryPickerProps) {
   if (loading)
     return (
-      <div aria-live="polite" className="history-picker">
-        <Spinner size="sm" /> <span>Загружаем историю отчётов…</span>
+      <div
+        aria-live="polite"
+        className="history-picker history-picker-loading"
+        role="status"
+      >
+        <Spinner aria-hidden="true" size="sm" />
+        <span>Загружаем историю отчётов…</span>
       </div>
     );
   if (error)
