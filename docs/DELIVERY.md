@@ -4,7 +4,7 @@ DataTale's production MVP delivers the complete assignment journey: CSV/XLSX/tex
 
 ## Current state
 
-All Must Have features, the optional functional tour, owner-scoped history/reopen, guided analysis transition, quota-flow polish, saved-report recovery, Russian analysis copy, production-shell cleanup, strengthened AI prompt contracts, required chart recovery, grounded report summaries, responsive input/footer corrections, first-run showcase access, and bounded 5,000-row XLSX import are deployed. Migrations `0001`–`0005` remain current. The guarded production build runs the migration ledger before Next.js. Branch and pull-request Vercel deployments remain disabled.
+All Must Have features, the optional functional tour, owner-scoped history/reopen, perceptible four-stage analysis transition, quota-flow polish, saved-report recovery, Russian analysis copy, production-shell cleanup, strengthened AI prompt contracts, required chart recovery, grounded report summaries, responsive input/footer corrections, first-run showcase access, bounded 5,000-row XLSX import, and near-limit text reliability are deployed. Migrations `0001`–`0005` remain current. The guarded production build runs the migration ledger before Next.js. Branch and pull-request Vercel deployments remain disabled.
 
 The current candidate gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 367 Vitest tests, and 75 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Production returns HTTPS 200 and renders the input cards and empty-workspace explanation. A history read without a sealed guest cookie returns private, uncached `401 {"code":"expired"}` without creating a cookie. Production and live-provider probes verified suitable-table charts, grounded report-summary selection, the exact insufficient-data refusal, and the accepted long-text fixture through its full source.
 
@@ -50,6 +50,7 @@ The current candidate gate passes Biome, Steiger, strict TypeScript, the Turbopa
 | [#43](https://github.com/bizhello/datatale/pull/43) | Onboarding and first-analysis polish | Corrected modal spacing/close visibility, demo metric layout, chat heading copy, and guaranteed the first complete showcase attempt |
 | [#44](https://github.com/bizhello/datatale/pull/44) | Centered initial history loading | Kept the initial loading indicator fully visible and centered instead of clipping above the page |
 | [#45](https://github.com/bizhello/datatale/pull/45) | Generated XLSX empty-tail tolerance | Imports the real 4,500-row workbook while retaining workbook-wide resource bounds and source-row provenance |
+| [#46](https://github.com/bizhello/datatale/pull/46) | Perceptible progress stages and long-text reliability | Connects all four approximate stages, clarifies new-report copy, gives complete text extraction a bounded 60-second deadline, and passed real CSV/XLSX/TXT production flows plus grounded follow-up chat |
 
 Documentation-only PRs #28 and #30 record the corresponding production rollouts and manual QA. GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI, component-ownership, HeroUI, and hydration history. [AI-WORKLOG.md](AI-WORKLOG.md) records the material AI-assisted mistakes and corrections used for the pitch.
 
