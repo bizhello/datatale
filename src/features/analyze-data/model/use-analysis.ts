@@ -13,6 +13,7 @@ import { finalReportSchema } from "@/entities/report";
 import type { AnalysisFocus } from "./analysis-focus";
 import {
   ANALYSIS_PROGRESS_CONFIG,
+  completionProgressSequence,
   estimateAnalysisProgress,
   nextAnalysisProgressDelay,
 } from "./analysis-progress";
@@ -138,12 +139,14 @@ export function useAnalysis(
       dispatch({ type: "start", requestId, idempotencyKey: key });
       const sourceKind = source.source.kind === "text" ? "text" : "table";
       const startedAt = Date.now();
+      let displayedProgress = 0;
       const tick = () => {
         if (!ownsRequest() || abortController.signal.aborted) return;
         const progress = estimateAnalysisProgress(
           Date.now() - startedAt,
           sourceKind,
         );
+        displayedProgress = progress;
         dispatch({ type: "progress", requestId, value: progress });
         const delay = nextAnalysisProgressDelay(
           Date.now() - startedAt,
@@ -229,32 +232,49 @@ export function useAnalysis(
           return;
         }
         if (!ownsRequest()) return;
-        clearOwnedTimers();
-        dispatch({
-          type: "complete",
-          requestId,
-          analysisId: analysisId.data,
-          expiresAt: expiresAt.data,
-          report: parsed.data,
-        });
-        await new Promise<void>((resolve) => {
-          let settled = false;
-          const finish = () => {
-            if (settled) return;
-            settled = true;
-            if (ownsRequest() && completionTimer.current !== undefined)
-              clearTimeout(completionTimer.current);
-            if (ownsRequest()) completionTimer.current = undefined;
-            abortController.signal.removeEventListener("abort", onAbort);
-            resolve();
-          };
-          const onAbort = () => finish();
-          abortController.signal.addEventListener("abort", onAbort);
-          completionTimer.current = setTimeout(
-            finish,
-            ANALYSIS_PROGRESS_CONFIG.completionDelayMs,
+        if (progressTimer.current !== undefined)
+          clearTimeout(progressTimer.current);
+        progressTimer.current = undefined;
+        const waitForCompletionBeat = (delayMs: number) =>
+          new Promise<void>((resolve) => {
+            let settled = false;
+            const finish = () => {
+              if (settled) return;
+              settled = true;
+              if (ownsRequest() && completionTimer.current !== undefined)
+                clearTimeout(completionTimer.current);
+              if (ownsRequest()) completionTimer.current = undefined;
+              abortController.signal.removeEventListener("abort", onAbort);
+              resolve();
+            };
+            const onAbort = () => finish();
+            abortController.signal.addEventListener("abort", onAbort);
+            completionTimer.current = setTimeout(finish, delayMs);
+          });
+        for (const checkpoint of completionProgressSequence(
+          displayedProgress,
+        )) {
+          await waitForCompletionBeat(
+            ANALYSIS_PROGRESS_CONFIG.completionStageDelayMs,
           );
-        });
+          if (!ownsRequest() || abortController.signal.aborted) break;
+          displayedProgress = checkpoint;
+          if (checkpoint < 100) {
+            dispatch({ type: "progress", requestId, value: checkpoint });
+            continue;
+          }
+          dispatch({
+            type: "complete",
+            requestId,
+            analysisId: analysisId.data,
+            expiresAt: expiresAt.data,
+            report: parsed.data,
+          });
+        }
+        if (ownsRequest() && !abortController.signal.aborted)
+          await waitForCompletionBeat(
+            ANALYSIS_PROGRESS_CONFIG.completionHoldMs,
+          );
         if (!ownsRequest()) return;
         if (abortController.signal.aborted) {
           clearOwnedTimers();

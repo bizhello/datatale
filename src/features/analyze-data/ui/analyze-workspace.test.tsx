@@ -99,7 +99,11 @@ describe("analysis workspace", () => {
         expiresAt: "2026-09-26T12:00:00.000Z",
       }),
     );
-    const heading = await screen.findByRole("heading", { name: "Report" });
+    const heading = await screen.findByRole(
+      "heading",
+      { name: "Report" },
+      { timeout: 2_500 },
+    );
     await waitFor(() => expect(document.activeElement).toBe(heading));
   });
 
@@ -135,7 +139,9 @@ describe("analysis workspace", () => {
     }
     render(<Harness />);
     await screen.findByRole("button", { name: "Отменить анализ" });
-    fireEvent.click(screen.getByRole("button", { name: "Заменить источник" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Выбрать другой источник" }),
+    );
     expect(requestSignal?.aborted).toBe(true);
     expect(await screen.findByText("Source replaced")).toBeVisible();
     resolveAnalysis?.(
@@ -282,7 +288,7 @@ describe("analysis workspace", () => {
     await waitFor(() => expect(document.activeElement).toBe(alert));
     expect(screen.getByRole("button", { name: "Повторить" })).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Заменить источник" }),
+      screen.getByRole("button", { name: "Выбрать другой источник" }),
     ).toBeVisible();
   });
 

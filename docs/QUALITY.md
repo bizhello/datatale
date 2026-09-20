@@ -2,7 +2,7 @@
 
 **Make failures visible at the boundary that owns the rule.** Type checking, runtime validation, semantic tests and browser review protect different risks. None makes the project impossible to break.
 
-Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Coverage includes parser contracts, strict provider wire-schema compatibility, semantic plan validation, deterministic calculations, provider doubles, guest/deletion/cleanup lifecycle, owner-scoped saved-analysis persistence and reopen, immutable source/report payloads, chat replay/quota/refusal/claim validation, exact showcase-demo quota isolation, source replacement and stale-history races, onboarding, responsive dashboard containment, expanded charts, viewport overflow and automated accessibility in Chromium and WebKit. The current repository gate passes 362 Vitest tests and 75 Playwright scenarios; production Vercel/Neon/provider smoke checks separately prove the deployed integration.
+Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Coverage includes parser contracts, strict provider wire-schema compatibility, semantic plan validation, deterministic calculations, provider doubles, guest/deletion/cleanup lifecycle, owner-scoped saved-analysis persistence and reopen, immutable source/report payloads, chat replay/quota/refusal/claim validation, exact showcase-demo quota isolation, source replacement and stale-history races, onboarding, responsive dashboard containment, expanded charts, viewport overflow and automated accessibility in Chromium and WebKit. The current repository gate passes 367 Vitest tests and 75 Playwright scenarios; production Vercel/Neon/provider smoke checks separately prove the deployed integration.
 
 ## Gate design
 
@@ -28,7 +28,7 @@ A behavioral feature is incomplete without tests for its acceptance and meaningf
 | --- | --- |
 | Calculation, parsing or schema rule | Focused Vitest cases with independently known expected values, boundaries and invalid input |
 | Interactive UI | Component behavior tests; Playwright for changed critical user journeys, mobile and keyboard behavior |
-| Analysis loading progress | Exact checkpoint and fake-timer hook tests for monotonic 0–95 caps, early/late responses, completion delay, error/cancel cleanup, abort-listener removal and stale responses; component/E2E checks for approximate determinate semantics, quiet numeric updates, and reduced motion |
+| Analysis loading progress | Exact checkpoint and fake-timer hook tests for monotonic 0–95 caps, estimate-to-stage mapping, early-response stage traversal, validated 100% hold, error/cancel cleanup, abort-listener removal and stale responses; component/E2E checks for approximate determinate semantics, completed markers, responsive connectors, quiet numeric updates, and reduced motion |
 | Boundary between real components | Integration test exercising the connected components, including error propagation and validation |
 | Route plus persistence/session | Integration against isolated test storage for ownership, transaction behavior, expiry and failure; mock external inference rather than the entire data path |
 | AI orchestration | Integration of actual validators/calculations with controlled provider responses; separate live-model evaluations for output quality |

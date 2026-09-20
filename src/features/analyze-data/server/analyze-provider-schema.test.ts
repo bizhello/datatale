@@ -7,10 +7,12 @@ import {
   ANALYSIS_TIMEOUT_MS,
   analysisProposalFromProviderOutput,
   MODEL_CALL_TIMEOUT_MS,
+  MODEL_OUTPUT_TOKEN_LIMITS,
   narrativeFromProviderOutput,
   providerAnalysisProposalSchema,
   providerNarrativeResponseSchema,
   providerTextExtractionResponseSchema,
+  TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS,
   textExtractionFromProviderOutput,
 } from "./analyze";
 
@@ -85,8 +87,15 @@ const providerProposal = {
 describe("provider-facing structured output", () => {
   it("keeps a bounded timeout budget for the three-stage repair flow", () => {
     expect(MODEL_CALL_TIMEOUT_MS).toBe(30_000);
-    expect(ANALYSIS_TIMEOUT_MS).toBe(75_000);
-    expect(ANALYSIS_TIMEOUT_MS).toBeLessThanOrEqual(MODEL_CALL_TIMEOUT_MS * 3);
+    expect(TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS).toBe(60_000);
+    expect(ANALYSIS_TIMEOUT_MS).toBe(105_000);
+    expect(ANALYSIS_TIMEOUT_MS).toBeLessThanOrEqual(
+      TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS + MODEL_CALL_TIMEOUT_MS * 2,
+    );
+  });
+
+  it("keeps structured outputs compact for every stage", () => {
+    expect(MODEL_OUTPUT_TOKEN_LIMITS["text-extraction"]).toBe(1_800);
   });
 
   it("uses strict JSON schemas without oneOf or optional object properties", () => {

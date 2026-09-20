@@ -119,7 +119,9 @@ export function AnalyzeWorkspace({
           <span>{sourceDisplaySummary(source).detail}</span>
         </div>
         <Button variant="secondary" onPress={onReplace}>
-          Заменить источник
+          {state.status === "ready"
+            ? "Создать новый отчёт"
+            : "Выбрать другой источник"}
         </Button>
       </div>
       {((state.status === "idle" && !autoStart) ||

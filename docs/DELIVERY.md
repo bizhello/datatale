@@ -4,9 +4,9 @@ DataTale's production MVP delivers the complete assignment journey: CSV/XLSX/tex
 
 ## Current state
 
-All Must Have features, the optional functional tour, owner-scoped history/reopen, guided analysis transition, quota-flow polish, saved-report recovery, Russian analysis copy, production-shell cleanup, strengthened AI prompt contracts, required chart recovery, and grounded report summaries are deployed. PR #38 tracks the isolated first-run showcase quota; its linked GitHub state is authoritative during integration. Migrations `0001`–`0005` remain current, and this quota change needs no migration. The guarded production build runs the migration ledger before Next.js. Branch and pull-request Vercel deployments remain disabled.
+All Must Have features, the optional functional tour, owner-scoped history/reopen, guided analysis transition, quota-flow polish, saved-report recovery, Russian analysis copy, production-shell cleanup, strengthened AI prompt contracts, required chart recovery, grounded report summaries, responsive input/footer corrections, first-run showcase access, and bounded 5,000-row XLSX import are deployed. Migrations `0001`–`0005` remain current. The guarded production build runs the migration ledger before Next.js. Branch and pull-request Vercel deployments remain disabled.
 
-The release gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 342 Vitest tests, and 75 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Production returns HTTPS 200 and renders the input cards and empty-workspace explanation. A history read without a sealed guest cookie returns private, uncached `401 {"code":"expired"}` without creating a cookie. Production and live-provider probes verified suitable-table charts, grounded report-summary selection, and the exact insufficient-data refusal.
+The current candidate gate passes Biome, Steiger, strict TypeScript, the Turbopack production build, 367 Vitest tests, and 75 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. Production returns HTTPS 200 and renders the input cards and empty-workspace explanation. A history read without a sealed guest cookie returns private, uncached `401 {"code":"expired"}` without creating a cookie. Production and live-provider probes verified suitable-table charts, grounded report-summary selection, the exact insufficient-data refusal, and the accepted long-text fixture through its full source.
 
 ## Delivered work
 
@@ -43,6 +43,13 @@ The release gate passes Biome, Steiger, strict TypeScript, the Turbopack product
 | [#36](https://github.com/bizhello/datatale/pull/36) | Suitable demo tables recover required charts | Rejects unjustified no-chart plans, allows one grounded repair, and returned two Russian demo charts in live Spiro probes |
 | [#37](https://github.com/bizhello/datatale/pull/37) | Grounded main-summary chat | Adds validated hero observations to canonical claims; exact and equivalent Russian summary questions selected checked conclusions in live probes |
 | [#38](https://github.com/bizhello/datatale/pull/38) | One complete first-run showcase analysis | Exact built-in demo data receives a separate one-call salted-IP bucket while workspace, global, and arbitrary-source protections remain intact |
+| [#39](https://github.com/bizhello/datatale/pull/39) | Mobile input/footer containment | Corrected narrow-screen source cards, demo action, footer alignment, onboarding geometry, and 320/390 px overflow regressions |
+| [#40](https://github.com/bizhello/datatale/pull/40) | Complete grounded text facts and follow-ups | Preserved multi-quantity paragraph facts and canonical source paragraphs for later questions without inventing calculations |
+| [#41](https://github.com/bizhello/datatale/pull/41) | Clear source-processing explanation | Replaced ambiguous implementation copy with the actual validation, AI selection, deterministic table calculation, and exact-text evidence flow |
+| [#42](https://github.com/bizhello/datatale/pull/42) | Russian chat field matching | Added safe Russian inflection matching for grounded questions about source columns |
+| [#43](https://github.com/bizhello/datatale/pull/43) | Onboarding and first-analysis polish | Corrected modal spacing/close visibility, demo metric layout, chat heading copy, and guaranteed the first complete showcase attempt |
+| [#44](https://github.com/bizhello/datatale/pull/44) | Centered initial history loading | Kept the initial loading indicator fully visible and centered instead of clipping above the page |
+| [#45](https://github.com/bizhello/datatale/pull/45) | Generated XLSX empty-tail tolerance | Imports the real 4,500-row workbook while retaining workbook-wide resource bounds and source-row provenance |
 
 Documentation-only PRs #28 and #30 record the corresponding production rollouts and manual QA. GitHub PRs #1–#11 retain the earlier foundation, contracts, input, favicon, CI, component-ownership, HeroUI, and hydration history. [AI-WORKLOG.md](AI-WORKLOG.md) records the material AI-assisted mistakes and corrections used for the pitch.
 

@@ -28,7 +28,7 @@ describe("analysis progress", () => {
     expect(screen.getByText("Оценка, не измерение: 0%")).toBeVisible();
   });
 
-  it("uses text lifecycle names and marks only the observable phase active", () => {
+  it("shows the final estimated stage at the 95 percent cap", () => {
     render(
       <AnalysisProgress phase="processing" progress={95} sourceKind="text" />,
     );
@@ -37,7 +37,7 @@ describe("analysis progress", () => {
       "Почти закончили — ждём ответ AI",
     );
     expect(screen.getByRole("listitem", { current: "step" })).toHaveTextContent(
-      "Извлечение проверяемых фактов",
+      "Формирование итогового повествования",
     );
     expect(screen.queryByText("Выбор и проверка плана")).toBeNull();
     expect(
@@ -52,5 +52,9 @@ describe("analysis progress", () => {
     );
     expect(screen.getByRole("status")).toHaveTextContent("Анализ завершён");
     expect(screen.getByText("Оценка, не измерение: 100%")).toBeVisible();
+    expect(screen.queryByRole("listitem", { current: "step" })).toBeNull();
+    expect(screen.getAllByRole("listitem")).toHaveLength(4);
+    for (const item of screen.getAllByRole("listitem"))
+      expect(item).toHaveClass("is-complete");
   });
 });

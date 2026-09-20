@@ -1088,4 +1088,87 @@ describe("analysis orchestration", () => {
     expect(report.evidence[0]?.excerpt).toBe(paragraph.slice(0, 1_000));
     expect(paragraph.startsWith(report.evidence[0]?.excerpt ?? "")).toBe(true);
   });
+
+  it("keeps every paragraph of a near-limit text available for grounded extraction", async () => {
+    const paragraphs = Array.from({ length: 47 }, (_, index) => ({
+      index: index + 1,
+      text: `Абзац ${index + 1}: ${"описание ".repeat(65)}`.trim(),
+    }));
+    const finalQuote = "В декабре 2026 выручка составила 125000 ₽.";
+    paragraphs.push({ index: 48, text: finalQuote });
+    const rawText = paragraphs.map(({ text }) => text).join("\n\n");
+    expect(rawText.length).toBeGreaterThan(28_000);
+    expect(rawText.length).toBeLessThan(30_000);
+    const text: TextSource = {
+      version: 1,
+      id: "near-limit-text",
+      source: { kind: "text" },
+      rawText,
+      paragraphs,
+    };
+    const stages: string[] = [];
+    const report = await analyzeSource(text, {
+      callModel: async ({ stage, prompt }) => {
+        stages.push(stage);
+        if (stage === "text-extraction") {
+          expect(prompt).toContain(paragraphs[0]?.text);
+          expect(prompt).toContain(finalQuote);
+          return {
+            facts: [
+              {
+                id: "december-revenue",
+                label: "Выручка за декабрь",
+                subject: "выручка",
+                value: 125_000,
+                unit: "₽",
+                period: "декабре 2026",
+                paragraphIndex: 48,
+                quote: finalQuote,
+              },
+            ],
+            observations: [],
+          };
+        }
+        return {
+          hero: [
+            {
+              text: "Выручка за декабрь подтверждена источником.",
+              factIds: ["december-revenue"],
+              evidenceIds: ["quote-december-revenue"],
+              kind: "observation",
+            },
+            {
+              text: "Вывод опирается на последний абзац отчёта.",
+              factIds: ["december-revenue"],
+              evidenceIds: ["quote-december-revenue"],
+              kind: "observation",
+            },
+          ],
+          recommendations: [],
+        };
+      },
+    });
+
+    expect(stages).toEqual(["text-extraction", "narrative"]);
+    expect(report.metrics).toMatchObject([
+      { id: "december-revenue", value: 125_000, unit: "₽" },
+    ]);
+    expect(report.evidence).toMatchObject([
+      { id: "quote-december-revenue", excerpt: finalQuote },
+    ]);
+  });
+
+  it("classifies an SDK timeout separately from a provider failure", async () => {
+    const timeout = new Error("Request failed.", {
+      cause: new DOMException("The operation timed out.", "TimeoutError"),
+    });
+
+    await expect(
+      analyzeSource(table, {
+        callModel: async () => {
+          throw timeout;
+        },
+      }),
+    ).rejects.toMatchObject({ code: "timeout" });
+  });
 });
