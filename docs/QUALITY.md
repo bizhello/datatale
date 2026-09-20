@@ -2,7 +2,7 @@
 
 **Make failures visible at the boundary that owns the rule.** Type checking, runtime validation, semantic tests and browser review protect different risks. None makes the project impossible to break.
 
-Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Coverage includes parser contracts, strict provider wire-schema compatibility, semantic plan validation, deterministic calculations, provider doubles, guest/deletion/cleanup lifecycle, owner-scoped saved-analysis persistence and reopen, immutable source/report payloads, chat replay/quota/outcome validation, full-dataset queries, complete chunked text, typed arithmetic, text-output repair, exact showcase-demo quota isolation, source replacement and stale-history races, onboarding, responsive dashboard containment, expanded charts, viewport overflow and automated accessibility in Chromium and WebKit. The current repository gate passes 395 Vitest tests and 81 Playwright scenarios; live provider probes separately exercise the gateway contracts, while production smoke is required after deployment.
+Current commands are listed in README.md. Biome, TypeScript, Steiger, Vitest, production build and Playwright/axe run locally and are defined in `.github/workflows/ci.yml`. Coverage includes parser contracts, strict provider wire-schema compatibility, semantic plan validation, deterministic calculations, provider doubles, guest/deletion/cleanup lifecycle, owner-scoped saved-analysis persistence and reopen, immutable source/report payloads, chat replay/quota/outcome validation, full-dataset queries, complete chunked text, typed arithmetic, text-output repair, exact showcase-demo quota isolation, source replacement and stale-history races, onboarding, responsive dashboard containment, expanded charts, viewport overflow and automated accessibility in Chromium and WebKit. The current repository gate passes 400 Vitest tests and 81 Playwright scenarios; live provider probes separately exercise the gateway contracts, while production smoke is required after deployment.
 
 ## Gate design
 
@@ -41,6 +41,8 @@ Integration tests are required when behavior crosses a meaningful boundary, not 
 Colocate unit/component/integration files under their owning `src` slice using `*.test.ts` or `*.test.tsx`; `*.integration.test.ts` matches the current Vitest include. Shared fixture files live in `tests/fixtures`; browser workflows live in `tests/e2e`. Storage tests must use disposable, isolated data. When adding them, configure the test database and CI execution in that same task; missing prerequisites must fail the required gate rather than silently skip it.
 
 Parser integration exercises synthetic CSV/XLSX and canonical Dataset validation. Browser coverage exercises the real worker; controlled component/controller tests cover deterministic asynchronous races. Passing mocks cannot close the live-provider or production acceptance requirements.
+
+The reproducible manual pack in `tests/manual` contains deterministic CSV, multi-sheet XLSX and pasted-text sources plus malformed CSV and unsupported TSV rejection cases. Its source controls and questions cover dashboard calculations, charts, arbitrary grounded chat answers and the canonical absence response through the visible production UI.
 
 ## Risk-to-test map
 

@@ -178,6 +178,106 @@ describe("planned grounded chat", () => {
     expect(executor.execute).toHaveBeenCalledOnce();
   });
 
+  it("repairs a sort that references both a field and a metric", async () => {
+    const executor = {
+      execute: vi.fn(async (_dataset: Dataset, query: DatasetQuery) => ({
+        queryId: query.queryId,
+        rows: [],
+        groups: [],
+        metrics: { maximum: 10 },
+        matchedRows: 1,
+        scannedRows: 1,
+        returnedRows: 0,
+        truncated: false,
+        rowReferences: [{ rowId: "r1", sourceRowNumber: 2 }],
+      })),
+    };
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(
+        wireQuery({
+          metrics: [{ id: "maximum", aggregation: "max", fieldId: "sales" }],
+          orderBy: [
+            { fieldId: "sales", metricId: "maximum", direction: "desc" },
+          ],
+          limit: 1,
+        }),
+      )
+      .mockResolvedValueOnce(
+        wireQuery({
+          metrics: [{ id: "maximum", aggregation: "max", fieldId: "sales" }],
+          orderBy: [{ fieldId: "", metricId: "maximum", direction: "desc" }],
+          limit: 1,
+        }),
+      )
+      .mockResolvedValueOnce(
+        wireAnswer("Максимум: 10.", [{ id: `query-${request.messageId}` }]),
+      );
+
+    await expect(
+      answerChat(
+        { ...request, question: "Какое значение максимальное?" },
+        {
+          loadContext: async () => context(dataset),
+          provider,
+          queryExecutor: executor,
+        },
+      ),
+    ).resolves.toMatchObject({ outcome: "answered", answer: "Максимум: 10." });
+    expect(provider).toHaveBeenCalledTimes(3);
+    expect(provider.mock.calls[1]?.[0]).toMatchObject({ output: "query" });
+    expect(executor.execute).toHaveBeenCalledOnce();
+  });
+
+  it("accepts grouped numeric evidence without an unrelated overall metric citation", async () => {
+    const executor = {
+      execute: vi.fn(async (_dataset: Dataset, query: DatasetQuery) => ({
+        queryId: query.queryId,
+        rows: [],
+        groups: [
+          {
+            key: "Краснодар",
+            metrics: { total: 10 },
+            rowReferences: [{ rowId: "r1", sourceRowNumber: 2 }],
+          },
+        ],
+        metrics: { total: 10 },
+        matchedRows: 1,
+        scannedRows: 1,
+        returnedRows: 0,
+        truncated: false,
+        rowReferences: [{ rowId: "r1", sourceRowNumber: 2 }],
+      })),
+    };
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(
+        wireQuery({
+          groupBy: "city",
+          metrics: [{ id: "total", aggregation: "sum", fieldId: "sales" }],
+          orderBy: [{ fieldId: "", metricId: "total", direction: "desc" }],
+          limit: 1,
+        }),
+      )
+      .mockResolvedValueOnce(
+        wireAnswer("Краснодар: 10.", [{ id: `group-${request.messageId}-0` }]),
+      );
+
+    await expect(
+      answerChat(
+        { ...request, question: "Какой город дал максимум продаж?" },
+        {
+          loadContext: async () => context(dataset),
+          provider,
+          queryExecutor: executor,
+        },
+      ),
+    ).resolves.toMatchObject({
+      outcome: "answered",
+      answer: "Краснодар: 10.",
+    });
+  });
+
   it("accepts a Russian thousands-separated rendering of a numeric table result", async () => {
     const executor = {
       execute: vi.fn(async (_dataset: Dataset, query: DatasetQuery) => ({

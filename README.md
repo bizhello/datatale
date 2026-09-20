@@ -51,7 +51,7 @@ Each guest workspace receives five analyses and five user chat messages per UTC 
 - Vercel AI SDK with an OpenAI-compatible gateway and strict provider schemas
 - Vitest plus Playwright/axe across desktop Chromium, mobile Chromium, and mobile WebKit
 
-The current release status, exact test counts, review corrections, and production evidence live in [docs/DELIVERY.md](docs/DELIVERY.md).
+The current release status, exact test counts, review corrections, and production evidence live in [docs/DELIVERY.md](docs/DELIVERY.md). Deterministic CSV, multi-sheet XLSX, pasted-text, malformed-file, and unsupported-format acceptance fixtures with expected answers live in [tests/manual/README.md](tests/manual/README.md).
 
 ## Local development
 
