@@ -52,6 +52,7 @@ describe("final report contract", () => {
           {
             id: "fact",
             label: "Metric",
+            subject: "Metric",
             value: 1,
             unit: "unit",
             period: "January",
@@ -68,6 +69,7 @@ describe("final report contract", () => {
           {
             id: "fact",
             label: "Metric",
+            subject: "Metric",
             value: 1,
             unit: "unit",
             paragraphIndex: 1,

@@ -22,6 +22,10 @@ describe("grounded chat prompt contract", () => {
     expect(prompt).toContain("smallest set of canonical claim IDs");
     expect(prompt).toContain("insufficient_data");
     expect(prompt).toContain("unsupported_operation");
+    expect(prompt).toContain("explicitly state a baseline and a later change");
+    expect(prompt).toContain(
+      "Do not calculate or claim the derived final value",
+    );
     expect(prompt).toContain("В этом отчете нет такой информации");
     expect(prompt).toContain("Return only the strict structured object");
   });

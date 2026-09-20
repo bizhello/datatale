@@ -282,6 +282,7 @@ describe("analysis orchestration", () => {
               {
                 id: "revenue",
                 label: "Revenue",
+                subject: "Revenue",
                 value: 12,
                 unit: "RUB",
                 period: "January",
@@ -317,6 +318,7 @@ describe("analysis orchestration", () => {
               {
                 id: "revenue",
                 label: "Revenue",
+                subject: "Revenue",
                 value: 12,
                 unit: "RUB",
                 period: "January",
@@ -355,6 +357,7 @@ describe("analysis orchestration", () => {
                 {
                   id: "tickets",
                   label: "Заявки",
+                  subject: "заявок",
                   value: 128,
                   unit: "заявок",
                   period: "нед.",
@@ -393,6 +396,551 @@ describe("analysis orchestration", () => {
       },
     ]);
   });
+  it("lets several explicit facts share one exact source quotation", async () => {
+    const quote = "В приюте вчера было 2 собаки, 3 кошки и 1 попугай.";
+    const text: TextSource = {
+      version: 1,
+      id: "shelter",
+      source: { kind: "text" },
+      rawText: quote,
+      paragraphs: [{ index: 1, text: quote }],
+    };
+    const report = await analyzeSource(text, {
+      callModel: async ({ stage }) =>
+        stage === "text-extraction"
+          ? {
+              facts: [
+                {
+                  id: "dogs-yesterday",
+                  label: "Собаки вчера",
+                  subject: "собаки",
+                  value: 2,
+                  unit: "собаки",
+                  period: "вчера",
+                  paragraphIndex: 1,
+                  quote,
+                },
+                {
+                  id: "cats-yesterday",
+                  label: "Кошки вчера",
+                  subject: "кошки",
+                  value: 3,
+                  unit: "кошки",
+                  period: "вчера",
+                  paragraphIndex: 1,
+                  quote,
+                },
+              ],
+              observations: [],
+            }
+          : {
+              hero: [
+                {
+                  text: "Вчера в приюте были собаки и кошки.",
+                  factIds: ["dogs-yesterday", "cats-yesterday"],
+                  evidenceIds: [],
+                  kind: "observation",
+                },
+                {
+                  text: "Оба количества подтверждены одной исходной фразой.",
+                  factIds: ["dogs-yesterday", "cats-yesterday"],
+                  evidenceIds: [],
+                  kind: "observation",
+                },
+              ],
+              recommendations: [],
+            },
+    });
+
+    expect(report.metrics).toHaveLength(2);
+    expect(report.metrics.map((fact) => fact.evidenceIds)).toEqual([
+      ["quote-dogs-yesterday"],
+      ["quote-dogs-yesterday"],
+    ]);
+    expect(report.evidence).toEqual([
+      {
+        id: "quote-dogs-yesterday",
+        kind: "quote",
+        label: "Абзац 1",
+        excerpt: quote,
+      },
+    ]);
+  });
+  it("rejects a value paired with another subject in a shared quotation", async () => {
+    const quote = "В приюте вчера было 2 собаки, 3 кошки и 1 попугай.";
+    const text: TextSource = {
+      version: 1,
+      id: "shelter",
+      source: { kind: "text" },
+      rawText: quote,
+      paragraphs: [{ index: 1, text: quote }],
+    };
+    const report = await analyzeSource(text, {
+      callModel: async ({ stage }) =>
+        stage === "text-extraction"
+          ? {
+              facts: [
+                {
+                  id: "dogs-yesterday",
+                  label: "Собаки вчера",
+                  subject: "собаки",
+                  value: 2,
+                  unit: "собаки",
+                  period: "вчера",
+                  paragraphIndex: 1,
+                  quote,
+                },
+                {
+                  id: "cats-yesterday",
+                  label: "Кошки вчера",
+                  subject: "кошки",
+                  value: 2,
+                  unit: "кошки",
+                  period: "вчера",
+                  paragraphIndex: 1,
+                  quote,
+                },
+              ],
+              observations: [],
+            }
+          : {
+              hero: [
+                {
+                  text: "Вчера в приюте были две собаки.",
+                  factIds: ["dogs-yesterday"],
+                  evidenceIds: [],
+                  kind: "observation",
+                },
+                {
+                  text: "Количество собак подтверждено исходной фразой.",
+                  factIds: ["dogs-yesterday"],
+                  evidenceIds: [],
+                  kind: "observation",
+                },
+              ],
+              recommendations: [],
+            },
+    });
+
+    expect(report.metrics).toEqual([
+      expect.objectContaining({ id: "dogs-yesterday", value: 2 }),
+    ]);
+  });
+  it("rejects swapped periods when a quotation repeats the same unit", async () => {
+    const quote = "В 2024 выручка была 2 RUB, а в 2025 — 3 RUB.";
+    const text: TextSource = {
+      version: 1,
+      id: "revenue-years",
+      source: { kind: "text" },
+      rawText: quote,
+      paragraphs: [{ index: 1, text: quote }],
+    };
+    const report = await analyzeSource(text, {
+      callModel: async ({ stage }) =>
+        stage === "text-extraction"
+          ? {
+              facts: [
+                {
+                  id: "revenue-2025",
+                  label: "Выручка за 2025 год",
+                  subject: "выручка",
+                  value: 2,
+                  unit: "RUB",
+                  period: "2025",
+                  paragraphIndex: 1,
+                  quote,
+                },
+              ],
+              observations: [],
+            }
+          : {
+              hero: [
+                {
+                  text: "Источник содержит значения выручки за два года.",
+                  factIds: [],
+                  evidenceIds: ["quote-revenue-2025"],
+                  kind: "observation",
+                },
+                {
+                  text: "Автоматически связать годы со значениями небезопасно.",
+                  factIds: [],
+                  evidenceIds: ["quote-revenue-2025"],
+                  kind: "observation",
+                },
+              ],
+              recommendations: [],
+            },
+    });
+
+    expect(report.metrics).toEqual([]);
+  });
+
+  it("rejects a subject taken from another clause with a different unit", async () => {
+    const quote = "Вчера выручка была 2 RUB, а прибыль — 3 USD.";
+    const text: TextSource = {
+      version: 1,
+      id: "cross-clause-subject",
+      source: { kind: "text" },
+      rawText: quote,
+      paragraphs: [{ index: 1, text: quote }],
+    };
+    const report = await analyzeSource(text, {
+      callModel: async ({ stage }) =>
+        stage === "text-extraction"
+          ? {
+              facts: [
+                {
+                  id: "profit",
+                  label: "Прибыль вчера",
+                  subject: "прибыль",
+                  value: 2,
+                  unit: "RUB",
+                  period: "Вчера",
+                  paragraphIndex: 1,
+                  quote,
+                },
+              ],
+              observations: [],
+            }
+          : {
+              hero: [
+                {
+                  text: "Источник содержит два разных показателя.",
+                  factIds: [],
+                  evidenceIds: ["quote-profit"],
+                  kind: "observation",
+                },
+                {
+                  text: "Связь показателя и суммы не была подтверждена.",
+                  factIds: [],
+                  evidenceIds: ["quote-profit"],
+                  kind: "observation",
+                },
+              ],
+              recommendations: [],
+            },
+    });
+
+    expect(report.metrics).toEqual([]);
+  });
+
+  it.each([
+    "Yesterday revenue was 2 RUB and profit was 3 USD.",
+    "Yesterday revenue was 2 RUB whereas profit was 3 USD.",
+    "Вчера выручка была 2 RUB, тогда как прибыль была 3 USD.",
+    "Yesterday revenue was USD 2 and profit was EUR 3.",
+    "Yesterday Revenue: 2 RUB — Profit: 3 USD.",
+    "Today Conversion: 2% — Profit: 3 USD.",
+    "Today Conversion: $2 — Profit: 3 USD.",
+  ])(
+    "rejects a subject swap across a measured clause boundary: %s",
+    async (quote) => {
+      const subject = quote.includes("profit")
+        ? "profit"
+        : quote.includes("прибыль")
+          ? "прибыль"
+          : "Profit";
+      const unit = quote.includes("2%")
+        ? "%"
+        : quote.includes("$2")
+          ? "$"
+          : quote.includes("USD 2")
+            ? "USD"
+            : "RUB";
+      const period = quote.startsWith("Today")
+        ? "Today"
+        : quote.startsWith("Вчера")
+          ? "Вчера"
+          : "Yesterday";
+      const text: TextSource = {
+        version: 1,
+        id: "coordinated-clauses",
+        source: { kind: "text" },
+        rawText: quote,
+        paragraphs: [{ index: 1, text: quote }],
+      };
+      const report = await analyzeSource(text, {
+        callModel: async ({ stage }) =>
+          stage === "text-extraction"
+            ? {
+                facts: [
+                  {
+                    id: "profit",
+                    label: "Прибыль вчера",
+                    subject,
+                    value: 2,
+                    unit,
+                    period,
+                    paragraphIndex: 1,
+                    quote,
+                  },
+                ],
+                observations: [],
+              }
+            : {
+                hero: [
+                  {
+                    text: "Источник содержит два разных показателя.",
+                    factIds: [],
+                    evidenceIds: ["quote-profit"],
+                    kind: "observation",
+                  },
+                  {
+                    text: "Связь показателя и суммы не была подтверждена.",
+                    factIds: [],
+                    evidenceIds: ["quote-profit"],
+                    kind: "observation",
+                  },
+                ],
+                recommendations: [],
+              },
+      });
+
+      expect(report.metrics).toEqual([]);
+    },
+  );
+
+  it("deduplicates the same grounded fact across provider ids and labels", async () => {
+    const quote = "Вчера в приюте было 3 кошки.";
+    const text: TextSource = {
+      version: 1,
+      id: "duplicate-cats",
+      source: { kind: "text" },
+      rawText: quote,
+      paragraphs: [{ index: 1, text: quote }],
+    };
+    const report = await analyzeSource(text, {
+      callModel: async ({ stage }) =>
+        stage === "text-extraction"
+          ? {
+              facts: [
+                {
+                  id: "cats-a",
+                  label: "Кошки вчера",
+                  subject: "кошки",
+                  value: 3,
+                  unit: "кошки",
+                  period: "Вчера",
+                  paragraphIndex: 1,
+                  quote,
+                },
+                {
+                  id: "cats-b",
+                  label: "Количество кошек",
+                  subject: "кошки",
+                  value: 3,
+                  unit: "кошки",
+                  period: "Вчера",
+                  paragraphIndex: 1,
+                  quote: "Вчера в приюте было 3 кошки",
+                },
+              ],
+              observations: [],
+            }
+          : {
+              hero: [
+                {
+                  text: "Вчера в приюте было три кошки.",
+                  factIds: ["cats-a"],
+                  evidenceIds: [],
+                  kind: "observation",
+                },
+                {
+                  text: "Количество подтверждено исходной фразой.",
+                  factIds: ["cats-a"],
+                  evidenceIds: [],
+                  kind: "observation",
+                },
+              ],
+              recommendations: [],
+            },
+    });
+
+    expect(report.metrics).toEqual([
+      expect.objectContaining({ id: "cats-a", value: 3 }),
+    ]);
+    expect(report.evidence).toHaveLength(1);
+  });
+
+  it("preserves distinct source subjects with equal numeric context", async () => {
+    const quote =
+      "Сегодня расходы составили 5 USD. За 2024 год выручка и прибыль составили по 2 RUB.";
+    const text: TextSource = {
+      version: 1,
+      id: "equal-values",
+      source: { kind: "text" },
+      rawText: quote,
+      paragraphs: [{ index: 1, text: quote }],
+    };
+    const report = await analyzeSource(text, {
+      callModel: async ({ stage }) =>
+        stage === "text-extraction"
+          ? {
+              facts: [
+                {
+                  id: "revenue",
+                  label: "Выручка вчера",
+                  subject: "выручка",
+                  value: 2,
+                  unit: "RUB",
+                  period: "2024",
+                  paragraphIndex: 1,
+                  quote,
+                },
+                {
+                  id: "profit",
+                  label: "Прибыль вчера",
+                  subject: "прибыль",
+                  value: 2,
+                  unit: "RUB",
+                  period: "2024",
+                  paragraphIndex: 1,
+                  quote,
+                },
+              ],
+              observations: [],
+            }
+          : {
+              hero: [
+                {
+                  text: "Выручка и прибыль вчера имели одинаковое значение.",
+                  factIds: ["revenue", "profit"],
+                  evidenceIds: [],
+                  kind: "observation",
+                },
+                {
+                  text: "Оба показателя подтверждены одной исходной фразой.",
+                  factIds: ["revenue", "profit"],
+                  evidenceIds: [],
+                  kind: "observation",
+                },
+              ],
+              recommendations: [],
+            },
+    });
+
+    expect(report.metrics.map(({ id }) => id)).toEqual(["revenue", "profit"]);
+  });
+
+  it("deduplicates overlapping subject spans around one source occurrence", async () => {
+    const quote = "Net revenue was 2 RUB yesterday.";
+    const text: TextSource = {
+      version: 1,
+      id: "overlapping-subjects",
+      source: { kind: "text" },
+      rawText: quote,
+      paragraphs: [{ index: 1, text: quote }],
+    };
+    const report = await analyzeSource(text, {
+      callModel: async ({ stage }) =>
+        stage === "text-extraction"
+          ? {
+              facts: [
+                {
+                  id: "net-revenue",
+                  label: "Чистая выручка вчера",
+                  subject: "Net revenue",
+                  value: 2,
+                  unit: "RUB",
+                  period: "yesterday",
+                  paragraphIndex: 1,
+                  quote,
+                },
+                {
+                  id: "revenue",
+                  label: "Выручка вчера",
+                  subject: "revenue",
+                  value: 2,
+                  unit: "RUB",
+                  period: "yesterday",
+                  paragraphIndex: 1,
+                  quote: "revenue was 2 RUB yesterday.",
+                },
+              ],
+              observations: [],
+            }
+          : {
+              hero: [
+                {
+                  text: "Чистая выручка указана в исходном тексте.",
+                  factIds: ["net-revenue"],
+                  evidenceIds: [],
+                  kind: "observation",
+                },
+                {
+                  text: "Значение подтверждено одной исходной позицией.",
+                  factIds: ["net-revenue"],
+                  evidenceIds: [],
+                  kind: "observation",
+                },
+              ],
+              recommendations: [],
+            },
+    });
+
+    expect(report.metrics.map(({ id }) => id)).toEqual(["net-revenue"]);
+    expect(report.evidence).toHaveLength(1);
+  });
+
+  it("deduplicates overlapping period phrases around one source occurrence", async () => {
+    const quote = "Revenue was 2 RUB in year 2025.";
+    const text: TextSource = {
+      version: 1,
+      id: "overlapping-periods",
+      source: { kind: "text" },
+      rawText: quote,
+      paragraphs: [{ index: 1, text: quote }],
+    };
+    const report = await analyzeSource(text, {
+      callModel: async ({ stage }) =>
+        stage === "text-extraction"
+          ? {
+              facts: [
+                {
+                  id: "revenue-year",
+                  label: "Выручка за 2025 год",
+                  subject: "Revenue",
+                  value: 2,
+                  unit: "RUB",
+                  period: "year 2025",
+                  paragraphIndex: 1,
+                  quote,
+                },
+                {
+                  id: "revenue-2025",
+                  label: "Выручка в 2025 году",
+                  subject: "Revenue",
+                  value: 2,
+                  unit: "RUB",
+                  period: "2025",
+                  paragraphIndex: 1,
+                  quote: "Revenue was 2 RUB in year 2025",
+                },
+              ],
+              observations: [],
+            }
+          : {
+              hero: [
+                {
+                  text: "Выручка указана в исходном тексте.",
+                  factIds: ["revenue-year"],
+                  evidenceIds: [],
+                  kind: "observation",
+                },
+                {
+                  text: "Значение подтверждено одной исходной позицией.",
+                  factIds: ["revenue-year"],
+                  evidenceIds: [],
+                  kind: "observation",
+                },
+              ],
+              recommendations: [],
+            },
+    });
+
+    expect(report.metrics.map(({ id }) => id)).toEqual(["revenue-year"]);
+    expect(report.evidence).toHaveLength(1);
+  });
   it("preserves numeric signs and accepts unambiguous locale-formatted values", async () => {
     const text: TextSource = {
       version: 1,
@@ -408,6 +956,7 @@ describe("analysis orchestration", () => {
         {
           id: "revenue",
           label: "Выручка",
+          subject: "Выручка",
           value: -1234.5,
           unit: "₽",
           period: "январь 2026",
@@ -449,6 +998,7 @@ describe("analysis orchestration", () => {
     const fact = {
       id: "revenue",
       label: "Revenue",
+      subject: "Revenue",
       value: 12,
       unit: "RUB",
       period: "January",
@@ -481,6 +1031,7 @@ describe("analysis orchestration", () => {
     const baseFact = {
       id: "revenue",
       label: "Revenue",
+      subject: "Revenue",
       value: 12,
       unit: "RUB",
       period: "January",

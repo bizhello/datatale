@@ -1,5 +1,11 @@
 # AI development evidence
 
+## Text fact coverage and source-grounded follow-ups · 2026-09-20
+
+A shelter note with three baseline animal counts and a later cat increment exposed two independent gaps. Text extraction asked for at most four facts but discouraged quote reuse, making several quantities in one sentence compete for a single evidence quote. Ask the Data did retain the complete original text, but its provider policy classified a before/after question as unsupported because deriving the final count would require arithmetic.
+
+Text extraction now inventories all qualifying quantities, preserves baseline/change pairs, and lets distinct numeric facts share one exact quotation while storing that quotation once. Every fact includes an exact source-backed subject identity. The server resolves subject, numeric value, unit, and period to positions in the original paragraph, rejects subject/value links that cross a clause boundary, and deduplicates overlapping subjects around the same numeric occurrence even when their quote spans differ. These checks prevent cross-association inside multi-value or multi-period sentences without collapsing equal-valued facts about distinct subjects. Chat retains paragraph-sized canonical source claims and may return the exact paragraph containing baseline and change statements without inventing a calculated result. A live gateway probe of the reported Russian note extracted all four quantities, including both cat facts; the paragraph-grounded follow-up is covered by a regression test. Focused analysis, chat, and prompt-contract tests passed; the release gate remains the final verification record.
+
 ## Mobile input and footer containment · 2026-09-20
 
 An iPhone screenshot exposed a min-content overflow in the source input grid: the mobile override used a plain `1fr` track, so HeroUI content could widen the upload card beyond the viewport. The footer's wrapped action row was also shifted right by its desktop auto margin, while the tagline kept a desktop divider and inset after wrapping.

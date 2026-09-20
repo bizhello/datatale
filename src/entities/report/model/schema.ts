@@ -343,6 +343,7 @@ export const textExtractionResponseSchema = z
           .object({
             id: identifierString,
             label: labelString,
+            subject: labelString,
             value: z.number().finite(),
             unit: unitString,
             period: periodString,
