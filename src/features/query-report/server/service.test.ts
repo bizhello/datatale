@@ -334,6 +334,61 @@ describe("grounded chat service", () => {
     expect(provider).not.toHaveBeenCalled();
   });
 
+  it.each([
+    "В каком месяце было больше всего заказов?",
+    "В каком месяце было меньше всего заказов?",
+  ])(
+    "does not infer an extremum from an incomplete top-N chart: %s",
+    async (question) => {
+      const provider = vi.fn(async () => ({
+        outcome: "insufficient_data" as const,
+        claimIds: [],
+      }));
+      const topNReport: FinalReport = {
+        ...report,
+        charts: [
+          {
+            id: "orders-by-month",
+            kind: "bar",
+            title: "Заказы по месяцам",
+            rationale: "Сравнение заказов",
+            aggregation: {
+              kind: "sum",
+              fieldId: "orders",
+              fieldLabel: "Заказы",
+              dimensionFieldId: "month",
+              dimensionLabel: "Месяц",
+            },
+            points: [
+              { label: "Январь", value: 100 },
+              { label: "Февраль", value: 90 },
+              { label: "Другие", value: 300 },
+            ],
+            evidenceIds: ["rows-all"],
+          },
+        ],
+        noChartReason: undefined,
+      };
+
+      await expect(
+        answerChat(
+          { ...request, question },
+          {
+            loadContext: async (_analysisId, _signal) => ({
+              ...context,
+              report: topNReport,
+            }),
+            provider,
+          },
+        ),
+      ).resolves.toEqual({
+        outcome: "insufficient_data",
+        message: CHAT_REFUSAL,
+      });
+      expect(provider).toHaveBeenCalledOnce();
+    },
+  );
+
   it("validates each provider claim independently and rejects invented or ambiguous numbers", async () => {
     await expect(
       answerChat(

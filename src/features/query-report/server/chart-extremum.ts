@@ -54,7 +54,7 @@ function numberText(value: number) {
 export function chartExtremum(
   question: string,
   report: FinalReport,
-): ChartExtremum | undefined {
+): ChartExtremum | "incomplete" | undefined {
   const extremum = requestedExtremum(question);
   if (!extremum) return undefined;
   const questionWords = words(question);
@@ -78,6 +78,14 @@ export function chartExtremum(
     .sort((left, right) => right.score - left.score);
   const candidate = candidates[0];
   if (!candidate || candidates[1]?.score === candidate.score) return undefined;
+  if (
+    candidate.chart.points.some((point) =>
+      ["другие", "other"].includes(
+        point.label.trim().toLocaleLowerCase("ru-RU"),
+      ),
+    )
+  )
+    return "incomplete";
   const values = candidate.chart.points.map((point) => point.value);
   const value =
     extremum === "maximum" ? Math.max(...values) : Math.min(...values);

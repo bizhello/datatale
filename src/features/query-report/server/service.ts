@@ -394,7 +394,7 @@ async function answerChatCore(
     return unsupported();
   }
   const extremum = chartExtremum(parsed.question, context.report);
-  if (extremum) {
+  if (extremum && extremum !== "incomplete") {
     const evidence = sourceEvidence(context.report, extremum.evidenceId);
     if (evidence) {
       ensureActive();
@@ -410,7 +410,7 @@ async function answerChatCore(
       };
     }
   }
-  if ("rows" in context.source) {
+  if (extremum !== "incomplete" && "rows" in context.source) {
     const aggregate = deterministicAggregation(
       parsed.question,
       context.source,
