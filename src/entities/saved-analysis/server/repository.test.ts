@@ -190,6 +190,83 @@ describe("saved analysis memory repository", () => {
     ).rejects.toThrow("different content");
   });
 
+  it("shares the daily user-message allowance across reports and preserves usage when raised", async () => {
+    const result = repository();
+    const secondAnalysisId = "00000000-0000-4000-8000-000000000003";
+    const source = {
+      version: 1 as const,
+      id: "text-1",
+      source: { kind: "text" as const },
+      rawText: "One",
+      paragraphs: [{ index: 1, text: "One" }],
+    };
+    await result.create({ workspaceId, analysisId, source, report, now });
+    await result.create({
+      workspaceId,
+      analysisId: secondAnalysisId,
+      source: { ...source, id: "text-2" },
+      report,
+      now,
+    });
+
+    for (let index = 0; index < 4; index++)
+      await expect(
+        result.appendMessage({
+          workspaceId,
+          analysisId,
+          dailyLimit: 5,
+          now,
+          message: {
+            id: `first-report-${index}`,
+            role: "user",
+            content: `Question ${index}`,
+          },
+        }),
+      ).resolves.toBeDefined();
+    await expect(
+      result.appendMessage({
+        workspaceId,
+        analysisId: secondAnalysisId,
+        dailyLimit: 5,
+        now,
+        message: { id: "second-report-1", role: "user", content: "Question" },
+      }),
+    ).resolves.toBeDefined();
+    await expect(
+      result.appendMessage({
+        workspaceId,
+        analysisId: secondAnalysisId,
+        dailyLimit: 5,
+        now,
+        message: { id: "second-report-2", role: "user", content: "Blocked" },
+      }),
+    ).resolves.toBe("quota-exceeded");
+
+    for (let index = 5; index < 20; index++)
+      await expect(
+        result.appendMessage({
+          workspaceId,
+          analysisId: secondAnalysisId,
+          dailyLimit: 20,
+          now,
+          message: {
+            id: `unlocked-${index}`,
+            role: "user",
+            content: `Unlocked question ${index}`,
+          },
+        }),
+      ).resolves.toBeDefined();
+    await expect(
+      result.appendMessage({
+        workspaceId,
+        analysisId,
+        dailyLimit: 20,
+        now,
+        message: { id: "unlocked-21", role: "user", content: "Blocked" },
+      }),
+    ).resolves.toBe("quota-exceeded");
+  });
+
   it("keeps creation expiry fixed and cleans expired history", async () => {
     const result = repository();
     const created = await result.create({

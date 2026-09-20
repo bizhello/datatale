@@ -51,15 +51,15 @@ export class MemoryRunGateRepository<Report = unknown>
       }
     }
     const scopes: ReadonlyArray<readonly [string, number]> = [
-      ...(input.codeFingerprint
-        ? [[`code:${input.codeFingerprint}`, config.codeDailyLimit] as const]
-        : [
-            [
-              `workspace:${input.workspaceId}`,
-              config.workspaceDailyLimit,
-            ] as const,
-            [`ip:${input.ipHash}`, config.ipDailyLimit] as const,
-          ]),
+      [
+        `workspace:${input.workspaceId}`,
+        input.unlocked
+          ? config.unlockedWorkspaceDailyLimit
+          : config.freeWorkspaceDailyLimit,
+      ],
+      ...(input.unlocked
+        ? []
+        : [[`ip:${input.ipHash}`, config.ipDailyLimit] as const]),
       ["global", config.globalDailyLimit],
     ];
     for (const [scope, limit] of scopes) {
@@ -72,9 +72,7 @@ export class MemoryRunGateRepository<Report = unknown>
               ? "global"
               : scope.startsWith("ip:")
                 ? "ip"
-                : scope.startsWith("code:")
-                  ? "code"
-                  : "workspace",
+                : "workspace",
         };
     }
     for (const [scope] of scopes) {

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  hasSafeAccessRuntime,
   hasSafeAnalysisRuntime,
+  hasSafeChatRuntime,
   hasSafeCleanupRuntime,
   hasSafeGuestRuntime,
 } from "./analysis-runtime";
@@ -13,9 +15,8 @@ const safeEnvironment = {
   SESSION_PASSWORD: "x".repeat(32),
   RATE_LIMIT_SALT: "test-salt",
   CRON_SECRET: "test-cron-secret",
-  ANALYSIS_WORKSPACE_DAILY_LIMIT: "2",
+  ANALYSIS_INVITE_CODE_SEED: "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
   ANALYSIS_IP_DAILY_LIMIT: "3",
-  ANALYSIS_CODE_DAILY_LIMIT: "10",
   ANALYSIS_GLOBAL_DAILY_LIMIT: "4",
 } as const;
 
@@ -30,6 +31,25 @@ describe("analysis runtime guard", () => {
   it("accepts only the canonical complete configuration", () => {
     setSafeEnvironment();
     expect(hasSafeAnalysisRuntime()).toBe(true);
+    expect(hasSafeChatRuntime()).toBe(true);
+    expect(hasSafeAccessRuntime()).toBe(true);
+  });
+
+  it("keeps free analysis available when access-code configuration is missing", () => {
+    setSafeEnvironment();
+    vi.stubEnv("ANALYSIS_INVITE_CODE_SEED", "");
+    expect(hasSafeAnalysisRuntime()).toBe(true);
+    expect(hasSafeAccessRuntime()).toBe(false);
+  });
+
+  it.each([
+    "weak",
+    `${"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"}=`,
+    "not base64url!",
+  ])("rejects unsafe access-code seed %s", (seed) => {
+    setSafeEnvironment();
+    vi.stubEnv("ANALYSIS_INVITE_CODE_SEED", seed);
+    expect(hasSafeAccessRuntime()).toBe(false);
   });
 
   it.each([
@@ -79,9 +99,7 @@ describe("analysis runtime guard", () => {
       "AI_MODEL",
       "RATE_LIMIT_SALT",
       "CRON_SECRET",
-      "ANALYSIS_WORKSPACE_DAILY_LIMIT",
       "ANALYSIS_IP_DAILY_LIMIT",
-      "ANALYSIS_CODE_DAILY_LIMIT",
       "ANALYSIS_GLOBAL_DAILY_LIMIT",
     ])
       vi.stubEnv(name, "");
@@ -97,9 +115,7 @@ describe("analysis runtime guard", () => {
       "AI_MODEL",
       "SESSION_PASSWORD",
       "RATE_LIMIT_SALT",
-      "ANALYSIS_WORKSPACE_DAILY_LIMIT",
       "ANALYSIS_IP_DAILY_LIMIT",
-      "ANALYSIS_CODE_DAILY_LIMIT",
       "ANALYSIS_GLOBAL_DAILY_LIMIT",
     ])
       vi.stubEnv(name, "");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { workspaceDailyQuota } from "@/shared/config";
 import {
   AskDataClientError,
   type AskDataMessage,
@@ -53,9 +54,9 @@ function errorMessage(error: unknown) {
   }
   if (error instanceof AskDataClientError && error.code === "quota") {
     if (error.quotaScope === "unlocked-workspace")
-      return "Лимит в 20 вопросов на сегодня исчерпан.";
+      return `Лимит в ${workspaceDailyQuota.unlocked} вопросов на сегодня исчерпан.`;
     if (error.quotaScope === "workspace")
-      return "Лимит в 5 бесплатных вопросов на сегодня исчерпан. Введите код доступа, чтобы увеличить лимит до 20.";
+      return `Лимит в ${workspaceDailyQuota.free} бесплатных вопросов на сегодня исчерпан. Введите код доступа, чтобы увеличить лимит до ${workspaceDailyQuota.unlocked}.`;
     return "Лимит вопросов на сегодня исчерпан.";
   }
   if (error instanceof AskDataClientError && error.code === "in-flight") {

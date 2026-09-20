@@ -117,9 +117,35 @@ describe("POST /api/chat handler", () => {
     )(request());
     expect(missing.status).toBe(404);
     const quota = await createChatHandler(
-      dependencies({ claimQuestion: async () => "quota", answer: answerCall }),
+      dependencies({
+        claimQuestion: async () => ({ kind: "quota", scope: "workspace" }),
+        answer: answerCall,
+      }),
     )(request());
     expect(quota.status).toBe(429);
+    await expect(quota.json()).resolves.toEqual({
+      code: "quota",
+      scope: "workspace",
+    });
+    expect(answerCall).not.toHaveBeenCalled();
+  });
+
+  it("marks an exhausted elevated allowance as unlocked workspace quota", async () => {
+    const answerCall = vi.fn(async () => answer);
+    const response = await createChatHandler(
+      dependencies({
+        claimQuestion: async () => ({
+          kind: "quota",
+          scope: "unlocked-workspace",
+        }),
+        answer: answerCall,
+      }),
+    )(request());
+    expect(response.status).toBe(429);
+    await expect(response.json()).resolves.toEqual({
+      code: "quota",
+      scope: "unlocked-workspace",
+    });
     expect(answerCall).not.toHaveBeenCalled();
   });
 

@@ -10,6 +10,7 @@ import {
 } from "@heroui/react";
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { workspaceDailyQuota } from "@/shared/config";
 import type { AccessPurpose } from "../model/use-workspace-access";
 
 type WorkspaceAccessModalProps = Readonly<{
@@ -24,12 +25,12 @@ const purposeCopy: Record<
 > = {
   analysis: {
     heading: "Продолжить анализ",
-    lead: "Вы использовали 5 бесплатных анализов за сегодня.",
+    lead: `Вы использовали ${workspaceDailyQuota.free} бесплатных анализов за сегодня.`,
     action: "Продолжить анализ",
   },
   chat: {
     heading: "Продолжить диалог",
-    lead: "Вы использовали 5 бесплатных вопросов за сегодня.",
+    lead: `Вы использовали ${workspaceDailyQuota.free} бесплатных вопросов за сегодня.`,
     action: "Продолжить диалог",
   },
 };
@@ -71,8 +72,9 @@ export function WorkspaceAccessModal({
             </Modal.Header>
             <Modal.Body>
               <p className="access-modal-copy">
-                {copy.lead} Код доступа на сегодня повышает лимиты до 20
-                анализов и 20 вопросов по всем вашим отчётам.
+                {copy.lead} Код доступа на сегодня повышает лимиты до{" "}
+                {workspaceDailyQuota.unlocked} анализов и{" "}
+                {workspaceDailyQuota.unlocked} вопросов по всем вашим отчётам.
               </p>
               <form className="access-modal-form" noValidate onSubmit={submit}>
                 <TextField

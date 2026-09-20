@@ -64,7 +64,7 @@ bun run dev
 
 Open `http://localhost:3000`. Local input, preview, and onboarding need no secrets. Analysis, history, and chat require the server-only values documented in `.env.example`. Apply the ordered Neon migration ledger locally with `bun run db:migrate`; guarded Vercel production builds migrate `main` before `next build`, while local builds never migrate.
 
-The owner can copy today's UTC access code from the configured server environment without changing or printing the seed:
+Generate one seed, then save that exact secret in Vercel Production and in the ignored local `.env.local` file. The local command reads `.env.local`; it does not fetch Vercel configuration:
 
 ```bash
 bun run access:code

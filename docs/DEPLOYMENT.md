@@ -32,25 +32,27 @@ Production analysis requires these server-only values:
 - `AI_MODEL=gpt-5.6-terra`
 - `SESSION_PASSWORD` with at least 32 characters
 - `RATE_LIMIT_SALT`
-- positive `ANALYSIS_FREE_DAILY_LIMIT`, `ANALYSIS_ACCESS_DAILY_LIMIT`, `CHAT_FREE_DAILY_LIMIT`, `CHAT_ACCESS_DAILY_LIMIT`, `ANALYSIS_IP_DAILY_LIMIT`, and `ANALYSIS_GLOBAL_DAILY_LIMIT`
+- positive `ANALYSIS_IP_DAILY_LIMIT` and `ANALYSIS_GLOBAL_DAILY_LIMIT`; the product's workspace tiers are fixed at 5 free and 20 unlocked in shared application configuration
 - `ANALYSIS_INVITE_CODE_SEED` as unpadded base64url that decodes to at least 32 random bytes
 - `CRON_SECRET` for scheduled cleanup
 
 Production grants each workspace five analyses and five user chat messages per UTC day across all reports. Today's access code raises both workspace limits to 20 without resetting prior usage; workspaces using the same code keep independent counters. The salted-IP limit remains a broader free-analysis abuse safeguard, the global limit bounds all analyses, and the exact built-in synthetic demo uses a separate IP namespace. Raw access codes, the seed, provider keys, database URLs, session secrets, and salts must never use `NEXT_PUBLIC_*`, enter Git, or appear in logs. Changing a Vercel environment value requires a new deployment.
 
-Generate the seed once and store it in the server environment:
+Generate the seed once:
 
 ```bash
-bun -e 'console.log(crypto.getRandomValues(new Uint8Array(32)).toBase64({alphabet:"base64url",omitPadding:true}))'
+bun -e 'console.log(require("node:crypto").randomBytes(32).toString("base64url"))'
 ```
 
-The application derives `DT-YYYYMMDD-…` from that stable seed and the current UTC date. Copy today's code locally without rotating environment values or exposing the seed:
+Save the exact same generated secret as `ANALYSIS_INVITE_CODE_SEED` in the Vercel Production environment and in the ignored local `.env.local` file. Redeploy after setting the Vercel value. The application derives `DT-YYYYMMDD-…` from that stable seed and the current UTC date.
+
+Copy today's code from the local environment without rotating values or exposing the seed:
 
 ```bash
 bun run access:code
 ```
 
-The command prints the code and its next UTC-midnight expiry. It exits non-zero for missing or unsafe configuration. Never expose this command through a public route or deployment log.
+The command reads the local environment only; it never downloads or inspects Vercel variables. It prints the code and its next UTC-midnight expiry and exits non-zero for missing or unsafe local configuration. Never expose this command through a public route or deployment log.
 
 ## Migrations
 

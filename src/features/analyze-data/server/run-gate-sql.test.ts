@@ -43,4 +43,23 @@ describe("claim_analysis_run migration contract", () => {
       /DROP FUNCTION IF EXISTS claim_analysis_run\(\s*uuid,\s*uuid,\s*text,\s*text,\s*text,\s*text,\s*timestamptz,\s*integer,\s*integer,\s*integer,\s*integer,\s*integer,\s*integer,\s*integer\s*\);/,
     );
   });
+
+  it("raises the workspace limit without a shared code bucket or removed legacy signature", async () => {
+    const migration = await readFile(
+      "migrations/0006_workspace_tier_quotas.sql",
+      "utf8",
+    );
+    expect(migration).toContain(
+      "workspace_limit integer := CASE WHEN p_code_fingerprint IS NULL THEN p_workspace_limit ELSE p_code_limit END",
+    );
+    expect(migration).toContain("'workspace:' || p_workspace_id::text");
+    expect(migration).not.toContain("'code:' || p_code_fingerprint");
+    expect(
+      migration.match(/CREATE OR REPLACE FUNCTION claim_analysis_run\(/g),
+    ).toHaveLength(1);
+    expect(migration).toContain("p_code_fingerprint text, p_now timestamptz");
+    expect(migration).not.toMatch(
+      /p_ip_hash text,\s*p_now timestamptz, p_workspace_limit integer/,
+    );
+  });
 });

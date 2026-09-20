@@ -1,5 +1,7 @@
 export { SqlAccessRepository } from "./server/access";
 export {
+  deriveInviteCode,
+  inviteCodeExpiry,
   inviteFingerprint,
   isValidInviteCode,
   isValidInviteFingerprint,
