@@ -41,6 +41,13 @@ function comparable(a: Scalar, b: Scalar): boolean {
     (typeof a === "string" || typeof a === "number")
   );
 }
+function compareValues(a: Scalar, b: Scalar): number {
+  if (a === b) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  return String(a).localeCompare(String(b));
+}
 function matches(
   row: DatasetRow,
   filter: DatasetQueryFilter,
@@ -178,27 +185,27 @@ export function executeDatasetQuery(
     ),
     rowReferences: rows.slice(0, DATASET_QUERY_MAX_GROUPS).map(reference),
   }));
-  const metricOrder = query.orderBy.find((order) => order.metricId);
-  if (metricOrder) {
-    if (!query.groupBy) fail("Metric ordering requires groupBy.");
+  if (query.orderBy.some((order) => order.metricId) && !query.groupBy)
+    fail("Metric ordering requires groupBy.");
+  if (query.groupBy && query.orderBy.length > 0) {
+    const groupedField = fieldId(query.groupBy);
     groupResults = groupResults.sort((a, b) => {
-      const av = a.metrics[metricOrder.metricId as string];
-      const bv = b.metrics[metricOrder.metricId as string];
-      if (av === bv) return 0;
-      if (av === null || av === undefined) return 1;
-      if (bv === null || bv === undefined) return -1;
-      const comparison = av < bv ? -1 : 1;
-      return metricOrder.direction === "asc" ? comparison : -comparison;
-    });
-  }
-  const fieldOrder = query.orderBy.find((order) => order.fieldId);
-  if (fieldOrder && query.groupBy) {
-    groupResults = groupResults.sort((a, b) => {
-      if (a.key === b.key) return 0;
-      if (a.key === null) return 1;
-      if (b.key === null) return -1;
-      const comparison = String(a.key).localeCompare(String(b.key));
-      return fieldOrder.direction === "asc" ? comparison : -comparison;
+      for (const order of query.orderBy) {
+        const av = order.metricId
+          ? (a.metrics[order.metricId] ?? null)
+          : order.fieldId === groupedField
+            ? a.key
+            : null;
+        const bv = order.metricId
+          ? (b.metrics[order.metricId] ?? null)
+          : order.fieldId === groupedField
+            ? b.key
+            : null;
+        const comparison = compareValues(av, bv);
+        if (comparison !== 0)
+          return order.direction === "asc" ? comparison : -comparison;
+      }
+      return 0;
     });
   }
   const orderValue = (
@@ -217,7 +224,7 @@ export function executeDatasetQuery(
         if (av === bv) continue;
         if (av === null) return 1;
         if (bv === null) return -1;
-        const comparison = av < bv ? -1 : 1;
+        const comparison = compareValues(av, bv);
         return order.direction === "asc" ? comparison : -comparison;
       }
       return a.index - b.index;

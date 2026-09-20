@@ -74,59 +74,31 @@ export class ChatProviderError extends Error {
   }
 }
 
-const answerSchema = z
+/* One flat, all-required envelope avoids oneOf/anyOf in the Spiro JSON schema. */
+const providerEnvelopeSchema = z
   .object({
-    outcome: z.literal("answer"),
-    answer: z.string().min(1).max(CHAT_ANSWER_MAX_LENGTH),
+    outcome: z.enum([
+      "answer",
+      "clarification",
+      "not_in_source",
+      "unsupported_operation",
+      "query",
+    ]),
+    answer: z.string().max(CHAT_ANSWER_MAX_LENGTH),
+    message: z.string().max(CHAT_ANSWER_MAX_LENGTH),
     references: z
       .array(
         z
-          .object({
-            id: z.string().min(1).max(160),
-            excerpt: z.string().max(1_000).optional(),
-          })
+          .object({ id: z.string().max(160), excerpt: z.string().max(1_000) })
           .strict(),
       )
-      .min(1)
       .max(7),
-  })
-  .strict();
-const clarificationSchema = z
-  .object({
-    outcome: z.literal("clarification"),
-    message: z.string().min(1).max(CHAT_ANSWER_MAX_LENGTH),
-  })
-  .strict();
-const notInSourceSchema = z
-  .object({ outcome: z.literal("not_in_source") })
-  .strict();
-const unsupportedSchema = z
-  .object({
-    outcome: z.literal("unsupported_operation"),
-    message: z.string().min(1).max(CHAT_ANSWER_MAX_LENGTH),
-  })
-  .strict();
-
-/* Provider messages are flat and all fields are required for stable gateway JSON schema. */
-const wireValueSchema = z.union([
-  z.string(),
-  z.number().finite(),
-  z.boolean(),
-  z.null(),
-  z
-    .array(z.union([z.string(), z.number().finite(), z.boolean(), z.null()]))
-    .min(1)
-    .max(100),
-]);
-const providerQuerySchema = z
-  .object({
-    outcome: z.literal("query"),
-    queryId: z.string().min(1).max(160),
+    queryId: z.string().max(160),
     filters: z
       .array(
         z
           .object({
-            fieldId: z.string().min(1).max(160),
+            fieldId: z.string().max(160),
             operator: z.enum([
               "eq",
               "ne",
@@ -137,18 +109,28 @@ const providerQuerySchema = z
               "gte",
               "contains",
             ]),
-            value: wireValueSchema,
+            valueKind: z.enum([
+              "string",
+              "number",
+              "boolean",
+              "null",
+              "string_list",
+              "number_list",
+              "boolean_list",
+              "null_list",
+            ]),
+            values: z.array(z.string().max(160)).max(100),
           })
           .strict(),
       )
       .max(20),
-    groupBy: z.string().min(1).max(160).nullable(),
-    select: z.array(z.string().min(1).max(160)).max(30),
+    groupBy: z.string().max(160),
+    select: z.array(z.string().max(160)).max(30),
     metrics: z
       .array(
         z
           .object({
-            id: z.string().min(1).max(160),
+            id: z.string().max(160),
             aggregation: z.enum([
               "count",
               "sum",
@@ -157,7 +139,7 @@ const providerQuerySchema = z
               "max",
               "distinctCount",
             ]),
-            fieldId: z.string().min(1).max(160).nullable(),
+            fieldId: z.string().max(160),
           })
           .strict(),
       )
@@ -166,58 +148,99 @@ const providerQuerySchema = z
       .array(
         z
           .object({
-            fieldId: z.string().min(1).max(160).nullable(),
-            metricId: z.string().min(1).max(160).nullable(),
+            fieldId: z.string().max(160),
+            metricId: z.string().max(160),
             direction: z.enum(["asc", "desc"]),
           })
           .strict()
           .refine(
-            (value) => (value.fieldId === null) !== (value.metricId === null),
+            (value) => (value.fieldId === "") !== (value.metricId === ""),
             "Order must reference one field or metric.",
           ),
       )
       .max(20),
-    limit: z.number().int().min(1).max(1_000),
+    limit: z.number().int().min(0).max(1_000),
   })
   .strict();
-const providerIntentSchema = z.discriminatedUnion("outcome", [
-  clarificationSchema,
-  notInSourceSchema,
-  unsupportedSchema,
-  providerQuerySchema,
-]);
-const providerResponseSchema = z.discriminatedUnion("outcome", [
-  answerSchema,
-  clarificationSchema,
-  notInSourceSchema,
-  unsupportedSchema,
-]);
-const providerOutputSchema = z.discriminatedUnion("outcome", [
-  answerSchema,
-  clarificationSchema,
-  notInSourceSchema,
-  unsupportedSchema,
-  providerQuerySchema,
-]);
-function normalizeProviderQuery(
-  input: z.output<typeof providerQuerySchema>,
-): DatasetQuery {
+type ProviderEnvelope = z.output<typeof providerEnvelopeSchema>;
+function decodeValue(
+  filter: ProviderEnvelope["filters"][number],
+): string | number | boolean | null | Array<string | number | boolean | null> {
+  const list = filter.valueKind.endsWith("_list");
+  if (
+    (list && filter.values.length < 1) ||
+    (!list && filter.values.length !== 1)
+  )
+    throw new Error("Filter valueKind and values do not agree.");
+  const parse = (value: string): string | number | boolean | null => {
+    if (filter.valueKind.startsWith("number")) {
+      const number = Number(value);
+      if (!Number.isFinite(number))
+        throw new Error("Filter number is invalid.");
+      return number;
+    }
+    if (filter.valueKind.startsWith("boolean")) {
+      if (value !== "true" && value !== "false")
+        throw new Error("Filter boolean is invalid.");
+      return value === "true";
+    }
+    if (filter.valueKind.startsWith("null")) {
+      if (value !== "") throw new Error("Filter null sentinel is invalid.");
+      return null;
+    }
+    return value;
+  };
+  return list ? filter.values.map(parse) : parse(filter.values[0] as string);
+}
+function decodeQuery(input: ProviderEnvelope): DatasetQuery {
+  if (input.outcome !== "query") throw new Error("Expected a query outcome.");
+  if (
+    !input.queryId ||
+    !input.limit ||
+    input.answer ||
+    input.message ||
+    input.references.length
+  )
+    throw new Error("Query outcome contains invalid sentinels.");
   return datasetQuerySchema.parse({
     queryId: input.queryId,
-    filters: input.filters,
-    groupBy: input.groupBy === null ? undefined : { fieldId: input.groupBy },
+    filters: input.filters.map((filter) => ({
+      fieldId: filter.fieldId,
+      operator: filter.operator,
+      value: decodeValue(filter),
+    })),
+    groupBy: input.groupBy ? { fieldId: input.groupBy } : undefined,
     select: input.select,
     metrics: input.metrics.map((metric) => ({
       ...metric,
-      fieldId: metric.fieldId === null ? undefined : metric.fieldId,
+      fieldId: metric.fieldId || undefined,
     })),
     orderBy: input.orderBy.map((order) => ({
       ...order,
-      fieldId: order.fieldId === null ? undefined : order.fieldId,
-      metricId: order.metricId === null ? undefined : order.metricId,
+      fieldId: order.fieldId || undefined,
+      metricId: order.metricId || undefined,
     })),
     limit: input.limit,
   });
+}
+function decodeOutcome(raw: unknown): ProviderEnvelope {
+  const output = providerEnvelopeSchema.parse(raw);
+  if (
+    output.outcome === "answer" &&
+    (!output.answer.trim() || output.references.length === 0)
+  )
+    throw new Error("Answer outcome requires answer and references.");
+  if (
+    ["clarification", "unsupported_operation"].includes(output.outcome) &&
+    !output.message.trim()
+  )
+    throw new Error("Message outcome requires a message.");
+  if (
+    output.outcome === "not_in_source" &&
+    (output.answer || output.message || output.references.length)
+  )
+    throw new Error("Missing-source outcome contains invalid sentinels.");
+  return output;
 }
 
 const clarification = (
@@ -341,7 +364,7 @@ async function defaultProvider({
   );
   const response = await generateText({
     model,
-    output: Output.object({ schema: providerOutputSchema }),
+    output: Output.object({ schema: providerEnvelopeSchema }),
     prompt: `${promptFile}\n\n${prompt}`,
     maxRetries: 0,
     maxOutputTokens: PROVIDER_OUTPUT_MAX_TOKENS,
@@ -457,7 +480,7 @@ async function answerChatCore(
       signal,
     );
     try {
-      const output = providerResponseSchema.parse(raw);
+      const output = decodeOutcome(raw);
       if (output.outcome === "answer")
         return chatResultSchema.parse({
           outcome: "answered",
@@ -487,11 +510,9 @@ async function answerChatCore(
     question: parsed.question,
     history,
   };
-  let intent: z.infer<typeof providerIntentSchema>;
+  let intent: ProviderEnvelope;
   try {
-    intent = providerIntentSchema.parse(
-      await callProvider(provider, profile, signal),
-    );
+    intent = decodeOutcome(await callProvider(provider, profile, signal));
   } catch (error) {
     throw new ChatProviderError(
       "invalid_provider_output",
@@ -504,7 +525,7 @@ async function answerChatCore(
   if (intent.outcome === "not_in_source") return notInSource();
   if (intent.outcome === "unsupported_operation")
     return unsupported(intent.message);
-  let query: DatasetQuery = normalizeProviderQuery(intent);
+  let query: DatasetQuery = decodeQuery(intent);
   for (let attempt = 0; ; attempt += 1) {
     try {
       query = validateQuery(query, context.source);
@@ -516,8 +537,8 @@ async function answerChatCore(
           error instanceof Error ? error.message : "Invalid query plan.",
         );
       try {
-        query = normalizeProviderQuery(
-          providerQuerySchema.parse(
+        query = decodeQuery(
+          decodeOutcome(
             await callProvider(
               provider,
               {
@@ -580,7 +601,7 @@ async function answerChatCore(
     signal,
   );
   try {
-    const output = providerResponseSchema.parse(rawAnswer);
+    const output = decodeOutcome(rawAnswer);
     if (output.outcome === "answer")
       return chatResultSchema.parse({
         outcome: "answered",

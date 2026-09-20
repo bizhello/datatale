@@ -80,6 +80,44 @@ describe("executeDatasetQuery", () => {
     expect(result.groups[0]?.key).toBe(true);
   });
 
+  it("orders grouped numeric metrics with all order clauses", () => {
+    const dataset = {
+      ...syntheticDatasetFixture,
+      rows: [
+        {
+          id: "a",
+          values: { date: "2026-01-01", revenue: 2, paid: false, note: "a" },
+          provenance: { sourceRowNumber: 2 },
+        },
+        {
+          id: "b",
+          values: { date: "2026-01-01", revenue: 10, paid: true, note: "b" },
+          provenance: { sourceRowNumber: 3 },
+        },
+        {
+          id: "c",
+          values: { date: "2026-01-01", revenue: 1, paid: false, note: "c" },
+          provenance: { sourceRowNumber: 4 },
+        },
+      ],
+    };
+    const result = executeDatasetQuery(dataset, {
+      queryId: "group-order",
+      groupBy: { fieldId: "paid" },
+      metrics: [{ id: "sum", aggregation: "sum", fieldId: "revenue" }],
+      orderBy: [
+        { fieldId: "paid", direction: "asc" },
+        { metricId: "sum", direction: "desc" },
+      ],
+    });
+    expect(
+      result.groups.map((group) => [group.key, group.metrics.sum]),
+    ).toEqual([
+      [false, 3],
+      [true, 10],
+    ]);
+  });
+
   it("rejects unknown fields, incompatible values, and numeric aggregates on text", () => {
     expect(() =>
       executeDatasetQuery(syntheticDatasetFixture, {
