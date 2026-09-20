@@ -271,6 +271,7 @@ describe("provider-facing structured output", () => {
           {
             id: "fact",
             label: "Revenue",
+            subject: "Revenue",
             value: 12,
             unit: "RUB",
             period: "January",

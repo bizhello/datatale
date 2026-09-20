@@ -41,6 +41,9 @@ describe("analysis prompt contracts", () => {
     expect(table).toContain("in Russian");
     expect(text).toContain("exact contiguous quotation");
     expect(text).toContain("fact label in Russian");
+    expect(text).toContain(
+      "Copy `subject` as the shortest exact source phrase",
+    );
     expect(text).toContain("empty collection is correct");
     expect(narrative).toContain("application-checked facts and evidence");
     expect(narrative).toContain("all user-visible narrative");

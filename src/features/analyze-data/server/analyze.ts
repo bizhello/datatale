@@ -183,6 +183,7 @@ export const providerTextExtractionResponseSchema = z
           .object({
             id: providerIdentifierString,
             label: providerLabelString,
+            subject: providerLabelString,
             value: z.number().finite(),
             unit: providerUnitString,
             period: providerPeriodString,
@@ -559,21 +560,209 @@ function quoteHasValue(quote: string, value: number): boolean {
 }
 
 const semanticCharacter = /^[\p{L}\p{N}_]$/u;
-function quoteHasExactPhrase(quote: string, phrase: string): boolean {
+type TextRange = { start: number; end: number };
+
+function exactPhraseRanges(text: string, phrase: string): TextRange[] {
+  const ranges: TextRange[] = [];
   const [first] = Array.from(phrase);
   const last = Array.from(phrase).at(-1);
-  let start = quote.indexOf(phrase);
+  let start = text.indexOf(phrase);
   while (start !== -1) {
-    const before = quote[start - 1] ?? "";
-    const after = quote[start + phrase.length] ?? "";
+    const before = text[start - 1] ?? "";
+    const after = text[start + phrase.length] ?? "";
     const leftIsBounded =
       !first?.match(semanticCharacter) || !before.match(semanticCharacter);
     const rightIsBounded =
       !last?.match(semanticCharacter) || !after.match(semanticCharacter);
-    if (leftIsBounded && rightIsBounded) return true;
-    start = quote.indexOf(phrase, start + 1);
+    if (leftIsBounded && rightIsBounded)
+      ranges.push({ start, end: start + phrase.length });
+    start = text.indexOf(phrase, start + 1);
+  }
+  return ranges;
+}
+
+function quoteHasExactPhrase(quote: string, phrase: string): boolean {
+  return exactPhraseRanges(quote, phrase).length > 0;
+}
+
+function rangeDistance(left: TextRange, right: TextRange) {
+  if (left.end <= right.start) return right.start - left.end;
+  if (right.end <= left.start) return left.start - right.end;
+  return 0;
+}
+
+type GroundedFactContext = {
+  number: TextRange;
+  period: TextRange;
+  subject: TextRange;
+  unit: TextRange;
+};
+const measurementStopwords = new Set([
+  "a",
+  "an",
+  "and",
+  "but",
+  "or",
+  "the",
+  "was",
+  "were",
+  "а",
+  "был",
+  "была",
+  "были",
+  "и",
+  "или",
+  "но",
+]);
+
+function hasMeasuredNumber(
+  text: string,
+  range: TextRange,
+  periodRange: TextRange,
+) {
+  for (const match of text.matchAll(numericTokenPattern)) {
+    const token = match[0];
+    const start = match.index ?? 0;
+    const end = start + token.length;
+    if (start < range.start || end > range.end) continue;
+    if (start < periodRange.end && periodRange.start < end) continue;
+    if (canonicalNumericToken(token) === undefined) continue;
+    const before = text.slice(Math.max(range.start, start - 24), start);
+    const after = text.slice(end, Math.min(range.end, end + 24));
+    const prefix = before.match(
+      /([\p{L}\p{Sc}\p{So}%‰°]+)[\s\u00a0\u202f]*$/u,
+    )?.[1];
+    const suffix = after.match(
+      /^[\s\u00a0\u202f]*([\p{L}\p{Sc}\p{So}%‰°]+)/u,
+    )?.[1];
+    if (
+      [prefix, suffix].some(
+        (candidate) =>
+          candidate &&
+          !measurementStopwords.has(candidate.toLocaleLowerCase("ru-RU")),
+      )
+    )
+      return true;
   }
   return false;
+}
+
+function crossesFactBoundary(
+  left: TextRange,
+  right: TextRange,
+  periodRange: TextRange,
+  text: string,
+) {
+  const start = Math.min(left.end, right.end);
+  const end = Math.max(left.start, right.start);
+  if (start >= end) return false;
+  const gap = text.slice(start, end);
+  if (/[,;.!?\n]|\s(?:а|но|but|while|whereas)\s|\sтогда\s+как\s/iu.test(gap))
+    return true;
+  for (const match of gap.matchAll(/\s(?:и|and)\s/giu)) {
+    const boundaryStart = start + (match.index ?? 0);
+    const boundaryEnd = boundaryStart + match[0].length;
+    const beforeSentence = text.slice(0, boundaryStart);
+    const afterSentence = text.slice(boundaryEnd);
+    const sentenceStart =
+      Math.max(
+        beforeSentence.lastIndexOf("."),
+        beforeSentence.lastIndexOf("!"),
+        beforeSentence.lastIndexOf("?"),
+        beforeSentence.lastIndexOf(";"),
+        beforeSentence.lastIndexOf("\n"),
+      ) + 1;
+    const nextBoundary = afterSentence.search(/[.!?;\n]/u);
+    const sentenceEnd =
+      nextBoundary === -1 ? text.length : boundaryEnd + nextBoundary;
+    if (
+      hasMeasuredNumber(
+        text,
+        { start: sentenceStart, end: boundaryStart },
+        periodRange,
+      ) &&
+      hasMeasuredNumber(
+        text,
+        { start: boundaryEnd, end: sentenceEnd },
+        periodRange,
+      )
+    )
+      return true;
+  }
+  for (const match of gap.matchAll(/[—–:]/gu)) {
+    const boundary = start + (match.index ?? 0);
+    if (
+      hasMeasuredNumber(text, { start: 0, end: boundary }, periodRange) &&
+      hasMeasuredNumber(
+        text,
+        { start: boundary + match[0].length, end: text.length },
+        periodRange,
+      )
+    )
+      return true;
+  }
+  return false;
+}
+
+function quoteFactContext(
+  quote: string,
+  value: number,
+  subject: string,
+  unit: string,
+  period: string,
+): GroundedFactContext | undefined {
+  const subjectRanges = exactPhraseRanges(quote, subject);
+  const unitRanges = exactPhraseRanges(quote, unit);
+  const periodRanges = exactPhraseRanges(quote, period);
+  if (
+    subjectRanges.length !== 1 ||
+    unitRanges.length !== 1 ||
+    periodRanges.length !== 1
+  )
+    return undefined;
+  const numbers = [...quote.matchAll(numericTokenPattern)].flatMap((match) => {
+    const token = match[0];
+    const start = match.index ?? 0;
+    const before = quote[start - 1] ?? "";
+    const after = quote[start + token.length] ?? "";
+    if (/^[\p{L}\p{N}_]$/u.test(before) || /^[\p{L}\p{N}_]$/u.test(after))
+      return [];
+    const numericValue = canonicalNumericToken(token);
+    return numericValue === undefined
+      ? []
+      : [{ value: numericValue, start, end: start + token.length }];
+  });
+  const [subjectRange] = subjectRanges;
+  const [unitRange] = unitRanges;
+  const [periodRange] = periodRanges;
+  if (!subjectRange || !unitRange || !periodRange) return undefined;
+  const distances = numbers.map((number) => ({
+    number,
+    distance: rangeDistance(number, unitRange),
+  }));
+  const minimum = Math.min(...distances.map(({ distance }) => distance));
+  const nearest = distances.filter(({ distance }) => distance === minimum);
+  const selected = nearest.length === 1 ? nearest[0]?.number : undefined;
+  if (
+    !selected ||
+    !Object.is(selected.value, value) ||
+    crossesFactBoundary(subjectRange, selected, periodRange, quote)
+  )
+    return undefined;
+  return {
+    number: selected,
+    period: periodRange,
+    subject: subjectRange,
+    unit: unitRange,
+  };
+}
+
+function absoluteRange(range: TextRange, quoteStart: number): TextRange {
+  return { start: quoteStart + range.start, end: quoteStart + range.end };
+}
+
+function rangesOverlap(left: TextRange, right: TextRange) {
+  return left.start < right.end && right.start < left.end;
 }
 
 function boundedExactExcerpt(text: string) {
@@ -600,7 +789,8 @@ async function analyzeText(
       prompt: `${extractPrompt}\n\n${boundedSourceDescription(source)}${focusContext(focus)}`,
     }),
   );
-  const usedQuotes = new Set<string>();
+  const evidenceByQuote = new Map<string, string>();
+  const acceptedSubjectsByOccurrence = new Map<string, TextRange[]>();
   const evidence = [] as Array<{
     id: string;
     kind: "quote";
@@ -612,34 +802,76 @@ async function analyzeText(
     paragraphIndex: number,
     quote: string,
   ) => {
-    usedQuotes.add(quote);
+    const key = `${paragraphIndex}:${quote}`;
+    const existing = evidenceByQuote.get(key);
+    if (existing) return existing;
+    const evidenceId = `quote-${id}`;
+    evidenceByQuote.set(key, evidenceId);
     evidence.push({
-      id: `quote-${id}`,
+      id: evidenceId,
       kind: "quote",
       label: `Абзац ${paragraphIndex}`,
       excerpt: quote,
     });
+    return evidenceId;
   };
   const facts = extraction.facts
     .map((fact) => {
       const paragraph = source.paragraphs.find(
         (candidate) => candidate.index === fact.paragraphIndex,
       );
-      if (!paragraph?.text.includes(fact.quote) || usedQuotes.has(fact.quote))
+      const quoteStart = paragraph?.text.indexOf(fact.quote) ?? -1;
+      if (!paragraph || quoteStart < 0)
         throw new AnalysisError(
           "invalid-model-output",
-          "Text fact must use one exact, unused paragraph quotation.",
+          "Text fact must use an exact paragraph quotation.",
         );
-      const grounded =
+      const factContext =
         quoteHasValue(fact.quote, fact.value) &&
+        quoteHasExactPhrase(fact.quote, fact.subject) &&
         quoteHasExactPhrase(fact.quote, fact.unit) &&
-        quoteHasExactPhrase(fact.quote, fact.period);
+        quoteHasExactPhrase(fact.quote, fact.period) &&
+        quoteFactContext(
+          fact.quote,
+          fact.value,
+          fact.subject,
+          fact.unit,
+          fact.period,
+        );
       // A provider can preserve the source quote while slightly paraphrasing a
       // numeric field. Keep the exact quote as evidence, but never promote the
       // ungrounded number to a metric.
-      const evidenceId = `quote-${fact.id}`;
-      addQuoteEvidence(fact.id, fact.paragraphIndex, fact.quote);
-      if (!grounded) return undefined;
+      if (!factContext) {
+        addQuoteEvidence(fact.id, fact.paragraphIndex, fact.quote);
+        return undefined;
+      }
+      const absoluteContext = {
+        number: absoluteRange(factContext.number, quoteStart),
+        period: absoluteRange(factContext.period, quoteStart),
+        subject: absoluteRange(factContext.subject, quoteStart),
+        unit: absoluteRange(factContext.unit, quoteStart),
+      };
+      const occurrenceKey = JSON.stringify([
+        fact.paragraphIndex,
+        absoluteContext.number,
+        absoluteContext.unit,
+      ]);
+      const acceptedSubjects = acceptedSubjectsByOccurrence.get(occurrenceKey);
+      if (
+        acceptedSubjects?.some((subjectRange) =>
+          rangesOverlap(subjectRange, absoluteContext.subject),
+        )
+      )
+        return undefined;
+      acceptedSubjectsByOccurrence.set(occurrenceKey, [
+        ...(acceptedSubjects ?? []),
+        absoluteContext.subject,
+      ]);
+      const evidenceId = addQuoteEvidence(
+        fact.id,
+        fact.paragraphIndex,
+        fact.quote,
+      );
       return {
         id: fact.id,
         label: fact.label,
@@ -656,19 +888,17 @@ async function analyzeText(
     );
     if (
       !paragraph?.text.includes(observation.quote) ||
-      usedQuotes.has(observation.quote)
+      evidenceByQuote.has(`${observation.paragraphIndex}:${observation.quote}`)
     )
       throw new AnalysisError(
         "invalid-model-output",
         "Text observation must use one exact, unused paragraph quotation.",
       );
-    usedQuotes.add(observation.quote);
-    evidence.push({
-      id: `quote-${observation.id}`,
-      kind: "quote",
-      label: `Абзац ${observation.paragraphIndex}`,
-      excerpt: observation.quote,
-    });
+    addQuoteEvidence(
+      observation.id,
+      observation.paragraphIndex,
+      observation.quote,
+    );
   }
   if (!evidence.length) {
     const paragraph = source.paragraphs[0];

@@ -516,6 +516,123 @@ describe("grounded chat service", () => {
     });
   });
 
+  it("returns the exact source paragraph for a text before/after question", async () => {
+    const text: TextSource = {
+      version: 1,
+      id: "shelter",
+      source: { kind: "text" },
+      rawText:
+        "В приюте вчера было 2 собаки 3 кошки и 1 попугай. Сегодня принесли еще 2 кошки.",
+      paragraphs: [
+        {
+          index: 1,
+          text: "В приюте вчера было 2 собаки 3 кошки и 1 попугай. Сегодня принесли еще 2 кошки.",
+        },
+      ],
+    };
+    const provider = vi.fn(async ({ prompt }: { prompt: string }) => {
+      const providerContext = z
+        .object({
+          claims: z.array(
+            z.object({
+              id: z.string(),
+              text: z.string(),
+              references: z.array(z.string()),
+              kind: z.string(),
+            }),
+          ),
+        })
+        .passthrough()
+        .parse(JSON.parse(prompt));
+      expect(providerContext.claims).toEqual(
+        expect.arrayContaining([
+          {
+            id: "paragraph-0",
+            text: text.rawText,
+            references: ["paragraph-0"],
+            kind: "source",
+          },
+        ]),
+      );
+      return {
+        outcome: "answered" as const,
+        claimIds: ["paragraph-0"],
+      };
+    });
+
+    await expect(
+      answerChat(
+        {
+          ...request,
+          question: "Сколько кошек было и сколько стало?",
+        },
+        {
+          loadContext: async (_analysisId, _signal) => ({
+            ...context,
+            source: text,
+          }),
+          provider,
+        },
+      ),
+    ).resolves.toEqual({
+      outcome: "answered",
+      answer:
+        "В приюте вчера было 2 собаки 3 кошки и 1 попугай. Сегодня принесли еще 2 кошки.",
+      references: [
+        {
+          id: "paragraph-0",
+          excerpt:
+            "В приюте вчера было 2 собаки 3 кошки и 1 попугай. Сегодня принесли еще 2 кошки.",
+        },
+      ],
+    });
+  });
+
+  it("keeps many sentences and abbreviations in one bounded paragraph claim", async () => {
+    const paragraph = `${"A. ".repeat(1_000)}Dr. Smith met Mr. Jones on Tuesday.`;
+    const text: TextSource = {
+      version: 1,
+      id: "many-sentences",
+      source: { kind: "text" },
+      rawText: paragraph,
+      paragraphs: [{ index: 1, text: paragraph }],
+    };
+    const provider = vi.fn(async ({ prompt }: { prompt: string }) => {
+      const providerContext = z
+        .object({
+          claims: z.array(
+            z.object({
+              id: z.string(),
+              text: z.string(),
+              references: z.array(z.string()),
+              kind: z.string(),
+            }),
+          ),
+        })
+        .passthrough()
+        .parse(JSON.parse(prompt));
+      expect(providerContext.claims).toContainEqual({
+        id: "paragraph-0",
+        text: paragraph,
+        references: ["paragraph-0"],
+        kind: "source",
+      });
+      return { outcome: "insufficient_data" as const, claimIds: [] };
+    });
+
+    await answerChat(
+      { ...request, question: "When did Dr. Smith meet Mr. Jones?" },
+      {
+        loadContext: async (_analysisId, _signal) => ({
+          ...context,
+          source: text,
+        }),
+        provider,
+      },
+    );
+    expect(provider).toHaveBeenCalledOnce();
+  });
+
   it("accepts exact paragraph numeric text and locale forms", async () => {
     const text: TextSource = {
       version: 1,
