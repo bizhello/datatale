@@ -19,6 +19,7 @@ import type { Dataset, TextSource } from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
 import { chartExtremum } from "./chart-extremum";
+import { labelMentionedInQuestion } from "./label-match";
 
 export const CHAT_TIMEOUT_MS = 30_000;
 const PROVIDER_OUTPUT_MAX_TOKENS = 700;
@@ -286,15 +287,9 @@ function deterministicAggregation(
   if (!aggregation) return undefined;
   if (aggregation === "unsupported") return unsupported();
   const lowerQuestion = question.toLocaleLowerCase("ru-RU");
-  const columns = source.columns.filter((candidate) => {
-    const label = candidate.label
-      .toLocaleLowerCase("ru-RU")
-      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(
-      `(^|[^\\p{L}\\p{N}_])${label}($|[^\\p{L}\\p{N}_])`,
-      "u",
-    ).test(lowerQuestion);
-  });
+  const columns = source.columns.filter((candidate) =>
+    labelMentionedInQuestion(candidate.label, lowerQuestion),
+  );
   if (aggregation === "count" && columns.length > 1) return insufficient();
   const column = columns.length === 1 ? columns[0] : undefined;
   if (

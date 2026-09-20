@@ -137,6 +137,65 @@ describe("grounded chat service", () => {
     });
   });
 
+  it("recognizes an inflected Russian column label in an aggregation question", async () => {
+    const localizedSource: Dataset = {
+      ...source,
+      columns: [
+        { id: "month", label: "Месяц", scalarType: "string" },
+        { id: "revenue", label: "Выручка", scalarType: "number" },
+      ],
+      rows: source.rows.map((row, index) => ({
+        ...row,
+        values: {
+          month: index === 0 ? "Январь" : "Февраль",
+          revenue: row.values.revenue ?? null,
+        },
+      })),
+    };
+
+    await expect(
+      answerChat(
+        { ...request, question: "Какова сумма выручки?" },
+        {
+          loadContext: async (_analysisId, _signal) => ({
+            ...context,
+            source: localizedSource,
+          }),
+        },
+      ),
+    ).resolves.toEqual({
+      outcome: "answered",
+      answer: "Выручка: 200.",
+      references: [{ id: "evidence-0" }],
+    });
+  });
+
+  it("does not aggregate a soft-sign column for a homonymous verb", async () => {
+    const localizedSource: Dataset = {
+      ...source,
+      columns: [{ id: "profit", label: "Прибыль", scalarType: "number" }],
+      rows: source.rows.map((row) => ({
+        ...row,
+        values: { profit: row.values.revenue ?? null },
+      })),
+    };
+
+    await expect(
+      answerChat(
+        { ...request, question: "Во сколько прибыли поезда?" },
+        {
+          loadContext: async (_analysisId, _signal) => ({
+            ...context,
+            source: localizedSource,
+          }),
+        },
+      ),
+    ).resolves.toEqual({
+      outcome: "insufficient_data",
+      message: "В этом отчете нет такой информации",
+    });
+  });
+
   it("rejects prompt injection and nonexistent evidence from the provider", async () => {
     await expect(
       answerChat(
