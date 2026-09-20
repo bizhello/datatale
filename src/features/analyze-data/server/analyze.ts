@@ -496,43 +496,42 @@ function tableEvidence(source: Dataset) {
     },
   ];
 }
+function calculateTableCharts(source: Dataset, proposal: AnalysisProposal) {
+  return proposal.outcome === "charts"
+    ? proposal.charts.map((chart) => {
+        const aggregation = chart.aggregation;
+        const numeric =
+          "field" in aggregation
+            ? source.columns.find(
+                (column) => column.id === aggregation.field.fieldId,
+              )
+            : undefined;
+        const copy = chartCopy(source, chart);
+        return {
+          id: chart.id,
+          kind: chart.kind,
+          title: copy.title,
+          rationale: copy.rationale,
+          aggregation: reportChartCalculation(
+            source,
+            chart.aggregation,
+            chart.dimension.fieldId,
+          ),
+          points: calculateChart(source, chart),
+          evidenceIds: ["rows-all"],
+          ...(numeric?.unit ? { unit: numeric.unit } : {}),
+        };
+      })
+    : [];
+}
 function reportFromTable(
   source: Dataset,
   proposal: AnalysisProposal,
   narrative: ReturnType<typeof narrativeResponseSchema.parse>,
+  metrics: ReturnType<typeof calculateMetric>[],
+  charts: ReturnType<typeof calculateTableCharts>,
 ): FinalReport {
   const evidence = tableEvidence(source);
-  const metrics = proposal.metrics.map((metric) => ({
-    ...calculateMetric(source, metric),
-    evidenceIds: ["rows-all"],
-  }));
-  const charts =
-    proposal.outcome === "charts"
-      ? proposal.charts.map((chart) => {
-          const aggregation = chart.aggregation;
-          const numeric =
-            "field" in aggregation
-              ? source.columns.find(
-                  (column) => column.id === aggregation.field.fieldId,
-                )
-              : undefined;
-          const copy = chartCopy(source, chart);
-          return {
-            id: chart.id,
-            kind: chart.kind,
-            title: copy.title,
-            rationale: copy.rationale,
-            aggregation: reportChartCalculation(
-              source,
-              chart.aggregation,
-              chart.dimension.fieldId,
-            ),
-            points: calculateChart(source, chart),
-            evidenceIds: ["rows-all"],
-            ...(numeric?.unit ? { unit: numeric.unit } : {}),
-          };
-        })
-      : [];
   return finalReportSchema.parse({
     version: 1,
     hero: narrative.hero,
@@ -875,6 +874,7 @@ export async function analyzeSource(
       ...calculateMetric(source, metric),
       evidenceIds: ["rows-all"],
     }));
+    const charts = calculateTableCharts(source, proposal);
     const narrative = checkedNarrative(
       await callModel({
         stage: "narrative",
@@ -882,13 +882,13 @@ export async function analyzeSource(
         providerSchema: providerNarrativeResponseSchema,
         decodeProviderOutput: narrativeFromProviderOutput,
         signal: controller.signal,
-        prompt: `${narrativePrompt}\n\nChecked facts only; do not add values:\n${JSON.stringify({ facts: metrics, evidence: tableEvidence(source) })}${focusContext(focus)}`,
+        prompt: `${narrativePrompt}\n\nChecked facts and calculated chart series only; do not add values:\n${JSON.stringify({ facts: metrics, charts, evidence: tableEvidence(source) })}\nEvery chart point is deterministic code output and may be explained when its evidence supports the statement.${focusContext(focus)}`,
       }),
       new Set(metrics.map((metric) => metric.id)),
       new Set(["rows-all"]),
     );
     return validateFinalReportReferences(
-      reportFromTable(source, proposal, narrative),
+      reportFromTable(source, proposal, narrative, metrics, charts),
     );
   } catch (error) {
     if (error instanceof AnalysisError) throw error;

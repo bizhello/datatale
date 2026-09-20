@@ -102,8 +102,13 @@ const narrative = {
 describe("analysis orchestration", () => {
   it("calculates complete-table display data and makes only plan plus narrative calls", async () => {
     const stages: string[] = [];
-    const call: ModelCall = async ({ stage }) => {
+    const call: ModelCall = async ({ stage, prompt }) => {
       stages.push(stage);
+      if (stage === "narrative") {
+        expect(prompt).toContain("calculated chart series");
+        expect(prompt).toContain('"points"');
+        expect(prompt).toContain('"North"');
+      }
       return stage === "narrative" ? narrative : proposal;
     };
     const report = await analyzeSource(table, { callModel: call });

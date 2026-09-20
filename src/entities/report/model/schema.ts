@@ -316,10 +316,6 @@ export const finalReportSchema = z
       .array(textObservationSchema)
       .max(REPORT_MAX_TEXT_OBSERVATIONS)
       .optional(),
-    chartGroups: z
-      .array(textChartGroupSchema)
-      .max(REPORT_MAX_TEXT_CHART_GROUPS)
-      .optional(),
     charts: z.array(reportChartSchema).max(3),
     evidence: z.array(reportEvidenceSchema).min(1).max(7),
     recommendations: z.array(reportNarrativeItemSchema).max(3),
