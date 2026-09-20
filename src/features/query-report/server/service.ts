@@ -18,6 +18,7 @@ import type { Dataset, TextSource } from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
 import { compensatedSum } from "@/shared/lib/compensated-sum";
+import { categoryOverview } from "./category-overview";
 import { chartExtremum } from "./chart-extremum";
 import {
   buildProviderContext,
@@ -545,6 +546,17 @@ async function answerChatCore(
     if (aggregate) {
       ensureActive();
       return aggregate;
+    }
+  }
+  if ("rows" in context.source) {
+    const overview = categoryOverview(
+      parsed.question,
+      context.source,
+      context.report,
+    );
+    if (overview) {
+      ensureActive();
+      return overview;
     }
   }
   const direct = deterministicFact(parsed.question, context.report);

@@ -4,6 +4,7 @@ import {
 } from "@/entities/chat";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
+import { semanticTokenMatch } from "./label-match";
 
 export type CanonicalClaim = {
   id: string;
@@ -91,6 +92,12 @@ function valueScore(
   return questionTokens.reduce((score, token) => {
     if (text === token) return score + 8;
     if (valueTokens.has(token)) return score + 4;
+    if (
+      [...valueTokens].some((valueToken) =>
+        semanticTokenMatch(valueToken, token),
+      )
+    )
+      return score + 3;
     if (token.length >= 4 && text.includes(token)) return score + 1;
     return score;
   }, 0);

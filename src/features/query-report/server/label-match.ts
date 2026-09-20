@@ -6,6 +6,7 @@ function words(value: string) {
 
 const safeRussianNounEndingsByFinal = {
   а: ["ы", "и", "е", "у", "ой", "ою"],
+  и: ["", "а", "е", "у", "ей", "ам", "ами", "ах"],
   ы: ["", "а", "у", "ом", "е", "ов", "ам", "ами", "ах"],
 } as const;
 
@@ -32,6 +33,7 @@ const consonantNounEndings = [
 function russianNounForms(word: string) {
   const final = word.at(-1) as keyof typeof safeRussianNounEndingsByFinal;
   if (final in safeRussianNounEndingsByFinal) {
+    if (final === "и" && word.length < 6) return new Set<string>();
     const stem = word.slice(0, -1);
     return new Set(
       safeRussianNounEndingsByFinal[final].map((ending) => `${stem}${ending}`),
@@ -41,7 +43,7 @@ function russianNounForms(word: string) {
   return new Set(consonantNounEndings.map((ending) => `${word}${ending}`));
 }
 
-function tokenMatches(labelToken: string, questionToken: string) {
+export function semanticTokenMatch(labelToken: string, questionToken: string) {
   if (labelToken === questionToken) return true;
   if (
     !/^\p{Script=Cyrillic}+$/u.test(labelToken) ||
@@ -60,7 +62,7 @@ export function labelMentionedInQuestion(label: string, question: string) {
     labelWords.length > 0 &&
     labelWords.every((labelWord) =>
       questionWords.some((questionWord) =>
-        tokenMatches(labelWord, questionWord),
+        semanticTokenMatch(labelWord, questionWord),
       ),
     )
   );
@@ -80,7 +82,7 @@ export function labelFollowsMarkerInQuestion(
       markers.has(questionWord) &&
       labelWords.every((labelWord, offset) => {
         const candidate = questionWords[index + articleOffset + offset + 1];
-        return candidate ? tokenMatches(labelWord, candidate) : false;
+        return candidate ? semanticTokenMatch(labelWord, candidate) : false;
       })
     );
   });

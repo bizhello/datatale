@@ -43,6 +43,45 @@ const report: FinalReport = {
 };
 
 describe("bounded chat claim context", () => {
+  it("retrieves a Russian category value mentioned in an inflected form", () => {
+    const source: Dataset = {
+      version: 1,
+      id: "cities",
+      source: { kind: "xlsx", sheet: "Продажи" },
+      columns: [
+        { id: "city", label: "Город", scalarType: "string" },
+        { id: "sales", label: "Продажи", scalarType: "number" },
+      ],
+      rows: [
+        {
+          id: "krasnodar",
+          values: { city: "Краснодар", sales: 120 },
+          provenance: { sourceRowNumber: 2 },
+        },
+        {
+          id: "moscow",
+          values: { city: "Москва", sales: 80 },
+          provenance: { sourceRowNumber: 3 },
+        },
+      ],
+    };
+
+    const context = buildProviderContext({
+      source,
+      report,
+      history: [],
+      question: "Дай информацию по Краснодару",
+    });
+
+    expect(context.retrieval.matchedSources).toBe(1);
+    expect(context.claims).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "cell-0-0", text: "Город: Краснодар." }),
+        expect.objectContaining({ id: "cell-0-1", text: "Продажи: 120." }),
+      ]),
+    );
+  });
+
   it("marks common-value retrieval as truncated without exceeding the byte budget", () => {
     const source: Dataset = {
       version: 1,

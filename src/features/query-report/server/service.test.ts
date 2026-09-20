@@ -120,6 +120,117 @@ describe("grounded chat service", () => {
     ).resolves.toEqual({ outcome: "insufficient_data", message: CHAT_REFUSAL });
   });
 
+  it("answers a broad inflected category question from checked source data", async () => {
+    const citySource: Dataset = {
+      ...source,
+      columns: [
+        { id: "city", label: "Город", scalarType: "string" },
+        { id: "sales", label: "Продажи", scalarType: "number", unit: "RUB" },
+      ],
+      rows: [
+        {
+          id: "r1",
+          values: { city: "Краснодар", sales: 120 },
+          provenance: { sourceRowNumber: 2 },
+        },
+        {
+          id: "r2",
+          values: { city: "Краснодар", sales: 80 },
+          provenance: { sourceRowNumber: 3 },
+        },
+        {
+          id: "r3",
+          values: { city: "Москва", sales: 50 },
+          provenance: { sourceRowNumber: 4 },
+        },
+      ],
+    };
+    const cityReport: FinalReport = {
+      ...report,
+      evidence: [
+        {
+          id: "rows-all",
+          kind: "row-range",
+          label: "All 3 accepted rows",
+          coverage: { included: 3, total: 3 },
+        },
+      ],
+      charts: [
+        {
+          id: "sales-by-city",
+          kind: "bar",
+          title: "Продажи по городам",
+          rationale: "Сравнение городов",
+          aggregation: {
+            kind: "sum",
+            fieldId: "sales",
+            fieldLabel: "Продажи",
+            dimensionFieldId: "city",
+            dimensionLabel: "Город",
+          },
+          unit: "RUB",
+          points: [
+            { label: "Краснодар", value: 200 },
+            { label: "Москва", value: 50 },
+          ],
+          evidenceIds: ["rows-all"],
+        },
+      ],
+      noChartReason: undefined,
+    };
+    const provider = vi.fn(async () => ({
+      outcome: "insufficient_data" as const,
+      claimIds: [],
+    }));
+
+    await expect(
+      answerChat(
+        { ...request, question: "Дай информацию по Краснодару" },
+        {
+          loadContext: async (_analysisId, _signal) => ({
+            ...context,
+            source: citySource,
+            report: cityReport,
+          }),
+          provider,
+        },
+      ),
+    ).resolves.toEqual({
+      outcome: "answered",
+      answer:
+        "В поле «Город» значение «Краснодар» встречается в 2 строках. Продажи по городам: 200 RUB.",
+      references: [{ id: "evidence-0" }],
+    });
+    expect(provider).not.toHaveBeenCalled();
+
+    for (const question of [
+      "Покажи информацию по Краснодару за 2025 год",
+      "Покажи информацию не по Краснодару",
+      "Перечисли все данные по Краснодару",
+      "Покажи информацию по Краснодару в январе",
+      "Покажи строки по Краснодару",
+      "Покажи информацию по Краснодару с продажами выше среднего",
+    ]) {
+      await expect(
+        answerChat(
+          { ...request, messageId: crypto.randomUUID(), question },
+          {
+            loadContext: async (_analysisId, _signal) => ({
+              ...context,
+              source: citySource,
+              report: cityReport,
+            }),
+            provider,
+          },
+        ),
+      ).resolves.toEqual({
+        outcome: "insufficient_data",
+        message: CHAT_REFUSAL,
+      });
+    }
+    expect(provider).toHaveBeenCalledTimes(6);
+  });
+
   it("computes only allowlisted table aggregations", async () => {
     await expect(
       answerChat(
