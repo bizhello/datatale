@@ -192,10 +192,7 @@ export function decodeOutcome(raw: unknown): ProviderEnvelope {
     !output.message.trim()
   )
     throw new Error("Message outcome requires a message.");
-  if (
-    output.outcome === "not_in_source" &&
-    (output.answer || output.message || output.references.length)
-  )
-    throw new Error("Missing-source outcome contains invalid sentinels.");
+  if (output.outcome === "not_in_source" && output.references.length)
+    throw new Error("Missing-source outcome cannot cite source references.");
   return output;
 }

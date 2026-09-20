@@ -251,6 +251,24 @@ describe("planned grounded chat", () => {
     }
   });
 
+  it("uses the canonical refusal when the flat provider puts absence copy in answer", async () => {
+    const provider = vi.fn().mockResolvedValue({
+      ...emptyWire,
+      outcome: "not_in_source",
+      answer: "В источнике нет данных о собаках.",
+    });
+
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(text),
+        provider,
+      }),
+    ).resolves.toEqual({
+      outcome: "not_in_source",
+      message: "В этом отчете нет такой информации",
+    });
+  });
+
   it("treats source text prompt injection as data", async () => {
     const injected: TextSource = {
       ...text,
