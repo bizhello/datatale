@@ -6,7 +6,8 @@ export const SAVED_ANALYSIS_SOURCE_MAX_BYTES = inputLimits.canonicalSourceBytes;
 export const SAVED_ANALYSIS_MESSAGE_MAX_LENGTH = 12_000;
 export const SAVED_ANALYSIS_MESSAGE_ID_MAX_LENGTH = 160;
 export const SAVED_ANALYSIS_HISTORY_MAX_MESSAGES = 100;
-export const SAVED_ANALYSIS_INFERENCE_LEASE_MS = 60_000;
+// The lease outlives the 60-second provider deadline plus persistence cleanup.
+export const SAVED_ANALYSIS_INFERENCE_LEASE_MS = 90_000;
 
 export type StorageSchema<T> = Readonly<{ parse(input: unknown): T }>;
 export type SavedAnalysisValidators<
