@@ -39,7 +39,7 @@ describe("query report API adapter", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
-        Response.json({ outcome: "insufficient_data", message: CHAT_REFUSAL }),
+        Response.json({ outcome: "not_in_source", message: CHAT_REFUSAL }),
       ),
     );
     await expect(

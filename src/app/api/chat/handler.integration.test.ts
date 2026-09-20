@@ -92,7 +92,7 @@ describe("POST /api/chat handler", () => {
   it("claims, answers and saves one grounded turn", async () => {
     const saveReply = vi.fn(async () => true);
     const result: ChatResult = {
-      outcome: "insufficient_data",
+      outcome: "not_in_source",
       message: CHAT_REFUSAL,
     };
     const response = await createChatHandler(

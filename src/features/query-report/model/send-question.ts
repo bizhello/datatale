@@ -49,8 +49,10 @@ export function createAskDataSend(analysisId: string): AskDataSend {
           (reference, index) => reference.excerpt ?? `Источник ${index + 1}`,
         ),
       };
-    if (result.data.outcome === "insufficient_data")
+    if (result.data.outcome === "not_in_source")
       return { status: "insufficient_data" };
+    if (result.data.outcome === "clarification")
+      return { status: "unsupported_operation", message: result.data.message };
     return {
       status: "unsupported_operation",
       message: result.data.message,

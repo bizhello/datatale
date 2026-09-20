@@ -86,7 +86,7 @@ export function restoreMessages(
                 reference.excerpt ?? `Источник ${index + 1}`,
             ),
           }
-        : result.outcome === "insufficient_data"
+        : result.outcome === "not_in_source"
           ? {
               id: `${message.id}:assistant`,
               role: "assistant",
