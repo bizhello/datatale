@@ -80,7 +80,10 @@ export function OnboardingTour({
       popoverClass: "onboarding-popover",
       smoothScroll: !prefersReducedMotion(),
       steps,
-      onPopoverRender: (popover) => addSkipButton(popover, skip),
+      onPopoverRender: (popover) => {
+        popover.closeButton.setAttribute("aria-label", "Закрыть знакомство");
+        addSkipButton(popover, skip);
+      },
       onCloseClick: skip,
       onDestroyStarted: (_element, _step, options) => {
         if (!actionRef.current) finish("skipped");
@@ -152,8 +155,8 @@ export function OnboardingTour({
         }}
       >
         <Modal.Backdrop isDismissable={false}>
-          <Modal.Container className="onboarding-welcome" size="sm">
-            <Modal.Dialog>
+          <Modal.Container size="sm">
+            <Modal.Dialog className="onboarding-welcome">
               <Modal.Header>
                 <Modal.Heading className="onboarding-welcome-title">
                   Добро пожаловать в DataTale

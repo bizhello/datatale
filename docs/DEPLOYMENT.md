@@ -36,7 +36,7 @@ Production analysis requires these server-only values:
 - one or more SHA-256 fingerprints in `ANALYSIS_INVITE_CODE_HASHES`
 - `CRON_SECRET` for scheduled cleanup
 
-Production keeps both workspace and salted-IP anonymous limits at one analysis per UTC day. The server namespaces the exact built-in synthetic demo into a separate one-call IP bucket; workspace and global counters remain shared. This needs no additional environment variable or migration. Raw invite codes, provider keys, database URLs, session secrets, and salts must never use `NEXT_PUBLIC_*`, enter Git, or appear in logs. Changing a Vercel environment value requires a new deployment.
+Production grants one anonymous analysis per workspace per UTC day. The salted-IP limit is a broader anti-abuse ceiling of 20 analyses per UTC day, so separate visitors behind a shared NAT can each complete a first run without making cookie resets unlimited. The server namespaces the exact built-in synthetic demo into a separate IP bucket; workspace and global counters remain shared. This needs no additional environment variable or migration. Raw invite codes, provider keys, database URLs, session secrets, and salts must never use `NEXT_PUBLIC_*`, enter Git, or appear in logs. Changing a Vercel environment value requires a new deployment.
 
 ## Migrations
 

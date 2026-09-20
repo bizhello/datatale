@@ -69,6 +69,8 @@ describe("ReportDashboard", () => {
     );
 
     expect(screen.getByText(/Отчёт и вопросы хранятся до/)).toBeVisible();
+    const metricValue = screen.getByText("RUB").closest(".metric-value");
+    expect(metricValue).toHaveTextContent("120RUB");
     expect(screen.getByText(/Расчёт: Сумма поля «Выручка»/)).toBeVisible();
     expect(screen.getByText(/Строки таблицы · Принятые строки/)).toBeVisible();
     expect(screen.getByText(/Покрытие: 8 из 10/)).toBeVisible();

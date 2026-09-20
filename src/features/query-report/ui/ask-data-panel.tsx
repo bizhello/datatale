@@ -96,7 +96,7 @@ export function AskDataPanel({
       <header className={styles.header}>
         <div>
           <p className={styles.eyebrow}>ОТЧЁТ</p>
-          <h2>Спросите данные</h2>
+          <h2>Задайте вопрос по отчёту</h2>
           <p className={styles.subtitle}>
             Ответы основаны только на содержимом этого отчёта.
           </p>

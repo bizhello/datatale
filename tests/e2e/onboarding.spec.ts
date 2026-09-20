@@ -33,6 +33,24 @@ test("shows the welcome, mounts stable demo targets, and restores focus after sk
   });
   await expect(welcome).toHaveCount(1);
   await expect(welcome).toBeVisible();
+  const welcomeLayout = await welcome.evaluate((dialog) => {
+    const header = dialog.querySelector<HTMLElement>(
+      '[data-slot="modal-header"]',
+    );
+    const body = dialog.querySelector<HTMLElement>('[data-slot="modal-body"]');
+    if (!header || !body) throw new Error("Welcome structure is incomplete.");
+    const dialogRect = dialog.getBoundingClientRect();
+    const headerRect = header.getBoundingClientRect();
+    const bodyRect = body.getBoundingClientRect();
+    return {
+      height: dialogRect.height,
+      width: dialogRect.width,
+      gap: bodyRect.top - headerRect.bottom,
+    };
+  });
+  expect(welcomeLayout.height).toBeLessThan(360);
+  expect(welcomeLayout.width).toBeLessThanOrEqual(512);
+  expect(welcomeLayout.gap).toBeGreaterThanOrEqual(0);
   for (const theme of ["light", "dark"]) {
     await page.evaluate((value) => {
       localStorage.setItem("theme", value);
@@ -52,6 +70,22 @@ test("shows the welcome, mounts stable demo targets, and restores focus after sk
     name: "Открыть знакомство с DataTale",
   });
   await page.getByRole("button", { name: "Начать знакомство" }).click();
+  const closeButton = page.getByRole("button", { name: "Закрыть знакомство" });
+  await expect(closeButton).toBeVisible();
+  const closeStyle = await closeButton.evaluate((button) => {
+    const style = getComputedStyle(button);
+    const rect = button.getBoundingClientRect();
+    return {
+      color: style.color,
+      opacity: style.opacity,
+      width: rect.width,
+      height: rect.height,
+    };
+  });
+  expect(closeStyle.color).not.toBe("rgba(0, 0, 0, 0)");
+  expect(closeStyle.opacity).toBe("1");
+  expect(closeStyle.width).toBeGreaterThanOrEqual(32);
+  expect(closeStyle.height).toBeGreaterThanOrEqual(32);
   await expect(page.locator(".onboarding-demo-workspace")).toBeVisible();
   await expect(
     page.locator(".onboarding-demo-workspace .chart-heading button").first(),
