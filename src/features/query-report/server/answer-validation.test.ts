@@ -35,4 +35,53 @@ describe("localized date evidence", () => {
       ),
     ).toThrow(/date absent/i);
   });
+
+  it("accepts a Russian date quoted by a cited text paragraph", () => {
+    const textEvidence = new Map([
+      [
+        "paragraph-3",
+        {
+          id: "paragraph-3",
+          excerpt:
+            "К концу 17 сентября в приюте находились 10 собак, 7 кошек и 4 попугая — всего 21 животное.",
+          numericValues: [17, 10, 7, 4, 21],
+        },
+      ],
+    ]);
+
+    expect(
+      validateAnswerReferences(
+        "К концу 17 сентября в приюте было 21 животное.",
+        [{ id: "paragraph-3" }],
+        textEvidence,
+      ),
+    ).toEqual([
+      {
+        id: "paragraph-3",
+        excerpt:
+          "К концу 17 сентября в приюте находились 10 собак, 7 кошек и 4 попугая — всего 21 животное.",
+      },
+    ]);
+  });
+
+  it("rejects a Russian date absent from the cited text paragraph", () => {
+    const textEvidence = new Map([
+      [
+        "paragraph-3",
+        {
+          id: "paragraph-3",
+          excerpt: "К концу 17 сентября в приюте было 21 животное.",
+          numericValues: [17, 21],
+        },
+      ],
+    ]);
+
+    expect(() =>
+      validateAnswerReferences(
+        "К концу 18 сентября в приюте было 21 животное.",
+        [{ id: "paragraph-3" }],
+        textEvidence,
+      ),
+    ).toThrow(/date absent/i);
+  });
 });

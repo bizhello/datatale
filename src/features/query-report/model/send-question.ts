@@ -46,7 +46,7 @@ export function createAskDataSend(analysisId: string): AskDataSend {
         status: "answered",
         answer: result.data.answer,
         evidenceLabels: result.data.references.map(
-          (reference, index) => reference.excerpt ?? `Источник ${index + 1}`,
+          (_reference, index) => `Источник ${index + 1}`,
         ),
       };
     if (result.data.outcome === "not_in_source")

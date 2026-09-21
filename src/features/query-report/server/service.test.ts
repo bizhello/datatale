@@ -117,6 +117,35 @@ describe("planned grounded chat", () => {
       ],
     });
   });
+
+  it("accepts a localized date quoted by a text source", async () => {
+    const datedText: TextSource = {
+      ...text,
+      rawText:
+        "К концу 17 сентября в приюте находились 10 собак, 7 кошек и 4 попугая — всего 21 животное.",
+      paragraphs: [
+        {
+          index: 1,
+          text: "К концу 17 сентября в приюте находились 10 собак, 7 кошек и 4 попугая — всего 21 животное.",
+        },
+      ],
+    };
+    const provider = vi.fn(async () =>
+      wireAnswer("К концу 17 сентября в приюте было 21 животное.", [
+        { id: "paragraph-1" },
+      ]),
+    );
+
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(datedText),
+        provider,
+      }),
+    ).resolves.toMatchObject({
+      outcome: "answered",
+      answer: "К концу 17 сентября в приюте было 21 животное.",
+    });
+  });
   it("executes a model plan and grounds the second call in query references", async () => {
     const executor = {
       execute: vi.fn(async (_dataset, query) => {

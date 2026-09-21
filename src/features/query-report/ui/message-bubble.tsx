@@ -20,7 +20,9 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         aria-label={isUser ? "Ваш вопрос" : "Ответ DataTale"}
         className={`${styles.bubble} ${isUser ? styles.userBubble : styles.assistantBubble}`}
       >
-        {message.kind && message.kind in messageKindLabel ? (
+        {message.kind &&
+        message.kind !== "not_in_source" &&
+        message.kind in messageKindLabel ? (
           <Chip className={styles.outcome ?? ""} size="sm" variant="secondary">
             {messageKindLabel[message.kind as keyof typeof messageKindLabel]}
           </Chip>
