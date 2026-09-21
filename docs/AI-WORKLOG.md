@@ -4,7 +4,7 @@
 
 ## Full-source AI runtime redesign · 2026-09-21
 
-The previous claim-selection and bounded-retrieval chat could reject a valid city near the end of a workbook and could not answer ordinary derived questions such as “3 cats plus 2 new cats”. The replacement gives table chat a strict model-planned query contract and executes it over every accepted row in `entities/dataset`; text chat receives the complete accepted text as bounded canonical chunks. Answers cite typed source/query evidence. A separate allowlist recomputes two-operand sums, differences, ratios, shares, and percentage changes before a derived number may reach the UI.
+The previous claim-selection and bounded-retrieval chat could reject a valid city near the end of a workbook and could not answer ordinary derived questions such as “3 cats plus 2 new cats”. The replacement gives table chat a strict model-planned query contract and executes it over every accepted row in `entities/dataset`; text chat receives the complete accepted text as bounded canonical chunks. Answers cite typed source/query evidence. A separate allowlist recomputes sums with 2–8 operands and requires exactly two operands for differences, ratios, shares, and percentage changes before a derived number may reach the UI.
 
 Text analysis now extracts exact-quotation observations and explicit chart groups. Code validates unique observation IDs, compatible units/subjects/periods, exact derivation role cardinality, signed changes, and chronological month/year order before calculating chart points. Qualitative text remains useful evidence without an artificial chart. Eight observations now pass coherently through extraction, evidence, chart, narrative, and report bounds.
 
@@ -15,6 +15,8 @@ Live Spiro probes found two issues that mocked tests missed. The text-chart prov
 The first production smoke after merge found one remaining gateway-specific failure: the table planner repeated `not_in_source` for an absent city instead of producing the verification query requested by the repair prompt, and its final refusal included required-schema references. The repair call now uses a query-only output schema, while final absence references and prose are discarded. A fresh live Spiro probe over a table containing Краснодар and Москва returned the canonical refusal for Владивосток after deterministic query execution.
 
 The integrated release gate passed Biome, Steiger, strict TypeScript, 395 Vitest tests, the Turbopack production build, and 81 Playwright scenarios across desktop Chromium, mobile Chromium, and mobile WebKit. After deployment, production browser smoke verified text analysis and charts, derived and absent text questions, the real 4,500-row XLSX, the 560-row Краснодар answer, and the canonical refusal for absent Владивосток.
+
+PRs #64–#82 then hardened the same boundary without restoring provider-authored facts. A table question may submit a bounded batch of up to four independent queries; each query receives an application-owned ID and namespaced row, group, metric, and absence evidence. Inactive wire fields are canonicalized to their required empty sentinels. If one final answer still selects unknown evidence after the bounded repair, the server can render a bounded deterministic values answer from trusted query results; it never uses unknown IDs or provider prose. The current production deployment is commit `579645b` in Vercel deployment `dpl_HprGYCveCa9PGYAgj6BimFNkPAZF`.
 
 ## Bounded arbitrary chat and structured-text repair · 2026-09-20
 

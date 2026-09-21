@@ -111,7 +111,7 @@ flowchart LR
 
 The analysis request sends the complete canonical source to the server and provider, then saves the validated source/report under the workspace. Original binary files are not retained. Saved analyses and messages expire seven days after creation; viewing or chatting never extends that deadline. Replays use the persisted validated result and do not call the provider again. Corrections produce a new analysis rather than silently changing old evidence.
 
-Grounded chat always reloads that immutable accepted source. `query-report/server/provider-contract.ts` owns the flat gateway wire schema, `source-context.ts` owns bounded source profiles and canonical evidence, `answer-validation.ts` owns citations and numeric grounding, `arithmetic.ts` owns the bounded calculation allowlist, and `service.ts` orchestrates the calls and outcomes. Table questions use model-planned `DatasetQuery` objects validated and executed by `entities/dataset`; the model never receives an executable language. Text questions receive every accepted paragraph as complete bounded chunks. Both paths return canonical references, keep clarification and genuine absence distinct, and persist only validated completed answers.
+Grounded chat always reloads that immutable accepted source. `query-report/server/provider-contract.ts` owns the flat gateway wire schema, including query batches and typed answer parts; `source-context.ts` owns bounded source profiles and canonical evidence; `arithmetic.ts` owns the bounded calculation allowlist; and `service.ts` owns typed answer rendering, completeness checks, bounded deterministic fallback, citations, and orchestration. Table questions use model-planned `DatasetQuery` objects validated and executed by `entities/dataset`; the model never receives an executable language. Text questions receive every accepted paragraph as complete bounded chunks. Both paths return canonical references, keep clarification and genuine absence distinct, and persist only validated completed answers.
 
 ## Guest access
 
@@ -148,6 +148,8 @@ Add a chart by extending capability metadata, schema and renderer mapping plus c
 ## Dataset contract (DT-01a)
 
 `entities/dataset` exports the version-1 normalized table schema, inferred types and row/column bounds. It validates 1–30 columns and 1–5,000 rows, unique nonblank identities, exact declared row keys, explicit nulls, finite typed values and ISO calendar dates. The reserved column/key `__proto__` is rejected before Zod record parsing; import parsers map source headers to safe internal field IDs.
+
+The 2 MiB canonical-source and 5,000-row limits are deliberate serverless MVP bounds. The browser expands CSV/XLSX into JSON, the analysis route validates that complete body, Neon stores the accepted source, and later questions may scan every row. Raising only the UI constants would approach the Vercel Function request-body ceiling and make latency and storage unpredictable. Larger sources require direct object-storage upload plus chunked ingestion; they are not a safe constant-only change.
 
 Each row carries a positive original `sourceRowNumber`; reordering does not rewrite that reference. This is table provenance, not a text-quotation citation contract. Parsers and request boundaries remain responsible for byte/decompression limits and source-specific metadata. The schema does not parse CSV/XLSX, calculate metrics or claim to validate AI conclusions.
 

@@ -10,7 +10,7 @@ DATATALE_ACCEPTANCE_BASE_URL=https://datatale.bizhov.ru \
   bunx playwright test --config=tests/manual/playwright.config.ts
 ```
 
-The runner logs page errors, failed requests, and HTTP 5xx responses. It waits for the report heading and each grounded answer, checks at least one chart for chartable sources, checks the exact canonical absence response, and exercises malformed CSV and unsupported TSV rejection. It is intentionally not part of the default local test suite and must not be pointed at production until a release owner schedules it.
+The runner logs page errors, failed requests, and HTTP 5xx responses. It waits for the report heading and each grounded answer, checks at least one chart for chartable sources, checks the exact canonical absence response, and exercises malformed CSV and unsupported TSV rejection. The pack is a deterministic release subset; the full query-batch, typed-evidence, retry, and fallback contracts remain covered by the Vitest integration suite. It is intentionally not part of the default local test suite and must not be pointed at production until a release owner schedules it.
 
 ## Supported-source scenarios
 
