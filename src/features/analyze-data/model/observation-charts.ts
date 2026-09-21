@@ -93,9 +93,14 @@ export function calculateObservationCharts(
     }
     if (
       group.derivation === "direct" &&
-      items.some((item) => item.role !== "snapshot")
+      (items.some((item) => item.role !== "snapshot") ||
+        (group.kind === "bar" &&
+          (new Set(items.map((item) => item.subject)).size !== items.length ||
+            new Set(items.map((item) => item.period)).size > 1)))
     ) {
-      reject("Direct charts require snapshot observations.");
+      reject(
+        "Direct bar charts require distinct snapshot subjects in one period context.",
+      );
       continue;
     }
     if (

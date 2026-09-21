@@ -770,6 +770,33 @@ function quoteHasExactPhrase(quote: string, phrase: string): boolean {
   return exactPhraseRanges(quote, phrase).length > 0;
 }
 
+const sourceWordPattern = /[\p{L}\p{N}_]+/gu;
+
+function sourceWords(value: string): string[] {
+  return value.toLocaleLowerCase("ru-RU").match(sourceWordPattern) ?? [];
+}
+
+function subjectMatchesQuote(subject: string, value: number, quote: string) {
+  const subjectWords = sourceWords(subject);
+  if (canonicalNumericToken(subjectWords[0] ?? "") === value)
+    subjectWords.shift();
+  const quoteWords = sourceWords(quote);
+  if (subjectWords.length === 0) return false;
+  let quoteIndex = 0;
+  for (const subjectWord of subjectWords) {
+    const found = quoteWords.indexOf(subjectWord, quoteIndex);
+    if (found < 0) return false;
+    quoteIndex = found + 1;
+  }
+  return true;
+}
+
+function normalizedSubject(subject: string, value: number): string {
+  const words = sourceWords(subject);
+  if (canonicalNumericToken(words[0] ?? "") === value) words.shift();
+  return words.join(" ");
+}
+
 function boundedExactExcerpt(text: string) {
   const excerpt = text.slice(0, REPORT_QUOTE_MAX_LENGTH);
   return /[\uD800-\uDBFF]$/.test(excerpt) ? excerpt.slice(0, -1) : excerpt;
@@ -868,11 +895,11 @@ async function analyzeText(
         observation.value !== null &&
         observation.role !== null &&
         quoteHasValue(observation.quote, observation.value) &&
-        quoteHasExactPhrase(observation.quote, observation.subject) &&
-        (observation.unit === null ||
-          quoteHasExactPhrase(observation.quote, observation.unit)) &&
-        (observation.period === null ||
-          quoteHasExactPhrase(observation.quote, observation.period));
+        subjectMatchesQuote(
+          observation.subject,
+          observation.value,
+          observation.quote,
+        );
       const failedChecks = [
         !paragraph && "paragraph does not exist",
         paragraph &&
@@ -887,16 +914,12 @@ async function analyzeText(
           `value ${observation.value} is absent from quote`,
         !qualitative &&
           observation.subject !== null &&
-          !quoteHasExactPhrase(observation.quote, observation.subject) &&
+          !subjectMatchesQuote(
+            observation.subject,
+            observation.value ?? Number.NaN,
+            observation.quote,
+          ) &&
           `subject ${JSON.stringify(observation.subject)} is absent from quote`,
-        !qualitative &&
-          observation.unit !== null &&
-          !quoteHasExactPhrase(observation.quote, observation.unit) &&
-          `unit ${JSON.stringify(observation.unit)} is absent from quote`,
-        !qualitative &&
-          observation.period !== null &&
-          !quoteHasExactPhrase(observation.quote, observation.period) &&
-          `period ${JSON.stringify(observation.period)} is absent from quote`,
       ].filter((item): item is string => typeof item === "string");
       const valid = failedChecks.length === 0 && (qualitative || numeric);
       if (!valid) {
@@ -922,10 +945,21 @@ async function analyzeText(
       }
       validObservations.push({
         id: observation.id,
-        subject: observation.subject,
+        subject:
+          observation.subject !== null && observation.value !== null
+            ? normalizedSubject(observation.subject, observation.value)
+            : observation.subject,
         value: observation.value,
-        unit: observation.unit,
-        period: observation.period,
+        unit:
+          observation.unit !== null &&
+          quoteHasExactPhrase(observation.quote, observation.unit)
+            ? observation.unit
+            : null,
+        period:
+          observation.period !== null &&
+          quoteHasExactPhrase(observation.quote, observation.period)
+            ? observation.period
+            : null,
         role: observation.role,
         paragraphIndex: observation.paragraphIndex,
         quote: observation.quote,

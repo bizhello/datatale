@@ -765,6 +765,46 @@ describe("analysis orchestration", () => {
     expect(attempts).toBe(2);
   });
 
+  it("normalizes count subjects and drops unsupported optional metadata", async () => {
+    const source: TextSource = {
+      version: 1,
+      id: "normalized-observation",
+      source: { kind: "text" },
+      rawText: "Всего 21 животное.",
+      paragraphs: [{ index: 1, text: "Всего 21 животное." }],
+    };
+    const call: ModelCall = async () => ({
+      observations: [
+        {
+          id: "animals",
+          subject: "всего животное",
+          value: 21,
+          unit: null,
+          period: "к концу сентября",
+          role: "snapshot",
+          paragraphIndex: 1,
+          quote: source.rawText,
+        },
+      ],
+      chartGroups: [],
+      hero: [
+        { template: "fact", observationIds: ["animals"], kind: "observation" },
+        {
+          template: "source-context",
+          observationIds: ["animals"],
+          kind: "observation",
+        },
+      ],
+      recommendations: [],
+    });
+    await expect(
+      analyzeSource(source, { callModel: call }),
+    ).resolves.toMatchObject({
+      observations: [{ subject: "всего животное", value: 21, period: null }],
+      metrics: [{ label: "всего животное", value: 21 }],
+    });
+  });
+
   it("classifies an SDK timeout separately from a provider failure", async () => {
     const timeout = new Error("Request failed.", {
       cause: new DOMException("The operation timed out.", "TimeoutError"),
