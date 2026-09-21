@@ -31,11 +31,11 @@ function parsePeriod(period: string): ParsedPeriod | undefined {
     .trim()
     .toLocaleLowerCase("ru-RU")
     .replace(/^(?:в|за|на|к|по)\s+/u, "");
-  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/u);
+  const iso = value.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/u);
   if (iso) {
     const year = Number(iso[1]);
     const month = Number(iso[2]);
-    const day = Number(iso[3]);
+    const day = iso[3] ? Number(iso[3]) : 1;
     const date = new Date(Date.UTC(year, month - 1, day));
     if (
       date.getUTCFullYear() !== year ||
@@ -43,7 +43,10 @@ function parsePeriod(period: string): ParsedPeriod | undefined {
       date.getUTCDate() !== day
     )
       return undefined;
-    return { key: `${year}-${month}-${day}`, rank: date.getTime() };
+    return {
+      key: iso[3] ? `${year}-${month}-${day}` : `${year}-${month}`,
+      rank: date.getTime(),
+    };
   }
   const months = [
     /январ(?:ь|я|е|ю|ём|ем)?/u,

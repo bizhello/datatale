@@ -74,14 +74,18 @@ export function numericValues(value: string) {
           index === decimal ? "." : "",
         );
         if (separator !== "," && separator !== ".") return [];
+      } else if (commas.length >= 2 || dots.length >= 2) {
+        const separator = commas.length >= 2 ? "," : ".";
+        const parts = unsigned.split(separator);
+        if (
+          parts.length < 3 ||
+          parts.slice(1).some((part) => !/^\d{3}$/u.test(part))
+        )
+          return [];
+        normalized = parts.join("");
       } else if (lastComma >= 0 || lastDot >= 0) {
         const separator = lastComma >= 0 ? "," : ".";
-        const index = lastComma >= 0 ? lastComma : lastDot;
-        const fractionLength = unsigned.length - index - 1;
-        normalized =
-          fractionLength === 3 && index > 0
-            ? unsigned.replace(separator, "")
-            : unsigned.replace(separator, ".");
+        normalized = unsigned.replace(separator, ".");
       }
       normalized = sign + normalized;
       const parsed = Number(normalized);

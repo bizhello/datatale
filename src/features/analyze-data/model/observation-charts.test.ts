@@ -122,6 +122,52 @@ describe("calculateObservationCharts", () => {
     ]);
   });
 
+  it("orders ISO month periods and normalizes them with named months", () => {
+    const observations = [
+      observation("march", "Revenue", 30, "март 2026"),
+      observation("january", "Revenue", 10, "2026-01"),
+      observation("february", "Revenue", 20, "2026-02"),
+    ];
+    const charts = calculateObservationCharts(
+      observations,
+      [
+        {
+          id: "monthly-revenue",
+          kind: "line",
+          title: "Месяцы",
+          rationale: "Месяцы",
+          observationIds: ["march", "january", "february"],
+          derivation: "direct",
+        },
+      ],
+      (id) => id,
+    );
+    expect(charts[0]?.points.map((point) => point.label)).toEqual([
+      "2026-01",
+      "2026-02",
+      "март 2026",
+    ]);
+    expect(
+      calculateObservationCharts(
+        [
+          observation("iso", "Revenue", 10, "2026-01"),
+          observation("named", "Revenue", 11, "январь 2026"),
+        ],
+        [
+          {
+            id: "duplicate-month",
+            kind: "line",
+            title: "Дубликат",
+            rationale: "Дубликат",
+            observationIds: ["iso", "named"],
+            derivation: "direct",
+          },
+        ],
+        (id) => id,
+      ),
+    ).toEqual([]);
+  });
+
   it("sorts shuffled consecutive September days and rejects normalized duplicates", () => {
     const observations = [
       observation("16", "Revenue", 160, "16 сентября 2026"),
