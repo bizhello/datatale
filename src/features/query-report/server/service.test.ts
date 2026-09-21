@@ -791,6 +791,198 @@ describe("planned grounded chat", () => {
     });
   });
 
+  it.each([
+    {
+      name: "a group key alone",
+      evidenceIds: [`group-${request.messageId}-q1-0:key`],
+      error: "Grouped query requires selected metric evidence.",
+    },
+    {
+      name: "a global metric alone",
+      evidenceIds: [`query-${request.messageId}-q1:metric:total`],
+      error: "Grouped query requires selected metric evidence.",
+    },
+    {
+      name: "an unrelated row field alone",
+      evidenceIds: [`row-${request.messageId}-q1-r1:field:city`],
+      error: "Grouped query requires selected metric evidence.",
+    },
+    {
+      name: "a key from one group and a metric from another",
+      evidenceIds: [
+        `group-${request.messageId}-q1-0:key`,
+        `group-${request.messageId}-q1-1:metric:total`,
+      ],
+      error: "Grouped key requires selected metric from the same group.",
+    },
+  ])("repairs and rejects grouped answers with $name", async (scenario) => {
+    const source: Dataset = {
+      ...dataset,
+      rows: [
+        ...dataset.rows,
+        {
+          id: "r2",
+          values: { city: "Казань", sales: 8 },
+          provenance: { sourceRowNumber: 3 },
+        },
+      ],
+    };
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(
+        wireQuery({
+          groupBy: "city",
+          metrics: [{ id: "total", aggregation: "sum", fieldId: "sales" }],
+          limit: 2,
+        }),
+      )
+      .mockResolvedValue({
+        ...emptyWire,
+        outcome: "answer",
+        answerParts: [
+          {
+            kind: "values",
+            operation: "none",
+            evidenceIds: scenario.evidenceIds,
+          },
+        ],
+      });
+    const result = {
+      rows: [],
+      groups: [
+        {
+          key: "Краснодар",
+          metrics: { total: 10 },
+          rowReferences: [{ rowId: "r1", sourceRowNumber: 2 }],
+        },
+        {
+          key: "Казань",
+          metrics: { total: 8 },
+          rowReferences: [{ rowId: "r2", sourceRowNumber: 3 }],
+        },
+      ],
+      metrics: { total: 18 },
+      matchedRows: 2,
+      scannedRows: 2,
+      returnedRows: 0,
+      truncated: false,
+      rowReferences: [],
+    };
+
+    await expect(
+      answerChat(
+        { ...request, question: "Продажи по городам" },
+        {
+          loadContext: async () => context(source),
+          provider,
+          queryExecutor: {
+            execute: async (_source, query) => ({
+              ...result,
+              queryId: query.queryId,
+            }),
+          },
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: "invalid_provider_output",
+      message: scenario.error,
+    });
+    expect(provider).toHaveBeenCalledTimes(3);
+  });
+
+  it("accepts a grouped zero metric without an explicit key", async () => {
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(
+        wireQuery({
+          groupBy: "city",
+          metrics: [{ id: "total", aggregation: "sum", fieldId: "sales" }],
+          limit: 1,
+        }),
+      )
+      .mockResolvedValueOnce(
+        wireAnswer(
+          "Краснодар: 0",
+          [{ id: `group-${request.messageId}-q1-0` }],
+          [`group-${request.messageId}-q1-0:metric:total`],
+        ),
+      );
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(dataset),
+        provider,
+        queryExecutor: {
+          execute: async (_source, query) => ({
+            queryId: query.queryId,
+            rows: [],
+            groups: [
+              {
+                key: "Краснодар",
+                metrics: { total: 0 },
+                rowReferences: [{ rowId: "r1", sourceRowNumber: 2 }],
+              },
+            ],
+            metrics: { total: 0 },
+            matchedRows: 1,
+            scannedRows: 1,
+            returnedRows: 0,
+            truncated: false,
+            rowReferences: [],
+          }),
+        },
+      }),
+    ).resolves.toMatchObject({
+      outcome: "answered",
+      answer: "Группа: Краснодар; Сумма: Продажи: 0",
+    });
+  });
+
+  it("accepts a key-only metricless group listing", async () => {
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(
+        wireQuery({ groupBy: "city", metrics: [], limit: 1 }),
+      )
+      .mockResolvedValueOnce(
+        wireAnswer(
+          "Краснодар",
+          [{ id: `group-${request.messageId}-q1-0` }],
+          [`group-${request.messageId}-q1-0:key`],
+        ),
+      );
+    await expect(
+      answerChat(
+        { ...request, question: "Какие города есть?" },
+        {
+          loadContext: async () => context(dataset),
+          provider,
+          queryExecutor: {
+            execute: async (_source, query) => ({
+              queryId: query.queryId,
+              rows: [],
+              groups: [
+                {
+                  key: "Краснодар",
+                  metrics: {},
+                  rowReferences: [],
+                },
+              ],
+              metrics: {},
+              matchedRows: 1,
+              scannedRows: 1,
+              returnedRows: 0,
+              truncated: false,
+              rowReferences: [],
+            }),
+          },
+        },
+      ),
+    ).resolves.toMatchObject({
+      outcome: "answered",
+      answer: "Группа: Краснодар",
+    });
+  });
+
   it("repairs an unfiltered existence plan and refuses after the filtered query finds no rows", async () => {
     const executor = {
       execute: vi.fn(async (_dataset: Dataset, query: DatasetQuery) => {
@@ -931,6 +1123,176 @@ describe("planned grounded chat", () => {
         },
       ),
     ).resolves.toMatchObject({ outcome: "not_in_source" });
+  });
+
+  it("repairs a query owner citation to the typed zero metric value", async () => {
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(
+        wireQuery({
+          purpose: "count",
+          metrics: [
+            { id: "total_orders", aggregation: "sum", fieldId: "sales" },
+          ],
+          limit: 1,
+        }),
+      )
+      .mockResolvedValueOnce(
+        wireAnswer(
+          "Заказов: 0",
+          [{ id: `query-${request.messageId}-q1` }],
+          [`query-${request.messageId}-q1`],
+        ),
+      )
+      .mockImplementationOnce(async ({ prompt }: { prompt: string }) => {
+        expect(JSON.parse(prompt).error).toBe(
+          "Answer selected unknown typed evidence.",
+        );
+        return wireAnswer(
+          "Заказов: 0",
+          [{ id: `query-${request.messageId}-q1` }],
+          [`query-${request.messageId}-q1:metric:total_orders`],
+        );
+      });
+    const result = await answerChat(
+      { ...request, question: "Сколько заказов?" },
+      {
+        loadContext: async () => context(dataset),
+        provider,
+        queryExecutor: {
+          execute: async (_source, query) => ({
+            queryId: query.queryId,
+            rows: [],
+            groups: [],
+            metrics: { total_orders: 0 },
+            matchedRows: 1,
+            scannedRows: 1,
+            returnedRows: 0,
+            truncated: false,
+            rowReferences: [],
+          }),
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      outcome: "answered",
+      answer: "Сумма: Продажи: 0",
+    });
+    expect(provider).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects an invented numeric evidence ID after the repair budget", async () => {
+    const invalidAnswer = wireAnswer(
+      "Заказов: 0",
+      [{ id: `query-${request.messageId}-q1` }],
+      [`query-${request.messageId}-q1:numeric:0`],
+    );
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(
+        wireQuery({
+          purpose: "count",
+          metrics: [
+            { id: "total_orders", aggregation: "sum", fieldId: "sales" },
+          ],
+          limit: 1,
+        }),
+      )
+      .mockResolvedValue(invalidAnswer);
+
+    await expect(
+      answerChat(
+        { ...request, question: "Сколько заказов?" },
+        {
+          loadContext: async () => context(dataset),
+          provider,
+          queryExecutor: {
+            execute: async (_source, query) => ({
+              queryId: query.queryId,
+              rows: [],
+              groups: [],
+              metrics: { total_orders: 0 },
+              matchedRows: 1,
+              scannedRows: 1,
+              returnedRows: 0,
+              truncated: false,
+              rowReferences: [],
+            }),
+          },
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: "invalid_provider_output",
+      message: "Answer selected unknown typed evidence.",
+    });
+    expect(provider).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects an answer that omits one planned query scope", async () => {
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ...emptyWire,
+        outcome: "query",
+        queries: [
+          {
+            purpose: "count",
+            filters: [],
+            groupBy: "",
+            groupByDateBucket: "",
+            select: [],
+            metrics: [{ id: "first", aggregation: "sum", fieldId: "sales" }],
+            orderBy: [],
+            limit: 1,
+          },
+          {
+            purpose: "count",
+            filters: [],
+            groupBy: "",
+            groupByDateBucket: "",
+            select: [],
+            metrics: [{ id: "second", aggregation: "sum", fieldId: "sales" }],
+            orderBy: [],
+            limit: 1,
+          },
+        ],
+      })
+      .mockResolvedValue({
+        ...emptyWire,
+        outcome: "answer",
+        answerParts: [
+          {
+            kind: "values",
+            operation: "none",
+            evidenceIds: [`query-${request.messageId}-q1:metric:first`],
+          },
+        ],
+      });
+
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(dataset),
+        provider,
+        queryExecutor: {
+          execute: async (_source, query) => ({
+            queryId: query.queryId,
+            rows: [],
+            groups: [],
+            metrics: { [query.metrics?.[0]?.id ?? "metric"]: 1 },
+            matchedRows: 1,
+            scannedRows: 1,
+            returnedRows: 0,
+            truncated: false,
+            rowReferences: [],
+          }),
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: "invalid_provider_output",
+      message: "Every planned query scope requires selected evidence.",
+    });
+    expect(provider).toHaveBeenCalledTimes(3);
   });
 
   it("accepts a Russian thousands-separated rendering of a numeric table result", async () => {
