@@ -11,8 +11,6 @@ const queryWire = {
   answer: "",
   answerMode: "quote" as const,
   answerEvidenceIds: [],
-  answerSpanStart: -1,
-  answerSpanEnd: -1,
   message: "",
   references: [],
   queryId: "",

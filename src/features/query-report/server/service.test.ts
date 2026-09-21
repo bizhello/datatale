@@ -57,8 +57,6 @@ const emptyWire = {
   purpose: "count",
   answerMode: "quote",
   answerEvidenceIds: [],
-  answerSpanStart: -1,
-  answerSpanEnd: -1,
   calculationEvidenceIds: [],
   answer: "",
   message: "",
@@ -98,7 +96,7 @@ const wireQuery = (query: WireQueryPatch) => ({
   outcome: "query" as const,
 });
 const wireAnswer = (
-  answer: string,
+  _answer: string,
   references: Array<{ id: string }>,
   evidenceIds = references.map((reference) => reference.id),
 ) => ({
@@ -110,18 +108,20 @@ const wireAnswer = (
     ? ("quote" as const)
     : ("values" as const),
   answerEvidenceIds: evidenceIds,
-  answerSpanStart: references[0]?.id.startsWith("paragraph") ? 0 : -1,
-  answerSpanEnd: references[0]?.id.startsWith("paragraph") ? answer.length : -1,
 });
-const typedQuote = (id: string, start: number, end: number) => ({
+const typedQuote = (id: string) => ({
   ...emptyWire,
   outcome: "answer" as const,
   answer: "",
   references: [],
   answerMode: "quote" as const,
   answerEvidenceIds: [id],
-  answerSpanStart: start,
-  answerSpanEnd: end,
+});
+const quoteWire = (answerEvidenceIds: string[]) => ({
+  ...emptyWire,
+  outcome: "answer" as const,
+  answerMode: "quote" as const,
+  answerEvidenceIds,
 });
 
 describe("planned grounded chat", () => {
@@ -131,7 +131,7 @@ describe("planned grounded chat", () => {
         id: "paragraph-1",
         text: text.paragraphs[0]?.text,
       });
-      return typedQuote("paragraph-1", 0, text.paragraphs[0]?.text.length ?? 0);
+      return typedQuote("paragraph-1");
     });
     await expect(
       answerChat(request, { loadContext: async () => context(text), provider }),
@@ -150,11 +150,7 @@ describe("planned grounded chat", () => {
       rawText: "Dogs: 5; cats: 8.",
       paragraphs: [{ index: 1, text: "Dogs: 5; cats: 8." }],
     };
-    const provider = vi
-      .fn()
-      .mockResolvedValue(
-        typedQuote("paragraph-1", 0, "Dogs: 5; cats: 8.".length),
-      );
+    const provider = vi.fn().mockResolvedValue(typedQuote("paragraph-1"));
     await expect(
       answerChat(request, {
         loadContext: async () => context(source),
@@ -164,6 +160,48 @@ describe("planned grounded chat", () => {
       outcome: "answered",
       answer: "Dogs: 5; cats: 8.",
     });
+  });
+
+  it("renders a complete Unicode text chunk verbatim", async () => {
+    const source: TextSource = {
+      ...text,
+      rawText: "Привет 👋\nМир.",
+      paragraphs: [{ index: 1, text: "Привет 👋\nМир." }],
+    };
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(source),
+        provider: vi.fn().mockResolvedValue(typedQuote("paragraph-1")),
+      }),
+    ).resolves.toMatchObject({
+      outcome: "answered",
+      answer: "Привет 👋\nМир.",
+    });
+  });
+
+  it.each([
+    ["an unknown chunk ID", ["paragraph-99"]],
+    ["two chunk IDs", ["paragraph-1", "paragraph-2"]],
+    ["a numeric occurrence ID", ["paragraph-1:number:0"]],
+  ])("rejects quote with %s", async (_label, answerEvidenceIds) => {
+    const invalid = quoteWire(answerEvidenceIds);
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(text),
+        provider: vi.fn().mockResolvedValue(invalid),
+      }),
+    ).rejects.toMatchObject({ code: "invalid_provider_output" });
+  });
+
+  it("rejects a quote answer for a dataset", async () => {
+    const invalid = quoteWire(["row-r1"]);
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(dataset),
+        provider: vi.fn().mockResolvedValue(invalid),
+        queryExecutor: { execute: vi.fn() },
+      }),
+    ).rejects.toMatchObject({ code: "invalid_provider_output" });
   });
 
   it("recomputes a typed calculation from occurrence IDs", async () => {
@@ -946,9 +984,7 @@ describe("planned grounded chat", () => {
   it.each(["В городе 30 кошек.", "В городе 3 кошки."])(
     "renders the exact signed numeric source (%s)",
     async (sourceText) => {
-      const provider = vi
-        .fn()
-        .mockResolvedValue(typedQuote("paragraph-1", 0, sourceText.length));
+      const provider = vi.fn().mockResolvedValue(typedQuote("paragraph-1"));
       await expect(
         answerChat(request, {
           loadContext: async () =>
@@ -968,8 +1004,6 @@ describe("planned grounded chat", () => {
       ...wireAnswer("Всего 5 животных.", [{ id: "paragraph-1" }]),
       answerMode: "calculation",
       answerEvidenceIds: [],
-      answerSpanStart: -1,
-      answerSpanEnd: -1,
       calculationKind: "sum",
       calculationEvidenceIds: ["paragraph-1:number:0", "paragraph-1:number:1"],
       calculationReferenceIds: [],

@@ -16,8 +16,6 @@ export const providerEnvelopeSchema = z
     answer: z.string().max(CHAT_ANSWER_MAX_LENGTH),
     answerMode: z.enum(["quote", "values", "calculation"]),
     answerEvidenceIds: z.array(z.string().max(160)).max(8),
-    answerSpanStart: z.number().int().min(-1).max(1_000),
-    answerSpanEnd: z.number().int().min(-1).max(1_000),
     message: z.string().max(CHAT_ANSWER_MAX_LENGTH),
     references: z
       .array(
@@ -215,10 +213,7 @@ export function decodeOutcome(raw: unknown): ProviderEnvelope {
     throw new Error("Non-answer outcome contains calculation fields.");
   if (
     output.outcome !== "answer" &&
-    (output.answerMode !== "quote" ||
-      output.answerEvidenceIds.length > 0 ||
-      output.answerSpanStart !== -1 ||
-      output.answerSpanEnd !== -1)
+    (output.answerMode !== "quote" || output.answerEvidenceIds.length > 0)
   )
     throw new Error("Non-answer outcome contains answer proposal fields.");
   if (
@@ -246,16 +241,9 @@ export function decodeOutcome(raw: unknown): ProviderEnvelope {
       output.answerMode === "calculation" &&
       (output.calculationKind === "none" ||
         output.calculationEvidenceIds.length < 2 ||
-        output.answerEvidenceIds.length > 0 ||
-        output.answerSpanStart !== -1 ||
-        output.answerSpanEnd !== -1)
+        output.answerEvidenceIds.length > 0)
     )
       throw new Error("Calculation answer sentinels are invalid.");
-    if (
-      output.answerMode !== "quote" &&
-      (output.answerSpanStart !== -1 || output.answerSpanEnd !== -1)
-    )
-      throw new Error("Only quote answers may contain span bounds.");
   }
   if (
     ["clarification", "unsupported_operation"].includes(output.outcome) &&
