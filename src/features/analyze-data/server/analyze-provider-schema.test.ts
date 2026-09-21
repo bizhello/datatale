@@ -12,8 +12,10 @@ import {
   narrativeFromProviderOutput,
   providerAnalysisProposalSchema,
   providerNarrativeResponseSchema,
+  providerOptionsForStage,
   providerTextExtractionResponseSchema,
   TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS,
+  TEXT_EXTRACTION_REASONING_EFFORT,
   textExtractionFromProviderOutput,
 } from "./analyze";
 
@@ -91,6 +93,11 @@ describe("provider-facing structured output", () => {
     expect(TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS).toBe(75_000);
     expect(ANALYSIS_TIMEOUT_MS).toBe(165_000);
     expect(DEFAULT_TEXT_EXTRACTION_MODEL).toBe("gpt-5.6-luna");
+    expect(TEXT_EXTRACTION_REASONING_EFFORT).toBe("low");
+    expect(providerOptionsForStage("text-extraction")).toEqual({
+      openai: { reasoningEffort: "low" },
+    });
+    expect(providerOptionsForStage("narrative")).toEqual({});
     expect(ANALYSIS_TIMEOUT_MS).toBeLessThanOrEqual(
       TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS + MODEL_CALL_TIMEOUT_MS * 2,
     );

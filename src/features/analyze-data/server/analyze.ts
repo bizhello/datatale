@@ -69,6 +69,7 @@ export const MODEL_CALL_TIMEOUT_MS = 45_000;
 export const TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS = 75_000;
 export const ANALYSIS_TIMEOUT_MS = 165_000;
 export const DEFAULT_TEXT_EXTRACTION_MODEL = "gpt-5.6-luna";
+export const TEXT_EXTRACTION_REASONING_EFFORT = "low" as const;
 export const MODEL_OUTPUT_TOKEN_LIMITS: Readonly<
   Record<AnalysisStage, number>
 > = {
@@ -97,6 +98,14 @@ export type AnalyzeOptions = {
   timeoutMs?: number;
   focus?: AnalysisFocus;
 };
+
+export function providerOptionsForStage(stage: AnalysisStage) {
+  return stage === "text-extraction"
+    ? {
+        openai: { reasoningEffort: TEXT_EXTRACTION_REASONING_EFFORT },
+      }
+    : {};
+}
 
 function isTimeoutFailure(error: unknown): boolean {
   const visited = new Set<unknown>();
@@ -481,6 +490,7 @@ function defaultCallModel(): ModelCall {
       prompt,
       maxRetries: 0,
       maxOutputTokens: MODEL_OUTPUT_TOKEN_LIMITS[stage],
+      providerOptions: providerOptionsForStage(stage),
       abortSignal: signal,
       timeout:
         stage === "text-extraction"
