@@ -177,7 +177,13 @@ export function decodeQuery(
 }
 
 export function decodeOutcome(raw: unknown): ProviderEnvelope {
-  const output = providerEnvelopeSchema.parse(raw);
+  const parsed = providerEnvelopeSchema.parse(raw);
+  const output =
+    parsed.outcome === "answer"
+      ? { ...parsed, message: "", queries: [] }
+      : parsed.outcome === "query"
+        ? { ...parsed, message: "", answerParts: [] }
+        : { ...parsed, answerParts: [], queries: [] };
   if (output.outcome === "query") {
     if (
       output.answerParts.length ||

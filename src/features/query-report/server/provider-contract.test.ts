@@ -76,8 +76,8 @@ describe("provider query wire contract", () => {
     ).toThrow();
   });
 
-  it("rejects invalid operations and non-answer parts", () => {
-    expect(() =>
+  it("ignores inactive fields and rejects invalid active operations", () => {
+    expect(
       decodeOutcome({
         ...queryWire,
         outcome: "clarification",
@@ -87,7 +87,11 @@ describe("provider query wire contract", () => {
           { kind: "values", evidenceIds: ["x"], operation: "none" },
         ],
       }),
-    ).toThrow();
+    ).toMatchObject({
+      outcome: "clarification",
+      answerParts: [],
+      queries: [],
+    });
     expect(() =>
       decodeOutcome({
         outcome: "answer",
@@ -114,25 +118,28 @@ describe("provider query wire contract", () => {
     ).toThrow(/invalid IDs/i);
   });
 
-  it("requires zero answer parts on non-answer outcomes", () => {
+  it("canonicalizes inactive fields for non-answer and query outcomes", () => {
     for (const outcome of ["clarification", "unsupported_operation"] as const)
-      expect(() =>
+      expect(
         decodeOutcome({
           ...queryWire,
           outcome,
-          queries: [],
           message: "Уточните вопрос.",
+          answerParts: [
+            { kind: "values", evidenceIds: ["x"], operation: "none" },
+          ],
         }),
-      ).not.toThrow();
-    expect(() =>
+      ).toMatchObject({ outcome, answerParts: [], queries: [] });
+    expect(
       decodeOutcome({
         ...queryWire,
         outcome: "query",
+        message: "inactive filler",
         answerParts: [
           { kind: "values", evidenceIds: ["x"], operation: "none" },
         ],
       }),
-    ).toThrow();
+    ).toMatchObject({ outcome: "query", message: "", answerParts: [] });
   });
 
   it("emits a strict required root schema for structured output", async () => {
