@@ -172,6 +172,94 @@ describe("executeDatasetQuery", () => {
     ]);
   });
 
+  it("groups ISO dates by month after applying multiple filters", () => {
+    const dataset = {
+      ...syntheticDatasetFixture,
+      columns: [
+        ...syntheticDatasetFixture.columns,
+        { id: "city", label: "City", scalarType: "string" as const },
+      ],
+      rows: [
+        {
+          id: "jan-a",
+          values: {
+            date: "2026-01-02",
+            revenue: 10,
+            paid: true,
+            note: "a",
+            city: "Moscow",
+          },
+          provenance: { sourceRowNumber: 2 },
+        },
+        {
+          id: "jan-b",
+          values: {
+            date: "2026-01-31",
+            revenue: 20,
+            paid: true,
+            note: "b",
+            city: "Moscow",
+          },
+          provenance: { sourceRowNumber: 3 },
+        },
+        {
+          id: "feb",
+          values: {
+            date: "2026-02-01",
+            revenue: 100,
+            paid: true,
+            note: "c",
+            city: "Moscow",
+          },
+          provenance: { sourceRowNumber: 4 },
+        },
+      ],
+    };
+    const result = executeDatasetQuery(dataset, {
+      queryId: "monthly-city",
+      filters: [{ fieldId: "city", operator: "eq", value: "Moscow" }],
+      groupBy: { fieldId: "date", dateBucket: "month" },
+      metrics: [{ id: "total", aggregation: "sum", fieldId: "revenue" }],
+      orderBy: [{ metricId: "total", direction: "desc" }],
+    });
+    expect(
+      result.groups.map((group) => [group.key, group.metrics.total]),
+    ).toEqual([
+      ["2026-02", 100],
+      ["2026-01", 30],
+    ]);
+  });
+
+  it("keeps null aggregate groups after non-null values for descending order", () => {
+    const dataset = {
+      ...syntheticDatasetFixture,
+      rows: [
+        {
+          id: "null-group",
+          values: { date: "2026-01-01", revenue: null, paid: true, note: null },
+          provenance: { sourceRowNumber: 2 },
+        },
+        {
+          id: "value-group",
+          values: { date: "2026-02-01", revenue: 5, paid: false, note: null },
+          provenance: { sourceRowNumber: 3 },
+        },
+      ],
+    };
+    const result = executeDatasetQuery(dataset, {
+      queryId: "null-max",
+      groupBy: { fieldId: "paid" },
+      metrics: [{ id: "maximum", aggregation: "max", fieldId: "revenue" }],
+      orderBy: [{ metricId: "maximum", direction: "desc" }],
+    });
+    expect(
+      result.groups.map((group) => [group.key, group.metrics.maximum]),
+    ).toEqual([
+      [false, 5],
+      [true, null],
+    ]);
+  });
+
   it("rejects unknown fields, incompatible values, and numeric aggregates on text", () => {
     expect(() =>
       executeDatasetQuery(syntheticDatasetFixture, {

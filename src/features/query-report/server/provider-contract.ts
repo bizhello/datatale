@@ -23,6 +23,7 @@ export const providerEnvelopeSchema = z
       )
       .max(7),
     queryId: z.string().max(160),
+    purpose: z.enum(["lookup", "count"]).default("count"),
     filters: z
       .array(
         z
@@ -54,6 +55,10 @@ export const providerEnvelopeSchema = z
       )
       .max(20),
     groupBy: z.string().max(160),
+    groupByDateBucket: z
+      .enum(["day", "month", "year"])
+      .or(z.literal(""))
+      .default(""),
     select: z.array(z.string().max(160)).max(30),
     metrics: z
       .array(
@@ -156,14 +161,24 @@ export function decodeQuery(
     input.calculationUnit
   )
     throw new Error("Query outcome contains invalid sentinels.");
+  if (!input.groupBy && input.groupByDateBucket)
+    throw new Error("A date bucket requires groupBy.");
   return datasetQuerySchema.parse({
     queryId: applicationQueryId,
+    purpose: input.purpose,
     filters: input.filters.map((filter) => ({
       fieldId: filter.fieldId,
       operator: filter.operator,
       value: decodeValue(filter),
     })),
-    groupBy: input.groupBy ? { fieldId: input.groupBy } : undefined,
+    groupBy: input.groupBy
+      ? {
+          fieldId: input.groupBy,
+          ...(input.groupByDateBucket
+            ? { dateBucket: input.groupByDateBucket }
+            : {}),
+        }
+      : undefined,
     select: input.select,
     metrics: input.metrics.map((metric) => ({
       ...metric,

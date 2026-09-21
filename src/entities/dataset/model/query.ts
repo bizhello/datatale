@@ -13,7 +13,17 @@ const id = z
   .max(160)
   .refine((value) => value.trim().length > 0);
 const fieldReference = z.object({ fieldId: id }).strict();
-const queryFieldReference = z.union([id, fieldReference]);
+const groupedFieldReference = z
+  .object({
+    fieldId: id,
+    dateBucket: z.enum(["day", "month", "year"]).optional(),
+  })
+  .strict();
+const queryFieldReference = z.union([
+  id,
+  fieldReference,
+  groupedFieldReference,
+]);
 
 export const datasetFilterOperatorSchema = z.enum([
   "eq",
@@ -74,6 +84,7 @@ export const datasetQueryOrderSchema = z
 export const datasetQuerySchema = z
   .object({
     queryId: id,
+    purpose: z.enum(["lookup", "count"]).default("count"),
     filters: z
       .array(datasetQueryFilterSchema)
       .max(DATASET_QUERY_MAX_FILTERS)
@@ -127,6 +138,7 @@ export type DatasetQuery = z.input<typeof datasetQuerySchema>;
 export type NormalizedDatasetQuery = z.output<typeof datasetQuerySchema>;
 export type DatasetQueryFilter = z.infer<typeof datasetQueryFilterSchema>;
 export type DatasetQueryMetric = z.infer<typeof datasetQueryMetricSchema>;
+export type DatasetQueryPurpose = NormalizedDatasetQuery["purpose"];
 
 export const datasetQueryRowReferenceSchema = z
   .object({

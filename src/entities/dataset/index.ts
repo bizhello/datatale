@@ -14,6 +14,7 @@ export {
   type DatasetQuery,
   type DatasetQueryFilter,
   type DatasetQueryMetric,
+  type DatasetQueryPurpose,
   type DatasetQueryResult,
   datasetFilterOperatorSchema,
   datasetQueryFilterSchema,
