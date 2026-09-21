@@ -1,3 +1,4 @@
+import { NoObjectGeneratedError } from "ai";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -2100,6 +2101,25 @@ describe("planned grounded chat", () => {
         queryExecutor: { execute: vi.fn() },
       }),
     ).rejects.toMatchObject({ code: "invalid_provider_output" });
+  });
+
+  it("preserves structured-output failures as invalid provider output with its stage", async () => {
+    const error = new NoObjectGeneratedError({
+      message: "incomplete structured output",
+      response: {} as never,
+      usage: {} as never,
+      finishReason: "stop",
+    });
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(dataset),
+        provider: vi.fn().mockRejectedValue(error),
+        queryExecutor: { execute: vi.fn() },
+      }),
+    ).rejects.toMatchObject({
+      code: "invalid_provider_output",
+      stage: "query_plan",
+    });
   });
 
   it("maps an aborted provider to timeout", async () => {
