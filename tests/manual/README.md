@@ -2,6 +2,16 @@
 
 This pack verifies the production flow with deterministic source facts. Run it through the visible UI at `https://datatale.bizhov.ru`; do not call internal handlers directly.
 
+The repeatable runner is `grounded-flow-acceptance.spec.ts`. It uses one visible Chromium page at a time, accepts `DATATALE_ACCEPTANCE_BASE_URL` for a staging URL, and reads an optional `DATATALE_ACCEPTANCE_ACCESS_CODE` without printing it. Run the fixture controls first, then the browser pack:
+
+```sh
+bun tests/manual/validate-fixtures.ts
+DATATALE_ACCEPTANCE_BASE_URL=https://datatale.bizhov.ru \
+  bunx playwright test --config=tests/manual/playwright.config.ts
+```
+
+The runner logs page errors, failed requests, and HTTP 5xx responses. It waits for the report heading and each grounded answer, checks at least one chart for chartable sources, checks the exact canonical absence response, and exercises malformed CSV and unsupported TSV rejection. It is intentionally not part of the default local test suite and must not be pointed at production until a release owner schedules it.
+
 ## Supported-source scenarios
 
 ### `regional-sales.csv`
@@ -92,6 +102,14 @@ Questions:
 2. `Сколько кошек осмотрел ветеринар?`
 3. `В какой день расходы на корм были максимальными и сколько они составили?`
 4. `Сколько в приюте кроликов?` — must return the canonical absence response.
+
+### Additional bounded flow fixtures
+
+- `monthly-buckets.csv` has January values `60 + 60` and February value `100`, with equal values under separate revenue and cost fields. It checks monthly date bucketing and field grounding.
+- `known-range-zero.csv` contains a known January Moscow range with no February Moscow row. It checks a valid zero count separately from an absent named city.
+- `shuffled-dates.txt` lists 14, 15, and 16 September in shuffled order and checks daily chart ordering.
+- `animals-without-total.txt` states 10 dogs, 7 cats, and 4 parrots without an explicit total. It checks the bounded grounded `10 + 7 + 4` answer.
+- `localized-numbers.txt` contains `1.234,56`, `1 234,56`, and `1'234` evidence forms.
 
 ## Rejection scenarios
 
