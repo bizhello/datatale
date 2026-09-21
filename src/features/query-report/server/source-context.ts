@@ -280,7 +280,11 @@ export function resultReferences(
       const unit = metric.fieldId
         ? source.columns.find((column) => column.id === metric.fieldId)?.unit
         : undefined;
-      return unit ? [[metric.id, unit] as const] : [];
+      return unit &&
+        metric.aggregation !== "count" &&
+        metric.aggregation !== "distinctCount"
+        ? [[metric.id, unit] as const]
+        : [];
     }),
   );
   const metricLabels = new Map(
@@ -425,11 +429,15 @@ export function resultReferences(
   }
   for (const reference of [...references]) {
     for (const value of reference.values ?? []) {
-      if (references.length >= 160) break;
+      if (references.length >= 4_000) break;
       references.push({
         id: value.id,
         excerpt: `${value.label}: ${String(value.value)}`,
         values: [value],
+        ...(typeof value.value === "string" &&
+        isoDateValues(value.value).length > 0
+          ? { isoDates: isoDateValues(value.value) }
+          : {}),
         ...(typeof value.value === "number"
           ? {
               numericValues: [value.value],

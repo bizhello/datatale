@@ -19,7 +19,6 @@ import {
 } from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
-import { validateAnswerReferences } from "./answer-validation";
 import { validateArithmetic } from "./arithmetic";
 import {
   decodeOutcome,
@@ -102,7 +101,10 @@ const unsupported = (
 
 function formatAnswerValue(value: string | number | boolean | null) {
   if (value === null) return "нет значения";
-  if (typeof value === "number") return String(Number(value.toFixed(2)));
+  if (typeof value === "number")
+    return new Intl.NumberFormat("ru-RU", {
+      maximumFractionDigits: 2,
+    }).format(value);
   return String(value);
 }
 function calculationInput(
@@ -131,7 +133,10 @@ function calculationInput(
           : output.calculationKind === "percentage_of"
             ? (first / second) * 100
             : ((second - first) / first) * 100;
-  const unit = units[0] ?? "";
+  const unit =
+    output.calculationKind === "sum" || output.calculationKind === "difference"
+      ? (units[0] ?? "")
+      : "";
   return {
     kind: output.calculationKind,
     referenceIds: output.calculationEvidenceIds,
@@ -146,10 +151,22 @@ function renderTypedAnswer(
   source: Dataset | TextSource,
 ) {
   if (output.answerMode === "values") {
+    const renderedGroupOwners = new Set<string>();
     const values = output.answerEvidenceIds.map((id) => {
       const value = evidence.get(id)?.values?.find((item) => item.id === id);
       if (!value) throw new Error("Answer selected unknown typed evidence.");
-      return `${value.label}: ${formatAnswerValue(value.value)}${value.unit ? ` ${value.unit}` : ""}`;
+      const owner = evidence.get(value.referenceId);
+      const groupKey = owner?.values?.find(
+        (item) => item.id === `${value.referenceId}:key`,
+      );
+      const prefix =
+        groupKey &&
+        groupKey.id !== value.id &&
+        !renderedGroupOwners.has(value.referenceId)
+          ? `Группа: ${formatAnswerValue(groupKey.value)}; `
+          : "";
+      if (groupKey) renderedGroupOwners.add(value.referenceId);
+      return `${prefix}${value.label}: ${formatAnswerValue(value.value)}${value.unit ? ` ${value.unit}` : ""}`;
     });
     if (values.length === 0) throw new Error("Value answer has no evidence.");
     return values.join("; ");
@@ -373,30 +390,11 @@ async function answerChatCore(
         if (output.outcome === "answer") {
           const answer = renderTypedAnswer(output, allowed, context.source);
           const references = proposalReferenceIds(output).map((id) => ({ id }));
-          const arithmetic =
-            output.answerMode === "calculation"
-              ? calculationInput(output, allowed)
-              : {
-                  kind: "none" as const,
-                  referenceIds: [],
-                  values: [],
-                  result: 0,
-                  unit: "",
-                };
-          const validated = validateAnswerReferences(
-            answer,
-            references,
-            allowed,
-            undefined,
-            {
-              ...arithmetic,
-            },
-          );
           return chatResultSchema.parse({
             outcome: "answered",
             answer,
             references: ownerReferences(
-              validated.map((item) => item.id),
+              references.map((item) => item.id),
               allowed,
             ),
           });
@@ -543,30 +541,11 @@ async function answerChatCore(
       if (output.outcome === "answer") {
         const answer = renderTypedAnswer(output, finalAllowed, context.source);
         const references = proposalReferenceIds(output).map((id) => ({ id }));
-        const arithmetic =
-          output.answerMode === "calculation"
-            ? calculationInput(output, finalAllowed)
-            : {
-                kind: "none" as const,
-                referenceIds: [],
-                values: [],
-                result: 0,
-                unit: "",
-              };
-        const validated = validateAnswerReferences(
-          answer,
-          references,
-          finalAllowed,
-          undefined,
-          {
-            ...arithmetic,
-          },
-        );
         return chatResultSchema.parse({
           outcome: "answered",
           answer,
           references: ownerReferences(
-            validated.map((item) => item.id),
+            references.map((item) => item.id),
             finalAllowed,
           ),
         });

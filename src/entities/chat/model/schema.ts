@@ -4,7 +4,7 @@ export const CHAT_QUESTION_MAX_LENGTH = 1_000;
 export const CHAT_ANSWER_MAX_LENGTH = 1_200;
 export const CHAT_HISTORY_MAX_MESSAGES = 12;
 export const CHAT_HISTORY_MESSAGE_MAX_LENGTH = 1_000;
-export const CHAT_REFERENCE_MAX_COUNT = 7;
+export const CHAT_REFERENCE_MAX_COUNT = 8;
 export const CHAT_REFUSAL = "В этом отчете нет такой информации";
 
 const boundedText = (max: number) =>
