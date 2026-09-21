@@ -39,11 +39,41 @@ async function unlockIfNeeded(page: Page) {
   await expect(dialog).toBeHidden({ timeout: 20_000 });
 }
 
+async function waitForVisibleOutcome(
+  page: Page,
+  outcome: () => Promise<boolean>,
+  terminalError: () => Promise<string | undefined>,
+  timeoutMs: number,
+) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const dialog = page.getByRole("dialog");
+    if (await dialog.isVisible().catch(() => false)) {
+      await unlockIfNeeded(page);
+      continue;
+    }
+    if (await outcome()) return;
+    const error = await terminalError();
+    if (error) throw new Error(`Production flow failed: ${error}`);
+    await page.waitForTimeout(250);
+  }
+  throw new Error(
+    `Production flow did not complete within ${timeoutMs / 1_000}s.`,
+  );
+}
+
 async function waitForReport(page: Page) {
-  await unlockIfNeeded(page);
-  await expect(page.locator("[data-analysis-report-heading]")).toBeVisible({
-    timeout: 180_000,
-  });
+  await waitForVisibleOutcome(
+    page,
+    async () => page.locator("[data-analysis-report-heading]").isVisible(),
+    async () => {
+      const error = page.locator(".analysis-workspace .error-state");
+      return (await error.isVisible().catch(() => false))
+        ? await error.innerText()
+        : undefined;
+    },
+    180_000,
+  );
   await expect(page.locator(".analysis-workspace [role=alert]")).toHaveCount(0);
 }
 
@@ -74,8 +104,17 @@ async function ask(page: Page, question: Question) {
   const answerCount = await answers.count();
   await input.fill(question.prompt);
   await page.getByRole("button", { name: "Спросить" }).click();
-  await unlockIfNeeded(page);
-  await expect(answers).toHaveCount(answerCount + 1, { timeout: 90_000 });
+  await waitForVisibleOutcome(
+    page,
+    async () => (await answers.count()) > answerCount,
+    async () => {
+      const error = page.locator("#onboarding-ask-data [role=alert]");
+      return (await error.isVisible().catch(() => false))
+        ? await error.innerText()
+        : undefined;
+    },
+    90_000,
+  );
   const answer = answers.nth(answerCount);
   for (const expected of Array.isArray(question.expected)
     ? question.expected
