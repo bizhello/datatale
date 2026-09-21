@@ -27,8 +27,8 @@ HeroUI's React package declares `@internationalized/date`, React Aria packages, 
 
 ## Provider selection
 
-DataTale uses `@ai-sdk/openai` with the project-provided OpenAI-compatible gateway at `https://ai-gateway.spiro.vc/v1`. The server creates an explicit provider with `OPENAI_BASE_URL` and `OPENAI_API_KEY`, selects `AI_MODEL` for table analysis, narrative, and chat, and uses optional `AI_TEXT_MODEL` with a `gpt-5.6-luna` default for text extraction. Vercel AI Gateway billing is not part of this route.
+DataTale uses `@ai-sdk/openai` with the project-provided OpenAI-compatible gateway at `https://ai-gateway.spiro.vc/v1`. The server creates an explicit provider with `OPENAI_BASE_URL` and `OPENAI_API_KEY`, selects `AI_MODEL` for table analysis, narrative, and chat, and uses optional `AI_TEXT_MODEL` with a `gpt-5.6-luna` default for the combined text-report proposal. Vercel AI Gateway billing is not part of this route.
 
-Production Vercel requests and local probes verify table analysis, narrative, and grounded chat with `gpt-5.6-terra`; a live local probe verifies the strict text-extraction contract with `gpt-5.6-luna`. Provider output still crosses strict wire schemas, semantic checks and deterministic calculations; successful transport or schema validation alone is not evidence that a narrative is grounded.
+Production Vercel requests and local probes verify table analysis, narrative, and grounded chat with `gpt-5.6-terra`; live local probes verify the one-call text-report contract with `gpt-5.6-luna`. Provider output still crosses strict wire schemas, source checks, template rendering, semantic validation, and deterministic chart calculations; successful transport or schema validation alone is not evidence that a report is grounded.
 
 All provider configuration remains server-only. Grounding, limits and provider-call bounds are owned by [AI contracts](AI.md); environment and deployment behavior are owned by [deployment](DEPLOYMENT.md).
