@@ -9,7 +9,11 @@ import {
   executeDatasetQuery,
   type TextSource,
 } from "@/entities/dataset";
-import { answerChat, type ChatContext } from "./service";
+import {
+  answerChat,
+  type ChatContext,
+  classifyChatProviderReason,
+} from "./service";
 
 const request = {
   analysisId: "00000000-0000-4000-8000-000000000002",
@@ -150,6 +154,47 @@ const quoteWire = (answerEvidenceIds: string[]) => ({
       operation: "none" as const,
     },
   ],
+});
+
+describe("provider reason classification", () => {
+  it.each([
+    ["unknown_evidence", "Answer selected unknown typed evidence."],
+    ["wrong_evidence_kind", "Value answer has no evidence."],
+    ["missing_scope", "Every planned query scope requires selected evidence."],
+    [
+      "missing_group_metric",
+      "Grouped query requires selected metric evidence.",
+    ],
+    [
+      "group_key_metric_mismatch",
+      "Grouped key requires selected metric from the same group.",
+    ],
+    [
+      "missing_absence",
+      "Every empty lookup query requires its absence witness.",
+    ],
+    ["answer_length", "Rendered answer exceeds the bounded answer length."],
+    ["reference_limit", "Answer exceeds the global reference limit."],
+    ["invalid_outcome", "Query outcome is invalid for a final answer."],
+  ] as const)("maps the static %s failure", (reason, message) => {
+    expect(classifyChatProviderReason(new Error(message))).toBe(reason);
+    expect(classifyChatProviderReason(new Error(`${message} secret`))).toBe(
+      "unknown",
+    );
+  });
+
+  it("maps arbitrary and dynamic messages to unknown", () => {
+    expect(
+      classifyChatProviderReason(
+        new Error("secret raw provider output with unknown evidence"),
+      ),
+    ).toBe("unknown");
+    expect(
+      classifyChatProviderReason(
+        new Error("Invalid arithmetic grounding: secret"),
+      ),
+    ).toBe("unknown");
+  });
 });
 
 describe("planned grounded chat", () => {
