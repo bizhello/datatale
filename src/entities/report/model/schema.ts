@@ -389,37 +389,9 @@ export const narrativeResponseSchema = z
       .max(3),
   })
   .strict();
-export const textExtractionResponseSchema = z
-  .object({
-    observations: z
-      .array(
-        z
-          .object({
-            id: identifierString,
-            subject: labelString.nullable(),
-            value: z.number().finite().nullable(),
-            unit: unitString.nullable(),
-            period: periodString.nullable(),
-            role: textObservationRoleSchema.nullable(),
-            paragraphIndex: z.number().int().positive(),
-            quote: quoteString,
-          })
-          .strict(),
-      )
-      .max(REPORT_MAX_TEXT_OBSERVATIONS),
-    chartGroups: z
-      .array(textChartGroupSchema)
-      .max(REPORT_MAX_TEXT_CHART_GROUPS)
-      .default([]),
-  })
-  .strict()
-  .superRefine((value, context) =>
-    idsAreUnique(value.observations, context, "observations"),
-  );
-
 const textReportNarrativeItemSchema = z
   .object({
-    text: narrativeString,
+    template: z.enum(["fact", "fact-list", "qualitative", "change", "target"]),
     observationIds: z.array(identifierString).min(1).max(REPORT_MAX_EVIDENCE),
     kind: z.enum(["observation", "hypothesis", "action"]),
   })
@@ -504,9 +476,6 @@ export type FinalReport = z.infer<typeof finalReportSchema>;
 export type ReportCalculation = z.infer<typeof reportCalculationSchema>;
 export type ReportChartCalculation = z.infer<
   typeof reportChartCalculationSchema
->;
-export type TextExtractionResponse = z.infer<
-  typeof textExtractionResponseSchema
 >;
 export type TextReportResponse = z.infer<typeof textReportResponseSchema>;
 export type TextObservation = z.infer<typeof textObservationSchema>;

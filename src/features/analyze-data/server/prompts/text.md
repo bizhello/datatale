@@ -19,6 +19,7 @@ Return a compact, grounded report in one structured response. An empty collectio
 2. Return at most eight observations. Extract a meaningfully complete set of explicit quantities, preserving separate snapshot, change, and target roles. Also include a qualitative observation only when one exact quotation expresses it clearly.
 3. Every observation quote must be the shortest exact contiguous quotation from its paragraph. Copy subject, unit, and period exactly as written; never translate or paraphrase them.
 4. Numeric observations require an explicit subject, exact numeric value, role, and a quote containing that value and subject. Do not normalize, round, convert, total, average, compare, or infer anything. For a qualitative observation set subject, value, unit, period, and role to null.
+   For counts expressed as a noun (for example, «5 собак» or «3 кошки»), keep the count noun in `subject` and set `unit` to null. Use `unit` only for a separately stated shared measure such as currency, percent, or a named measurement.
 5. Omit ambiguous, contradictory, implied, or unsupported observations.
 
 # Numeric fact acceptance rules
@@ -47,10 +48,10 @@ Write each user-visible fact label in Russian. Preserve exact source terminology
 # Narrative
 
 - Return exactly two or three `hero` items and zero to three `recommendations`.
-- Every item must be written in Russian, contain exactly one concise sentence, and reference one or more observation IDs from the response. Hero items use `observation` or cautious `hypothesis`; recommendations always use `action`.
-- Hero and recommendation text may describe only explicit source statements supported by their referenced observations. Do not describe calculated chart totals, gaps, averages, rankings, percentages, trends, or future values.
-- Every number, date, unit, comparison, and named fact in an item must appear explicitly in one of its cited observations and quotation. Prefer a narrow truthful statement over a broad summary.
-- Recommendations must be specific and conservative. Return an empty list rather than generic advice.
+- Narrative items do not contain free prose. Each item selects a `template` (`fact`, `fact-list`, `qualitative`, `change`, or `target`), references one or more observation IDs, and sets its `kind`. Hero items use `observation` or cautious `hypothesis`; recommendations use `action`.
+- The application renders the Russian sentence from the selected template and the exact checked observations. Never describe calculated chart totals, gaps, averages, rankings, percentages, trends, or future values.
+- Choose `fact` for one explicit numeric observation, `fact-list` for compatible explicit categories, `qualitative` for a direct qualitative quote, `change` for an explicit signed change, and `target` for an explicit target. Do not select a template whose role or observation count is incompatible.
+- Recommendations should select a concrete source-backed observation for a follow-up check. Return an empty list rather than generic advice.
 
 # Output contract
 
@@ -58,9 +59,9 @@ Return only this structured object:
 
 - `observations`: 0–8 source-backed observations with `id`, `subject`, `value`, `unit`, `period`, `role`, `paragraphIndex`, and exact `quote`.
 - `chartGroups`: 0–3 proposed groups with `id`, `kind`, Russian `title` and `rationale`, observation IDs, `derivation`, and `operation`.
-- `hero`: exactly 2–3 Russian narrative items with `text`, `observationIds`, and `kind`.
-- `recommendations`: 0–3 Russian action items with `text`, `observationIds`, and `kind: "action"`.
+- `hero`: exactly 2–3 narrative items with `template`, `observationIds`, and `kind`.
+- `recommendations`: 0–3 items with `template`, `observationIds`, and `kind: "action"`.
 
 # Final checklist
 
-Before returning, silently verify that every quote is exact and belongs to its paragraph; every numeric field is explicitly grounded; every chart and narrative reference names a returned observation; no cited observation is ambiguous; every narrative item is Russian, one sentence, and free of calculated claims; and the response contains no Markdown or wrapper keys.
+Before returning, silently verify that every quote is exact and belongs to its paragraph; every numeric field is explicitly grounded; every chart and narrative reference names a returned observation; no cited observation is ambiguous; every template matches its observations and roles; and the response contains no Markdown or wrapper keys.

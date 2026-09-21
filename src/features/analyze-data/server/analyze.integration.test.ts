@@ -290,12 +290,12 @@ describe("analysis orchestration", () => {
       chartGroups: [],
       hero: [
         {
-          text: "Команда отметила задержку.",
+          template: "qualitative",
           observationIds: ["delay"],
           kind: "observation",
         },
         {
-          text: "Числовая оценка не указана.",
+          template: "qualitative",
           observationIds: ["delay"],
           kind: "observation",
         },
@@ -325,54 +325,61 @@ describe("analysis orchestration", () => {
         },
       ],
     };
-    const call: ModelCall = async () => ({
-      observations: [
-        {
-          id: "items",
-          subject: "товаров",
-          value: 5,
-          unit: "штук",
-          period: null,
-          role: "snapshot",
-          paragraphIndex: 1,
-          quote: "Продано 5 штук товаров.",
-        },
-        {
-          id: "revenue",
-          subject: "Выручка",
-          value: 1200,
-          unit: "рублей",
-          period: null,
-          role: "snapshot",
-          paragraphIndex: 1,
-          quote: "Выручка составила 1200 рублей.",
-        },
-      ],
-      chartGroups: [
-        {
-          id: "mixed",
-          kind: "bar",
-          title: "Несовместимые показатели",
-          rationale: "Нельзя сравнивать разные единицы",
-          observationIds: ["items", "revenue"],
-          derivation: "direct",
-          operation: "none",
-        },
-      ],
-      hero: [
-        {
-          text: "В источнике указано количество проданных товаров.",
-          observationIds: ["items"],
-          kind: "observation",
-        },
-        {
-          text: "В источнике указана выручка.",
-          observationIds: ["revenue"],
-          kind: "observation",
-        },
-      ],
-      recommendations: [],
-    });
+    let attempts = 0;
+    const call: ModelCall = async () => {
+      attempts += 1;
+      return {
+        observations: [
+          {
+            id: "items",
+            subject: "товаров",
+            value: 5,
+            unit: "штук",
+            period: null,
+            role: "snapshot",
+            paragraphIndex: 1,
+            quote: "Продано 5 штук товаров.",
+          },
+          {
+            id: "revenue",
+            subject: "Выручка",
+            value: 1200,
+            unit: "рублей",
+            period: null,
+            role: "snapshot",
+            paragraphIndex: 1,
+            quote: "Выручка составила 1200 рублей.",
+          },
+        ],
+        chartGroups:
+          attempts === 1
+            ? [
+                {
+                  id: "mixed",
+                  kind: "bar",
+                  title: "Несовместимые показатели",
+                  rationale: "Нельзя сравнивать разные единицы",
+                  observationIds: ["items", "revenue"],
+                  derivation: "direct",
+                  operation: "none",
+                },
+              ]
+            : [],
+        hero: [
+          {
+            template: "fact",
+            observationIds: ["items"],
+            kind: "observation",
+          },
+          {
+            template: "fact",
+            observationIds: ["revenue"],
+            kind: "observation",
+          },
+        ],
+        recommendations: [],
+      };
+    };
 
     await expect(
       analyzeSource(source, { callModel: call }),
@@ -380,6 +387,7 @@ describe("analysis orchestration", () => {
       charts: [],
       metrics: [{ value: 5 }, { value: 1200 }],
     });
+    expect(attempts).toBe(2);
   });
 
   it("builds source-backed animal and target charts from explicit groups", async () => {
@@ -431,12 +439,12 @@ describe("analysis orchestration", () => {
       ],
       hero: [
         {
-          text: "Указаны собаки, кошки и попугай.",
+          template: "fact-list",
           observationIds: ["dogs", "cats", "parrot"],
           kind: "observation",
         },
         {
-          text: "В источнике указана цель по количеству животных.",
+          template: "target",
           observationIds: ["target"],
           kind: "observation",
         },
@@ -455,6 +463,95 @@ describe("analysis orchestration", () => {
       label: "Текущее значение (расчёт)",
       value: 9,
     });
+  });
+
+  it("repairs a chart proposal whose derivation roles are incompatible", async () => {
+    const source: TextSource = {
+      version: 1,
+      id: "invalid-chart",
+      source: { kind: "text" },
+      rawText: "Было 5 задач. Стало 7 задач.",
+      paragraphs: [{ index: 1, text: "Было 5 задач. Стало 7 задач." }],
+    };
+    let attempts = 0;
+    const call: ModelCall = async () => {
+      attempts += 1;
+      return {
+        observations: [
+          {
+            id: "before",
+            subject: "задач",
+            value: 5,
+            unit: null,
+            period: null,
+            role: "snapshot",
+            paragraphIndex: 1,
+            quote: "Было 5 задач.",
+          },
+          {
+            id: "after",
+            subject: "задач",
+            value: 7,
+            unit: null,
+            period: null,
+            role: "snapshot",
+            paragraphIndex: 1,
+            quote: "Стало 7 задач.",
+          },
+        ],
+        chartGroups:
+          attempts === 1
+            ? [
+                {
+                  id: "invalid",
+                  kind: "bar",
+                  title: "Неверный расчёт",
+                  rationale: "Две базы без изменения",
+                  observationIds: ["before", "after"],
+                  derivation: "baseline-change",
+                  operation: "increase",
+                },
+              ]
+            : [],
+        hero: [
+          { template: "fact", observationIds: ["before"], kind: "observation" },
+          { template: "fact", observationIds: ["after"], kind: "observation" },
+        ],
+        recommendations: [],
+      };
+    };
+    await expect(
+      analyzeSource(source, { callModel: call }),
+    ).resolves.toMatchObject({
+      charts: [],
+    });
+    expect(attempts).toBe(2);
+  });
+
+  it("normalizes a second invalid text response to invalid-model-output", async () => {
+    const source: TextSource = {
+      version: 1,
+      id: "double-invalid",
+      source: { kind: "text" },
+      rawText: "Указано 1 событие.",
+      paragraphs: [{ index: 1, text: "Указано 1 событие." }],
+    };
+    const invalid = () =>
+      new NoObjectGeneratedError({
+        message: "Incomplete",
+        cause: new Error("invalid response"),
+        text: "{}",
+        response: undefined as never,
+        usage: undefined as never,
+        finishReason: undefined as never,
+      });
+    await expect(
+      analyzeSource(source, {
+        callModel: async () => {
+          throw invalid();
+        },
+      }),
+    ).rejects.toMatchObject({ code: "invalid-model-output" });
   });
 
   it("bounds accepted observations to the report evidence budget", async () => {
@@ -495,12 +592,12 @@ describe("analysis orchestration", () => {
       ],
       hero: [
         {
-          text: "Источник содержит несколько показателей.",
+          template: "fact",
           observationIds: ["metric-1"],
           kind: "observation",
         },
         {
-          text: "В отчёт включён проверенный набор.",
+          template: "fact",
           observationIds: ["metric-2"],
           kind: "observation",
         },
@@ -553,12 +650,12 @@ describe("analysis orchestration", () => {
           chartGroups: [],
           hero: [
             {
-              text: "Выручка составляет 12 RUB.",
+              template: "fact",
               observationIds: ["revenue"],
               kind: "observation",
             },
             {
-              text: "Период в источнике не указан.",
+              template: "fact",
               observationIds: ["revenue"],
               kind: "observation",
             },
@@ -604,12 +701,12 @@ describe("analysis orchestration", () => {
         chartGroups: [],
         hero: [
           {
-            text: `В отчёте указано ${value} заявок.`,
+            template: "fact",
             observationIds: ["orders"],
             kind: "observation",
           },
           {
-            text: "Источник содержит явное количество заявок.",
+            template: "fact",
             observationIds: ["orders"],
             kind: "observation",
           },

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   finalReportSchema,
   REPORT_QUOTE_MAX_LENGTH,
-  textExtractionResponseSchema,
   textReportResponseSchema,
 } from "./schema";
 
@@ -47,7 +46,7 @@ describe("final report contract", () => {
     ).toBe(false));
   it("bounds model-controlled text observations", () => {
     expect(
-      textExtractionResponseSchema.safeParse({
+      textReportResponseSchema.safeParse({
         observations: [
           {
             id: "observation",
@@ -61,6 +60,19 @@ describe("final report contract", () => {
           },
         ],
         chartGroups: [],
+        hero: [
+          {
+            template: "fact",
+            observationIds: ["observation"],
+            kind: "observation",
+          },
+          {
+            template: "fact",
+            observationIds: ["observation"],
+            kind: "observation",
+          },
+        ],
+        recommendations: [],
       }).success,
     ).toBe(false);
   });
@@ -134,12 +146,12 @@ describe("final report contract", () => {
         chartGroups: [],
         hero: [
           {
-            text: "Указано 12 заявок.",
+            template: "fact",
             observationIds: ["orders"],
             kind: "observation",
           },
           {
-            text: "Источник содержит заявки.",
+            template: "fact",
             observationIds: ["missing"],
             kind: "observation",
           },
