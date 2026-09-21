@@ -211,15 +211,8 @@ function renderTypedAnswer(
     throw new Error("Quote answers are only available for text sources.");
   const spanId = output.answerEvidenceIds[0] as string;
   const span = buildTextEvidence(source).find((item) => item.id === spanId);
-  if (
-    !span ||
-    output.answerSpanStart !== 0 ||
-    output.answerSpanEnd !== span.text.length
-  )
-    throw new Error("Quote answer span is invalid.");
-  if (output.answerSpanEnd > span.text.length)
-    throw new Error("Quote answer span exceeds source bounds.");
-  return span.text.slice(output.answerSpanStart, output.answerSpanEnd);
+  if (!span) throw new Error("Quote answer selected unknown text evidence.");
+  return span.text;
 }
 function proposalReferenceIds(output: ProviderEnvelope) {
   return output.answerMode === "calculation"
