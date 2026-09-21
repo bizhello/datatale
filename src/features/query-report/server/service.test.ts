@@ -144,7 +144,7 @@ describe("planned grounded chat", () => {
     });
   });
 
-  it("renders a selected text span instead of accepting provider prose", async () => {
+  it("renders a selected complete text chunk instead of accepting provider prose", async () => {
     const source: TextSource = {
       ...text,
       rawText: "Dogs: 5; cats: 8.",
