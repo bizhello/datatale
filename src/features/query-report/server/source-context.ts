@@ -20,6 +20,13 @@ export type QueryResultReference = {
   numericValues?: number[];
   numericEvidence?: NumericEvidence[];
   isoDates?: string[];
+  values?: Array<{
+    id: string;
+    label: string;
+    value: string | number | boolean | null;
+    unit?: string;
+    referenceId: string;
+  }>;
 };
 
 export function boundedHistory(history: ChatMessage[]) {
@@ -45,58 +52,74 @@ const isoDateToken = /\b\d{4}-\d{2}-\d{2}\b/gu;
 export function isoDateValues(value: string) {
   return value.match(isoDateToken) ?? [];
 }
-export function numericValues(value: string) {
-  return (
-    value.match(numericToken)?.flatMap((token) => {
-      if (isoDateValues(token).length > 0) return [];
-      const sign =
-        token.startsWith("-") || token.startsWith("−")
-          ? "-"
-          : token.startsWith("+")
-            ? "+"
-            : "";
-      const unsigned = token
-        .replace(/^[+\-−]/u, "")
-        .replace(/[ \u00a0\u202f'’]/gu, "");
-      const commas = [...unsigned.matchAll(/,/gu)].map(
-        (match) => match.index ?? -1,
-      );
-      const dots = [...unsigned.matchAll(/\./gu)].map(
-        (match) => match.index ?? -1,
-      );
-      const lastComma = commas.at(-1) ?? -1;
-      const lastDot = dots.at(-1) ?? -1;
-      let normalized = unsigned;
-      if (lastComma >= 0 && lastDot >= 0) {
-        const decimal = Math.max(lastComma, lastDot);
-        const separator = unsigned[decimal];
-        normalized = unsigned.replace(/[.,]/gu, (_value, index) =>
-          index === decimal ? "." : "",
-        );
-        if (separator !== "," && separator !== ".") return [];
-      } else if (commas.length >= 2 || dots.length >= 2) {
-        const separator = commas.length >= 2 ? "," : ".";
-        const parts = unsigned.split(separator);
-        if (
-          parts.length < 3 ||
-          parts.slice(1).some((part) => !/^\d{3}$/u.test(part))
-        )
-          return [];
-        normalized = parts.join("");
-      } else if (lastComma >= 0 || lastDot >= 0) {
-        const separator = lastComma >= 0 ? "," : ".";
-        normalized = unsigned.replace(separator, ".");
-      }
-      normalized = sign + normalized;
-      const parsed = Number(normalized);
-      return Number.isFinite(parsed) ? [parsed] : [];
-    }) ?? []
+function parseNumericToken(token: string) {
+  if (isoDateValues(token).length > 0) return undefined;
+  const sign =
+    token.startsWith("-") || token.startsWith("−")
+      ? "-"
+      : token.startsWith("+")
+        ? "+"
+        : "";
+  const unsigned = token
+    .replace(/^[+\-−]/u, "")
+    .replace(/[ \u00a0\u202f'’]/gu, "");
+  const commas = [...unsigned.matchAll(/,/gu)].map(
+    (match) => match.index ?? -1,
   );
+  const dots = [...unsigned.matchAll(/\./gu)].map((match) => match.index ?? -1);
+  const lastComma = commas.at(-1) ?? -1;
+  const lastDot = dots.at(-1) ?? -1;
+  let normalized = unsigned;
+  if (lastComma >= 0 && lastDot >= 0) {
+    const decimal = Math.max(lastComma, lastDot);
+    normalized = unsigned.replace(/[.,]/gu, (_value, index) =>
+      index === decimal ? "." : "",
+    );
+  } else if (commas.length >= 2 || dots.length >= 2) {
+    const separator = commas.length >= 2 ? "," : ".";
+    const parts = unsigned.split(separator);
+    if (
+      parts.length < 3 ||
+      parts.slice(1).some((part) => !/^\d{3}$/u.test(part))
+    )
+      return undefined;
+    normalized = parts.join("");
+  } else if (lastComma >= 0 || lastDot >= 0) {
+    normalized = unsigned.replace(lastComma >= 0 ? "," : ".", ".");
+  }
+  const parsed = Number(sign + normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+export function numericOccurrences(value: string) {
+  return [...value.matchAll(numericToken)].flatMap((match) => {
+    const parsed = parseNumericToken(match[0]);
+    return parsed === undefined
+      ? []
+      : [
+          {
+            value: parsed,
+            start: match.index ?? 0,
+            end: (match.index ?? 0) + match[0].length,
+          },
+        ];
+  });
+}
+export function numericValues(value: string) {
+  return numericOccurrences(value).map((occurrence) => occurrence.value);
 }
 
 export function textEvidence(source: TextSource) {
   return source.paragraphs.flatMap((paragraph) => {
-    const chunks: Array<{ id: string; text: string }> = [];
+    const chunks: Array<{
+      id: string;
+      text: string;
+      numericEvidence: Array<{
+        id: string;
+        value: number;
+        start: number;
+        end: number;
+      }>;
+    }> = [];
     for (let offset = 0; offset < paragraph.text.length; ) {
       let end = Math.min(
         offset + CHAT_EVIDENCE_MAX_LENGTH,
@@ -113,7 +136,14 @@ export function textEvidence(source: TextSource) {
         paragraph.text.length <= CHAT_EVIDENCE_MAX_LENGTH
           ? ""
           : `-${chunks.length + 1}`;
-      chunks.push({ id: `paragraph-${paragraph.index}${suffix}`, text: chunk });
+      const id = `paragraph-${paragraph.index}${suffix}`;
+      const numericEvidence = numericOccurrences(chunk).map(
+        (occurrence, index) => ({
+          id: `${id}:number:${index}`,
+          ...occurrence,
+        }),
+      );
+      chunks.push({ id, text: chunk, numericEvidence });
       offset = hardBoundary ? Math.max(offset + 1, end - 64) : end;
       while (paragraph.text[offset] === " ") offset += 1;
     }
@@ -143,15 +173,35 @@ export function sourceReferences(
           ),
         };
       })
-    : textEvidence(source).map((paragraph) => {
+    : textEvidence(source).flatMap((paragraph) => {
         const values = numericValues(paragraph.text);
-        return {
+        const reference: QueryResultReference = {
           id: paragraph.id,
           excerpt: paragraph.text,
           numericValues: values,
           numericEvidence: values.map((value) => ({ value })),
           isoDates: isoDateValues(paragraph.text),
+          values: values.map((value, index) => ({
+            id: `${paragraph.id}:number:${index}`,
+            label: "Источник",
+            value,
+            referenceId: paragraph.id,
+          })),
         };
+        return [
+          reference,
+          ...(reference.values ?? []).map((value) => ({
+            id: value.id,
+            excerpt: `${value.label}: ${String(value.value)}`,
+            ...(typeof value.value === "number"
+              ? {
+                  numericValues: [value.value],
+                  numericEvidence: [{ value: value.value }],
+                }
+              : {}),
+            values: [value],
+          })),
+        ];
       });
 }
 
@@ -230,7 +280,34 @@ export function resultReferences(
       const unit = metric.fieldId
         ? source.columns.find((column) => column.id === metric.fieldId)?.unit
         : undefined;
-      return unit ? [[metric.id, unit] as const] : [];
+      return unit &&
+        metric.aggregation !== "count" &&
+        metric.aggregation !== "distinctCount"
+        ? [[metric.id, unit] as const]
+        : [];
+    }),
+  );
+  const metricLabels = new Map(
+    (query.metrics ?? []).map((metric) => {
+      const column = metric.fieldId
+        ? source.columns.find((item) => item.id === metric.fieldId)
+        : undefined;
+      const aggregation =
+        metric.aggregation === "count"
+          ? "Количество"
+          : metric.aggregation === "sum"
+            ? "Сумма"
+            : metric.aggregation === "average"
+              ? "Среднее"
+              : metric.aggregation === "min"
+                ? "Минимум"
+                : metric.aggregation === "max"
+                  ? "Максимум"
+                  : "Уникальных значений";
+      return [
+        metric.id,
+        `${aggregation}${column ? `: ${column.label}` : ""}`,
+      ] as const;
     }),
   );
   const metricEvidence = (metrics: Record<string, number | null>) =>
@@ -255,6 +332,21 @@ export function resultReferences(
       ),
       numericValues: queryNumericEvidence.map((item) => item.value),
       numericEvidence: queryNumericEvidence,
+      values: Object.entries(result.metrics).flatMap(([id, value]) =>
+        value === null
+          ? []
+          : [
+              {
+                id: `query-${result.queryId}:metric:${id}`,
+                label: metricLabels.get(id) ?? "Метрика",
+                value,
+                ...(metricUnits.get(id)
+                  ? { unit: metricUnits.get(id) as string }
+                  : {}),
+                referenceId: `query-${result.queryId}`,
+              },
+            ],
+      ),
     },
   ];
   references[0]?.numericValues?.push(result.matchedRows, result.scannedRows);
@@ -278,7 +370,31 @@ export function resultReferences(
         ...groupNumericEvidence,
       ],
       isoDates: isoDateValues(String(group.key)),
+      values: Object.entries(group.metrics).flatMap(([id, value]) =>
+        value === null
+          ? []
+          : [
+              {
+                id: `group-${result.queryId}-${index}:metric:${id}`,
+                label: metricLabels.get(id) ?? "Метрика",
+                value,
+                ...(metricUnits.get(id)
+                  ? { unit: metricUnits.get(id) as string }
+                  : {}),
+                referenceId: `group-${result.queryId}-${index}`,
+              },
+            ],
+      ),
     });
+    if (group.key !== null) {
+      const groupReference = references[references.length - 1];
+      groupReference?.values?.push({
+        id: `group-${result.queryId}-${index}:key`,
+        label: "Группа",
+        value: group.key,
+        referenceId: `group-${result.queryId}-${index}`,
+      });
+    }
   }
   const seen = new Set<string>();
   for (const reference of [
@@ -301,8 +417,40 @@ export function resultReferences(
         ? { numericEvidence: rowEvidence.numericEvidence }
         : {}),
       ...(rowEvidence.isoDates ? { isoDates: rowEvidence.isoDates } : {}),
+      values: source.columns.map((column) => ({
+        id: `row-${row.id}:field:${column.id}`,
+        label: column.label,
+        value: row.values[column.id] ?? null,
+        ...(column.unit ? { unit: column.unit } : {}),
+        referenceId: `row-${row.id}`,
+      })),
     });
     if (references.length >= 100) break;
+  }
+  for (const reference of [...references]) {
+    for (const value of reference.values ?? []) {
+      if (references.length >= 4_000) break;
+      references.push({
+        id: value.id,
+        excerpt: `${value.label}: ${String(value.value)}`,
+        values: [value],
+        ...(typeof value.value === "string" &&
+        isoDateValues(value.value).length > 0
+          ? { isoDates: isoDateValues(value.value) }
+          : {}),
+        ...(typeof value.value === "number"
+          ? {
+              numericValues: [value.value],
+              numericEvidence: [
+                {
+                  value: value.value,
+                  ...(value.unit ? { unit: value.unit } : {}),
+                },
+              ],
+            }
+          : {}),
+      });
+    }
   }
   return references;
 }

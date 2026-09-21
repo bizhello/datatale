@@ -14,6 +14,10 @@ export const providerEnvelopeSchema = z
       "query",
     ]),
     answer: z.string().max(CHAT_ANSWER_MAX_LENGTH),
+    answerMode: z.enum(["quote", "values", "calculation"]),
+    answerEvidenceIds: z.array(z.string().max(160)).max(8),
+    answerSpanStart: z.number().int().min(-1).max(1_000),
+    answerSpanEnd: z.number().int().min(-1).max(1_000),
     message: z.string().max(CHAT_ANSWER_MAX_LENGTH),
     references: z
       .array(
@@ -102,6 +106,9 @@ export const providerEnvelopeSchema = z
     calculationReferenceIds: z
       .array(z.string().max(160))
       .max(MAX_ARITHMETIC_OPERANDS),
+    calculationEvidenceIds: z
+      .array(z.string().max(160))
+      .max(MAX_ARITHMETIC_OPERANDS),
     calculationValues: z
       .array(z.number().finite())
       .max(MAX_ARITHMETIC_OPERANDS),
@@ -156,6 +163,7 @@ export function decodeQuery(
     input.references.length ||
     input.calculationKind !== "none" ||
     input.calculationReferenceIds.length ||
+    input.calculationEvidenceIds.length ||
     input.calculationValues.length ||
     input.calculationResult !== 0 ||
     input.calculationUnit
@@ -199,16 +207,56 @@ export function decodeOutcome(raw: unknown): ProviderEnvelope {
     output.outcome !== "answer" &&
     (output.calculationKind !== "none" ||
       output.calculationReferenceIds.length > 0 ||
+      output.calculationEvidenceIds.length > 0 ||
       output.calculationValues.length > 0 ||
       output.calculationResult !== 0 ||
       output.calculationUnit !== "")
   )
     throw new Error("Non-answer outcome contains calculation fields.");
   if (
-    output.outcome === "answer" &&
-    (!output.answer.trim() || output.references.length === 0)
+    output.outcome !== "answer" &&
+    (output.answerMode !== "quote" ||
+      output.answerEvidenceIds.length > 0 ||
+      output.answerSpanStart !== -1 ||
+      output.answerSpanEnd !== -1)
   )
-    throw new Error("Answer outcome requires answer and references.");
+    throw new Error("Non-answer outcome contains answer proposal fields.");
+  if (
+    output.outcome === "answer" &&
+    (output.answer ||
+      output.references.length > 0 ||
+      output.calculationReferenceIds.length > 0 ||
+      output.calculationValues.length > 0 ||
+      output.calculationResult !== 0 ||
+      output.calculationUnit)
+  )
+    throw new Error("Answer outcome contains provider-authored answer fields.");
+  if (output.outcome === "answer") {
+    if (output.answerMode === "quote" && output.answerEvidenceIds.length !== 1)
+      throw new Error("Quote answers require one evidence ID.");
+    if (output.answerMode === "values" && output.answerEvidenceIds.length < 1)
+      throw new Error("Value answers require evidence IDs.");
+    if (
+      output.answerMode !== "calculation" &&
+      (output.calculationKind !== "none" ||
+        output.calculationEvidenceIds.length > 0)
+    )
+      throw new Error("Non-calculation answers contain calculation fields.");
+    if (
+      output.answerMode === "calculation" &&
+      (output.calculationKind === "none" ||
+        output.calculationEvidenceIds.length < 2 ||
+        output.answerEvidenceIds.length > 0 ||
+        output.answerSpanStart !== -1 ||
+        output.answerSpanEnd !== -1)
+    )
+      throw new Error("Calculation answer sentinels are invalid.");
+    if (
+      output.answerMode !== "quote" &&
+      (output.answerSpanStart !== -1 || output.answerSpanEnd !== -1)
+    )
+      throw new Error("Only quote answers may contain span bounds.");
+  }
   if (
     ["clarification", "unsupported_operation"].includes(output.outcome) &&
     !output.message.trim()

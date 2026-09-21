@@ -9,6 +9,10 @@ import {
 const queryWire = {
   outcome: "query" as const,
   answer: "",
+  answerMode: "quote" as const,
+  answerEvidenceIds: [],
+  answerSpanStart: -1,
+  answerSpanEnd: -1,
   message: "",
   references: [],
   queryId: "",
@@ -22,6 +26,7 @@ const queryWire = {
   limit: 1,
   calculationKind: "none" as const,
   calculationReferenceIds: [],
+  calculationEvidenceIds: [],
   calculationValues: [],
   calculationResult: 0,
   calculationUnit: "",

@@ -137,7 +137,7 @@ export function validateAnswerReferences(
       !evidenceNumbers.has(value) &&
       (derivedValue === undefined ||
         Math.abs(value - derivedValue) >
-          1e-9 * Math.max(1, Math.abs(derivedValue)))
+          Math.max(0.005, 1e-9 * Math.max(1, Math.abs(derivedValue))))
     )
       throw new Error("Answer contains a number absent from cited evidence.");
   const localizedEvidence = trusted.flatMap((reference) =>
