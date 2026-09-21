@@ -87,8 +87,10 @@ function parsePeriod(period: string): ParsedPeriod | undefined {
   const year = named[3] ? Number(named[3]) : 0;
   if (month < 0 || (day !== undefined && (day < 1 || day > 31)))
     return undefined;
-  if (day !== undefined && year > 0) {
-    const date = new Date(Date.UTC(year, month, day));
+  if (day !== undefined) {
+    // 2000 is a leap year, so yearless 29 February remains valid while
+    // impossible day/month combinations are still rejected deterministically.
+    const date = new Date(Date.UTC(year || 2000, month, day));
     if (date.getUTCMonth() !== month || date.getUTCDate() !== day)
       return undefined;
   }

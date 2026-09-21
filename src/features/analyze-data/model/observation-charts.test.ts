@@ -155,6 +155,29 @@ describe("calculateObservationCharts", () => {
     ).toEqual([]);
   });
 
+  it("strictly rejects an impossible named date without a year", () => {
+    expect(() =>
+      calculateObservationCharts(
+        [
+          observation("bad", "Revenue", 1, "31 февраля"),
+          observation("good", "Revenue", 2, "1 марта"),
+        ],
+        [
+          {
+            id: "invalid-date",
+            kind: "line",
+            title: "Даты",
+            rationale: "Проверка",
+            observationIds: ["bad", "good"],
+            derivation: "direct",
+          },
+        ],
+        (id) => id,
+        { strict: true },
+      ),
+    ).toThrow("explicit periods");
+  });
+
   it("orders ISO and named dated periods on the same time scale", () => {
     const charts = calculateObservationCharts(
       [
