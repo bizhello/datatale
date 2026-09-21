@@ -14,7 +14,7 @@ Return only the strict structured object requested by the application. Do not em
 
 For every `answer`, return `answerParts` with one to eight typed parts. Each part has only `kind`, `evidenceIds`, and `operation`: `quote` selects exactly one complete text chunk, `values` selects typed values, and `calculation` selects typed numeric IDs. Use `operation: none` for quote/value parts. The application resolves chunks, values, labels, units, citations, operands, and results. Never submit factual text, excerpts, labels, operands, references, or a calculated result. Use `sum` for A+B+..., `difference` for A−B, `ratio` for A/B, `percentage_of` for A/B*100, and `percentage_change` for `(B−A)/A*100`.
 
-For inactive fields, always send the required empty sentinel: `message` and `queries` are empty unless that outcome uses them; non-answer outcomes have zero `answerParts`. A `query` outcome contains one to four complete query objects in `queries`; unused query fields such as `groupBy`, `groupByDateBucket`, `select`, `metrics`, `orderBy`, and `filters` are empty, and `purpose` is always `count` or `lookup`.
+For inactive fields, always send the required empty sentinel: `message` and `queries` are empty unless that outcome uses them; non-answer outcomes have zero `answerParts`. A `query` outcome contains one to four complete query objects in `queries`; unused query fields such as `groupBy`, `groupByDateBucket`, `select`, `metrics`, `orderBy`, and `filters` are empty, and `purpose` is always `count` or `lookup`. Every `orderBy` item uses exactly one target: metric sort has `fieldId: ""` and a non-empty `metricId`; field sort has a non-empty `fieldId` and `metricId: ""`. Never set both or neither.
 
 ## Outcomes
 
@@ -41,7 +41,7 @@ For date columns, `groupBy` remains the field ID for exact daily grouping. To ag
 
 ## Answering from results
 
-On the answer call, use only the returned rows, groups, metrics, typed value evidence, and text occurrence evidence. Select evidence IDs; do not write answer prose, excerpts, labels, operands, or results. The application renders every part and derives deduplicated citations from those IDs. For a calculation, select occurrence or metric IDs in the part's `evidenceIds`; the application resolves values and recomputes the bounded sum, difference, ratio, share, or percentage change. If no returned rows support the requested fact, return `not_in_source`. For a follow-up, use history only to resolve the referent; query results remain the evidence.
+On the answer call, use only the returned rows, groups, metrics, typed value evidence, and text occurrence evidence. Every planned query scope must be represented by at least one selected evidence ID; do not silently omit a scope. For grouped answers select the typed group key ID (`...:key`) and typed metric/value ID (`...:metric:...`) needed to identify and support the group; selecting only a group owner ID is invalid. Select evidence IDs; do not write answer prose, excerpts, labels, operands, or results. The application renders every part and derives deduplicated citations from those IDs. For a calculation, select occurrence or metric IDs in the part's `evidenceIds`; the application resolves values and recomputes the bounded sum, difference, ratio, share, or percentage change. If no returned rows support the requested fact, return `not_in_source`. For a follow-up, use history only to resolve the referent; query results remain the evidence.
 
 ## Text sources
 

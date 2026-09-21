@@ -1022,8 +1022,11 @@ describe("planned grounded chat", () => {
       .mockResolvedValueOnce(
         wireAnswer(
           "Дата: 2026-09-21.",
-          [{ id: `query-${request.messageId}-q1` }, { id: "row-r1" }],
-          ["row-r1:field:date"],
+          [
+            { id: `query-${request.messageId}-q1` },
+            { id: `row-${request.messageId}-q1-r1` },
+          ],
+          [`row-${request.messageId}-q1-r1:field:date`],
         ),
       );
 
@@ -1075,7 +1078,7 @@ describe("planned grounded chat", () => {
       .mockResolvedValueOnce(
         wireAnswer("Дата: 2069-12-31.", [
           { id: `query-${request.messageId}-q1` },
-          { id: "row-r1" },
+          { id: `row-${request.messageId}-q1-r1` },
         ]),
       );
 
@@ -1168,7 +1171,11 @@ describe("planned grounded chat", () => {
       })
       .mockResolvedValueOnce(wireQuery({ select: ["city"], limit: 1 }))
       .mockResolvedValueOnce(
-        wireAnswer("Краснодар", [{ id: "row-r1" }], ["row-r1:field:city"]),
+        wireAnswer(
+          "Краснодар",
+          [{ id: `row-${request.messageId}-q1-r1` }],
+          [`row-${request.messageId}-q1-r1:field:city`],
+        ),
       );
     await expect(
       answerChat(request, {
@@ -1512,7 +1519,10 @@ describe("planned grounded chat", () => {
           {
             kind: "values" as const,
             operation: "none" as const,
-            evidenceIds: ["row-r1:field:city", "row-r2:field:sales"],
+            evidenceIds: [
+              `row-${request.messageId}-q1-r1:field:city`,
+              `row-${request.messageId}-q1-r2:field:sales`,
+            ],
           },
         ],
       });

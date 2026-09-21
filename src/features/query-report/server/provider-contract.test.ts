@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { zodSchema } from "ai";
 import { describe, expect, it } from "vitest";
 import { datasetQuerySchema } from "@/entities/dataset";
@@ -29,6 +31,21 @@ const queryWire = {
 };
 
 describe("provider query wire contract", () => {
+  it("documents deterministic sort sentinels and complete grouped evidence", async () => {
+    const prompt = await readFile(
+      resolve(
+        process.cwd(),
+        "src/features/query-report/server/prompts/chat.md",
+      ),
+      "utf8",
+    );
+    expect(prompt).toContain(
+      'metric sort has `fieldId: ""` and a non-empty `metricId`',
+    );
+    expect(prompt).toContain("Every planned query scope must be represented");
+    expect(prompt).toContain("typed group key ID (`...:key`)");
+  });
+
   it("accepts the bounded compound shape and rejects over-limit batches or parts", () => {
     const answer = {
       outcome: "answer" as const,
