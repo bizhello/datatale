@@ -54,12 +54,14 @@ function context(
   };
 }
 const emptyWire = {
+  purpose: "count",
   answer: "",
   message: "",
   references: [],
   queryId: "",
   filters: [],
   groupBy: "",
+  groupByDateBucket: "",
   select: [],
   metrics: [],
   orderBy: [],
@@ -71,6 +73,7 @@ const emptyWire = {
   calculationUnit: "",
 };
 type WireQueryPatch = {
+  purpose?: "lookup" | "count";
   queryId?: string;
   filters?: Array<{
     fieldId: string;
@@ -330,12 +333,14 @@ describe("planned grounded chat", () => {
       .fn()
       .mockResolvedValueOnce(
         wireQuery({
+          purpose: "lookup",
           metrics: [{ id: "count", aggregation: "count", fieldId: "" }],
           limit: 1,
         }),
       )
       .mockResolvedValueOnce(
         wireQuery({
+          purpose: "lookup",
           filters: [
             {
               fieldId: "city",
@@ -364,6 +369,80 @@ describe("planned grounded chat", () => {
     });
     expect(provider).toHaveBeenCalledTimes(2);
     expect(executor.execute).toHaveBeenCalledOnce();
+  });
+
+  it("answers zero for a typed count but keeps typed lookup absence canonical", async () => {
+    const zeroResult = (query: DatasetQuery) => ({
+      queryId: query.queryId,
+      rows: [],
+      groups: [],
+      metrics: { count: 0 },
+      matchedRows: 0,
+      scannedRows: 1,
+      returnedRows: 0,
+      truncated: false,
+      rowReferences: [],
+    });
+    const countProvider = vi
+      .fn()
+      .mockResolvedValueOnce(
+        wireQuery({
+          purpose: "count",
+          filters: [
+            {
+              fieldId: "city",
+              operator: "eq",
+              valueKind: "string",
+              values: ["Samara"],
+            },
+          ],
+          metrics: [{ id: "count", aggregation: "count", fieldId: "" }],
+          limit: 1,
+        }),
+      )
+      .mockResolvedValueOnce(
+        wireAnswer("Количество: 0.", [{ id: `query-${request.messageId}` }]),
+      );
+    await expect(
+      answerChat(
+        { ...request, question: "Сколько записей в Самаре?" },
+        {
+          loadContext: async () => context(dataset),
+          provider: countProvider,
+          queryExecutor: {
+            execute: async (_dataset, query) => zeroResult(query),
+          },
+        },
+      ),
+    ).resolves.toMatchObject({ outcome: "answered", answer: "Количество: 0." });
+
+    const lookupProvider = vi.fn().mockResolvedValueOnce(
+      wireQuery({
+        purpose: "lookup",
+        filters: [
+          {
+            fieldId: "city",
+            operator: "eq",
+            valueKind: "string",
+            values: ["Samara"],
+          },
+        ],
+        metrics: [{ id: "count", aggregation: "count", fieldId: "" }],
+        limit: 1,
+      }),
+    );
+    await expect(
+      answerChat(
+        { ...request, question: "Есть ли Самара в данных?" },
+        {
+          loadContext: async () => context(dataset),
+          provider: lookupProvider,
+          queryExecutor: {
+            execute: async (_dataset, query) => zeroResult(query),
+          },
+        },
+      ),
+    ).resolves.toMatchObject({ outcome: "not_in_source" });
   });
 
   it("accepts a Russian thousands-separated rendering of a numeric table result", async () => {

@@ -11,9 +11,31 @@ import type { Dataset, DatasetRow } from "./schema";
 type Scalar = string | number | boolean | null;
 type Column = Dataset["columns"][number];
 type QueryField = string | { fieldId: string };
+type GroupBy =
+  | string
+  | {
+      fieldId: string;
+      dateBucket?: "day" | "month" | "quarter" | "year" | undefined;
+    };
 
 function fieldId(field: QueryField): string {
   return typeof field === "string" ? field : field.fieldId;
+}
+function groupKey(row: DatasetRow, groupBy: GroupBy): Scalar {
+  const reference =
+    typeof groupBy === "string" ? { fieldId: groupBy } : groupBy;
+  const value = row.values[reference.fieldId] as Scalar;
+  if (
+    value === null ||
+    reference.dateBucket === undefined ||
+    reference.dateBucket === "day"
+  )
+    return value;
+  if (typeof value !== "string") fail("Date buckets require a date field.");
+  if (reference.dateBucket === "month") return value.slice(0, 7);
+  if (reference.dateBucket === "quarter")
+    return `${value.slice(0, 4)}-Q${Math.floor((Number(value.slice(5, 7)) - 1) / 3) + 1}`;
+  return value.slice(0, 4);
 }
 
 function fail(message: string): never {
@@ -172,7 +194,16 @@ export function validateDatasetQuery(
   const query = datasetQuerySchema.parse(input);
   for (const selectedField of query.select)
     column(dataset, fieldId(selectedField));
-  if (query.groupBy) column(dataset, fieldId(query.groupBy));
+  if (query.groupBy) {
+    const groupedColumn = column(dataset, fieldId(query.groupBy));
+    if (
+      typeof query.groupBy !== "string" &&
+      "dateBucket" in query.groupBy &&
+      query.groupBy.dateBucket &&
+      groupedColumn.scalarType !== "date"
+    )
+      fail("Date buckets require a date field.");
+  }
   for (const filter of query.filters) column(dataset, filter.fieldId);
   for (const filter of query.filters) validateFilter(filter, dataset);
   for (const metric of query.metrics)
@@ -202,7 +233,7 @@ export function executeDatasetQuery(
   const groups = new Map<Scalar, DatasetRow[]>();
   if (query.groupBy)
     for (const row of matched) {
-      const key = row.values[fieldId(query.groupBy)] as Scalar;
+      const key = groupKey(row, query.groupBy);
       const group = groups.get(key) ?? [];
       group.push(row);
       groups.set(key, group);
@@ -237,7 +268,11 @@ export function executeDatasetQuery(
             : null;
         const comparison = compareValues(av, bv);
         if (comparison !== 0)
-          return order.direction === "asc" ? comparison : -comparison;
+          return av === null || bv === null
+            ? comparison
+            : order.direction === "asc"
+              ? comparison
+              : -comparison;
       }
       return 0;
     });

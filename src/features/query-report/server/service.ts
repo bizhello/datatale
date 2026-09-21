@@ -101,12 +101,10 @@ const unsupported = (
 function fieldId(field: string | { fieldId: string }) {
   return typeof field === "string" ? field : field.fieldId;
 }
-const existenceQuestion =
-  /(?:^|[\s,.!?])(?:есть|имеется|присутствует|содержится|существует)\s+ли(?:[\s,.!?]|$)/iu;
 function validateQuery(
   query: DatasetQuery,
   source: Dataset,
-  question: string,
+  _question: string,
 ): DatasetQuery {
   const parsed = datasetQuerySchema.parse(query);
   validateDatasetQuery(source, parsed);
@@ -139,7 +137,7 @@ function validateQuery(
       throw new Error("Numeric metric requires a numeric field.");
   }
   if (
-    existenceQuestion.test(question) &&
+    parsed.purpose === "lookup" &&
     parsed.filters.length === 0 &&
     !parsed.groupBy
   )
@@ -385,7 +383,8 @@ async function answerChatCore(
       );
     throw error;
   }
-  if (result.matchedRows === 0) return notInSource();
+  if (result.matchedRows === 0 && query.purpose === "lookup")
+    return notInSource();
   const references = buildResultReferences(result, context.source, query);
   const finalAllowed = new Map(
     references.map((reference) => [reference.id, reference]),
