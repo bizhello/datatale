@@ -10,73 +10,98 @@ import {
 
 const queryWire = {
   outcome: "query" as const,
-  answer: "",
-  answerMode: "quote" as const,
-  answerEvidenceIds: [],
   message: "",
-  references: [],
-  queryId: "",
-  purpose: "count" as const,
-  filters: [],
-  groupBy: "city",
-  groupByDateBucket: "",
-  select: [],
-  metrics: [{ id: "total", aggregation: "sum" as const, fieldId: "sales" }],
-  orderBy: [
-    { fieldId: "sales", metricId: "total", direction: "desc" as const },
+  answerParts: [],
+  queries: [
+    {
+      purpose: "count" as const,
+      filters: [],
+      groupBy: "city",
+      groupByDateBucket: "",
+      select: [],
+      metrics: [{ id: "total", aggregation: "sum" as const, fieldId: "sales" }],
+      orderBy: [
+        { fieldId: "sales", metricId: "total", direction: "desc" as const },
+      ],
+      limit: 1,
+    },
   ],
-  limit: 1,
-  calculationKind: "none" as const,
-  calculationReferenceIds: [],
-  calculationEvidenceIds: [],
-  calculationValues: [],
-  calculationResult: 0,
-  calculationUnit: "",
 };
 
 describe("provider query wire contract", () => {
-  it.each(["quote", "values", "calculation"] as const)(
-    "accepts inactive %s mode on non-answer outcomes with empty evidence",
-    (answerMode) => {
-      for (const outcome of [
-        "query",
-        "clarification",
-        "not_in_source",
-        "unsupported_operation",
-      ] as const) {
-        const wire = {
-          ...queryWire,
-          outcome,
-          answerMode,
-          ...(outcome === "query"
-            ? {}
-            : {
-                groupBy: "",
-                metrics: [],
-                message: outcome === "not_in_source" ? "" : "Уточните вопрос.",
-              }),
-        };
-        expect(() => decodeOutcome(wire)).not.toThrow();
-      }
-    },
-  );
+  it("accepts the bounded compound shape and rejects over-limit batches or parts", () => {
+    const answer = {
+      outcome: "answer" as const,
+      message: "",
+      queries: [],
+      answerParts: Array.from({ length: 8 }, (_, index) => ({
+        kind: "values" as const,
+        evidenceIds: [`value-${index}`],
+        operation: "none" as const,
+      })),
+    };
+    const firstPart = answer.answerParts[0];
+    const firstQuery = queryWire.queries[0];
+    if (!firstPart || !firstQuery)
+      throw new Error("Test fixture is incomplete.");
+    expect(() => decodeOutcome(answer)).not.toThrow();
+    expect(() =>
+      decodeOutcome({
+        ...answer,
+        answerParts: [...answer.answerParts, firstPart],
+      }),
+    ).toThrow();
+    expect(() =>
+      providerEnvelopeSchema.parse({
+        ...queryWire,
+        queries: Array.from({ length: 5 }, () => firstQuery),
+      }),
+    ).toThrow();
+  });
 
-  it.each([
-    "query",
-    "clarification",
-    "not_in_source",
-    "unsupported_operation",
-  ] as const)("rejects non-empty evidence on %s outcomes", (outcome) => {
+  it("rejects invalid operations and non-answer parts", () => {
     expect(() =>
       decodeOutcome({
         ...queryWire,
-        outcome,
-        answerEvidenceIds: ["paragraph-1"],
-        ...(outcome === "query"
-          ? {}
-          : { groupBy: "", metrics: [], message: "Уточните вопрос." }),
+        outcome: "clarification",
+        message: "Уточните запрос.",
+        queries: [],
+        answerParts: [
+          { kind: "values", evidenceIds: ["x"], operation: "none" },
+        ],
       }),
-    ).toThrow(/answer proposal fields/i);
+    ).toThrow();
+    expect(() =>
+      decodeOutcome({
+        outcome: "answer",
+        message: "",
+        queries: [],
+        answerParts: [
+          { kind: "values", evidenceIds: ["x"], operation: "difference" },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it("requires zero answer parts on non-answer outcomes", () => {
+    for (const outcome of ["clarification", "unsupported_operation"] as const)
+      expect(() =>
+        decodeOutcome({
+          ...queryWire,
+          outcome,
+          queries: [],
+          message: "Уточните вопрос.",
+        }),
+      ).not.toThrow();
+    expect(() =>
+      decodeOutcome({
+        ...queryWire,
+        outcome: "query",
+        answerParts: [
+          { kind: "values", evidenceIds: ["x"], operation: "none" },
+        ],
+      }),
+    ).toThrow();
   });
 
   it("emits a strict required root schema for structured output", async () => {
@@ -97,11 +122,18 @@ describe("provider query wire contract", () => {
   it("decodes a quarterly date bucket into groupBy", () => {
     const wire = providerQueryEnvelopeSchema.parse({
       ...queryWire,
-      groupBy: "date",
-      groupByDateBucket: "quarter",
-      orderBy: [],
+      queries: [
+        {
+          ...queryWire.queries[0],
+          groupBy: "date",
+          groupByDateBucket: "quarter",
+          orderBy: [],
+        },
+      ],
     });
-    expect(decodeQuery(wire, "query-id").groupBy).toEqual({
+    const query = wire.queries[0];
+    if (!query) throw new Error("Test fixture is incomplete.");
+    expect(decodeQuery(query, "query-id").groupBy).toEqual({
       fieldId: "date",
       dateBucket: "quarter",
     });
@@ -118,10 +150,17 @@ describe("provider query wire contract", () => {
 
   it("keeps a semantically invalid sort available for the repair stage", () => {
     const wire = providerQueryEnvelopeSchema.parse(queryWire);
-    const outcome = decodeOutcome(wire);
+    const query = wire.queries[0];
+    if (!query) throw new Error("Test fixture is incomplete.");
 
-    expect(() => decodeQuery(outcome, "query-id")).toThrow(
-      /exactly one field or metric/i,
-    );
+    expect(() =>
+      decodeQuery(
+        {
+          ...query,
+          orderBy: [{ fieldId: "sales", metricId: "total", direction: "desc" }],
+        },
+        "query-id",
+      ),
+    ).toThrow(/exactly one field or metric/i);
   });
 });

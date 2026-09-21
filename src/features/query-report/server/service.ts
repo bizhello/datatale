@@ -200,7 +200,14 @@ function renderTypedPart(
         : input.unit;
     const operands = part.evidenceIds.map((id, index) => {
       const value = evidence.get(id)?.values?.find((item) => item.id === id);
-      return `${value?.label ?? "Значение"} (${formatAnswerValue(input.values[index] as number)}${value?.unit ? ` ${value.unit}` : ""})`;
+      const owner = value ? evidence.get(value.referenceId) : undefined;
+      const group = owner?.values?.find(
+        (item) => item.id === `${value?.referenceId}:key`,
+      );
+      const label = group
+        ? `${value?.label ?? "Значение"} (${formatAnswerValue(group.value)})`
+        : (value?.label ?? "Значение");
+      return `${label} (${formatAnswerValue(input.values[index] as number)}${value?.unit ? ` ${value.unit}` : ""})`;
     });
     const symbol =
       part.operation === "sum"
