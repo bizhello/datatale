@@ -556,6 +556,7 @@ describe("planned grounded chat", () => {
           limit: 1,
         }),
       )
+      .mockResolvedValueOnce(wireAnswer("Да", [{ id: "missing" }]))
       .mockResolvedValueOnce(wireAnswer("Да", [{ id: "missing" }]));
     await expect(
       answerChat(
@@ -567,7 +568,7 @@ describe("planned grounded chat", () => {
         },
       ),
     ).rejects.toMatchObject({ code: "invalid_provider_output" });
-    expect(provider).toHaveBeenCalledTimes(3);
+    expect(provider).toHaveBeenCalledTimes(4);
     expect(executor.execute).toHaveBeenCalledOnce();
   });
 

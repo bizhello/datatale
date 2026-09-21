@@ -40,7 +40,7 @@ function boundedEvidence(value: string) {
   return value.slice(0, CHAT_EVIDENCE_MAX_LENGTH);
 }
 const numericToken =
-  /(?<![\p{L}\d])(?:\d{4}-\d{2}-\d{2}|[+\-−]?(?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?|\d*[.,]\d+))(?![\p{L}\d])/gu;
+  /(?<![\p{L}\d])(?:\d{4}-\d{2}-\d{2}|[+\-−]?(?:\d{1,3}(?:[ .,'’\u00a0\u202f]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?|\d*[.,]\d+))(?![\p{L}\d])/gu;
 const isoDateToken = /\b\d{4}-\d{2}-\d{2}\b/gu;
 export function isoDateValues(value: string) {
   return value.match(isoDateToken) ?? [];
@@ -49,10 +49,41 @@ export function numericValues(value: string) {
   return (
     value.match(numericToken)?.flatMap((token) => {
       if (isoDateValues(token).length > 0) return [];
-      const normalized = token
-        .replace(/[ \u00a0\u202f]/gu, "")
-        .replace(",", ".")
-        .replace("−", "-");
+      const sign =
+        token.startsWith("-") || token.startsWith("−")
+          ? "-"
+          : token.startsWith("+")
+            ? "+"
+            : "";
+      const unsigned = token
+        .replace(/^[+\-−]/u, "")
+        .replace(/[ \u00a0\u202f'’]/gu, "");
+      const commas = [...unsigned.matchAll(/,/gu)].map(
+        (match) => match.index ?? -1,
+      );
+      const dots = [...unsigned.matchAll(/\./gu)].map(
+        (match) => match.index ?? -1,
+      );
+      const lastComma = commas.at(-1) ?? -1;
+      const lastDot = dots.at(-1) ?? -1;
+      let normalized = unsigned;
+      if (lastComma >= 0 && lastDot >= 0) {
+        const decimal = Math.max(lastComma, lastDot);
+        const separator = unsigned[decimal];
+        normalized = unsigned.replace(/[.,]/gu, (_value, index) =>
+          index === decimal ? "." : "",
+        );
+        if (separator !== "," && separator !== ".") return [];
+      } else if (lastComma >= 0 || lastDot >= 0) {
+        const separator = lastComma >= 0 ? "," : ".";
+        const index = lastComma >= 0 ? lastComma : lastDot;
+        const fractionLength = unsigned.length - index - 1;
+        normalized =
+          fractionLength === 3 && index > 0
+            ? unsigned.replace(separator, "")
+            : unsigned.replace(separator, ".");
+      }
+      normalized = sign + normalized;
       const parsed = Number(normalized);
       return Number.isFinite(parsed) ? [parsed] : [];
     }) ?? []

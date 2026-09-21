@@ -23,41 +23,83 @@ function compatible(observations: TextObservation[]): boolean {
     new Set(observations.map((item) => item.unit)).size === 1
   );
 }
-function periodRank(period: string): number | undefined {
-  const normalized = period.toLocaleLowerCase("ru-RU");
-  const iso = normalized.match(/\b(\d{4})-(\d{2})(?:-(\d{2}))?\b/u);
+type ParsedPeriod = { key: string; rank: number };
+
+/** Parse the complete period token. Substring matches are deliberately rejected. */
+function parsePeriod(period: string): ParsedPeriod | undefined {
+  const value = period
+    .trim()
+    .toLocaleLowerCase("ru-RU")
+    .replace(/^(?:в|за|на|к|по)\s+/u, "");
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/u);
   if (iso) {
     const year = Number(iso[1]);
     const month = Number(iso[2]);
-    const day = Number(iso[3] ?? 1);
+    const day = Number(iso[3]);
     const date = new Date(Date.UTC(year, month - 1, day));
     if (
-      date.getUTCFullYear() === year &&
-      date.getUTCMonth() === month - 1 &&
-      date.getUTCDate() === day
+      date.getUTCFullYear() !== year ||
+      date.getUTCMonth() !== month - 1 ||
+      date.getUTCDate() !== day
     )
-      return date.getTime();
+      return undefined;
+    return { key: `${year}-${month}-${day}`, rank: date.getTime() };
   }
-  const monthStems = [
-    ["январ", "january"],
-    ["феврал", "february"],
-    ["март", "march"],
-    ["апрел", "april"],
-    ["мая", "май", "may"],
-    ["июн", "june"],
-    ["июл", "july"],
-    ["август", "august"],
-    ["сентябр", "september"],
-    ["октябр", "october"],
-    ["ноябр", "november"],
-    ["декабр", "december"],
+  const months = [
+    /январ(?:ь|я|е|ю|ём|ем)?/u,
+    /феврал(?:ь|я|е|ю|ём|ем)?/u,
+    /март(?:а|е|у|ом)?/u,
+    /апрел(?:ь|я|е|ю|ем)?/u,
+    /ма(?:й|я|е|ю|ем)/u,
+    /июн(?:ь|я|е|ю|ем)?/u,
+    /июл(?:ь|я|е|ю|ем)?/u,
+    /август(?:а|е|у|ом)?/u,
+    /сентябр(?:ь|я|е|ю|ем)?/u,
+    /октябр(?:ь|я|е|ю|ем)?/u,
+    /ноябр(?:ь|я|е|ю|ем)?/u,
+    /декабр(?:ь|я|е|ю|ем)?/u,
+    /january/u,
+    /february/u,
+    /march/u,
+    /april/u,
+    /may/u,
+    /june/u,
+    /july/u,
+    /august/u,
+    /september/u,
+    /october/u,
+    /november/u,
+    /december/u,
   ];
-  const month = monthStems.findIndex((stems) =>
-    stems.some((stem) => normalized.includes(stem)),
+  const monthPattern = months.map((item) => item.source).join("|");
+  const named = value.match(
+    new RegExp(
+      `^(?:(\\d{1,2})\\s+)?(${monthPattern})(?:\\s+(\\d{4})(?:\\s+г(?:од(?:а|у|ом|е)?)?\\.?)?)?$`,
+      "u",
+    ),
   );
-  if (month < 0) return undefined;
-  const year = normalized.match(/\b(19|20)\d{2}\b/u)?.[0];
-  return Date.UTC(year ? Number(year) : 1970, month, 1);
+  if (!named) return undefined;
+  const month =
+    months.findIndex((item) =>
+      new RegExp(`^(?:${item.source})$`, "u").test(named[2] as string),
+    ) % 12;
+  const day = named[1] ? Number(named[1]) : undefined;
+  const year = named[3] ? Number(named[3]) : 0;
+  if (month < 0 || (day !== undefined && (day < 1 || day > 31)))
+    return undefined;
+  if (day !== undefined && year > 0) {
+    const date = new Date(Date.UTC(year, month, day));
+    if (date.getUTCMonth() !== month || date.getUTCDate() !== day)
+      return undefined;
+  }
+  const rank = Date.UTC(year, month, day ?? 1);
+  return {
+    key:
+      day === undefined
+        ? `${year}-${month + 1}`
+        : `${year}-${month + 1}-${day}`,
+    rank,
+  };
 }
 
 /** Builds points only for explicit model-proposed groups after compatibility checks. */
@@ -118,10 +160,13 @@ export function calculateObservationCharts(
       continue;
     }
     if (group.kind === "line") {
+      const periods = items.map((item) =>
+        item.period === null ? undefined : parsePeriod(item.period),
+      );
       if (
         items.some((item) => item.period === null) ||
         new Set(items.map((item) => item.subject)).size !== 1 ||
-        items.some((item) => periodRank(item.period as string) === undefined) ||
+        periods.some((period) => period === undefined) ||
         group.derivation !== "direct"
       ) {
         reject(
@@ -129,11 +174,16 @@ export function calculateObservationCharts(
         );
         continue;
       }
+      const periodKeys = periods.map((period) => period?.key);
+      if (new Set(periodKeys).size !== periodKeys.length) {
+        reject("Line charts require distinct normalized periods.");
+        continue;
+      }
       items.sort((left, right) => {
-        const leftRank = periodRank(left.period as string);
-        const rightRank = periodRank(right.period as string);
-        if (leftRank === undefined || rightRank === undefined) return 0;
-        return leftRank - rightRank;
+        return (
+          (parsePeriod(left.period as string)?.rank ?? 0) -
+          (parsePeriod(right.period as string)?.rank ?? 0)
+        );
       });
     }
     let points: Array<{ label: string; value: number }>;

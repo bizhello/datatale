@@ -24,6 +24,7 @@ type ArithmeticReference = {
 };
 
 const EPSILON = 1e-9;
+export const MAX_ARITHMETIC_OPERANDS = 8;
 
 function closeEnough(actual: number, expected: number) {
   return (
@@ -50,9 +51,14 @@ export function validateArithmetic(
       fail("empty calculation must use empty operands and zero result.");
     return undefined;
   }
-  if (input.referenceIds.length !== 2 || input.values.length !== 2)
-    fail("calculation requires exactly two operands.");
-  for (let index = 0; index < 2; index += 1) {
+  const operandCount = input.values.length;
+  if (operandCount < 2 || operandCount > MAX_ARITHMETIC_OPERANDS)
+    fail(`calculation requires 2-${MAX_ARITHMETIC_OPERANDS} operands.`);
+  if (input.referenceIds.length !== operandCount)
+    fail("every operand requires a reference.");
+  if (input.kind !== "sum" && operandCount !== 2)
+    fail("only sums may contain more than two operands.");
+  for (let index = 0; index < operandCount; index += 1) {
     const referenceId = input.referenceIds[index] as string;
     if (!citedReferenceIds.has(referenceId))
       fail("every operand must be cited in the answer references.");
@@ -75,9 +81,22 @@ export function validateArithmetic(
     ?.numericEvidence?.find((item) => closeEnough(item.value, second))?.unit;
   if (firstUnit && secondUnit && firstUnit !== secondUnit)
     fail("operands have incompatible units.");
+  const units = input.referenceIds.map(
+    (referenceId, index) =>
+      evidence
+        .get(referenceId)
+        ?.numericEvidence?.find((item) =>
+          closeEnough(item.value, input.values[index] as number),
+        )?.unit,
+  );
+  const knownUnits = units.filter((unit): unit is string => Boolean(unit));
+  if (knownUnits.some((unit) => unit !== knownUnits[0]))
+    fail("operands have incompatible units.");
   if (input.unit && firstUnit && input.unit !== firstUnit)
     fail("result unit does not match the operand unit.");
   if (input.unit && secondUnit && input.unit !== secondUnit)
+    fail("result unit does not match the operand unit.");
+  if (input.unit && knownUnits.some((unit) => input.unit !== unit))
     fail("result unit does not match the operand unit.");
   if (input.kind === "ratio" && second === 0)
     fail("ratio cannot divide by zero.");
@@ -88,7 +107,7 @@ export function validateArithmetic(
     fail("percentage change cannot use a zero baseline.");
   const expected =
     input.kind === "sum"
-      ? first + second
+      ? input.values.reduce((sum, value) => sum + value, 0)
       : input.kind === "difference"
         ? first - second
         : input.kind === "ratio"

@@ -122,6 +122,39 @@ describe("calculateObservationCharts", () => {
     ]);
   });
 
+  it("sorts shuffled consecutive September days and rejects normalized duplicates", () => {
+    const observations = [
+      observation("16", "Revenue", 160, "16 сентября 2026"),
+      observation("14", "Revenue", 140, "2026-09-14"),
+      observation("15", "Revenue", 150, "15 сентября 2026"),
+    ];
+    const group = {
+      id: "daily",
+      kind: "line" as const,
+      title: "Дни",
+      rationale: "Дни",
+      observationIds: ["16", "14", "15"],
+      derivation: "direct" as const,
+    };
+    expect(
+      calculateObservationCharts(observations, [group], (id) => id)[0]?.points,
+    ).toEqual([
+      { label: "2026-09-14", value: 140 },
+      { label: "15 сентября 2026", value: 150 },
+      { label: "16 сентября 2026", value: 160 },
+    ]);
+    expect(
+      calculateObservationCharts(
+        [
+          observation("iso", "Revenue", 140, "2026-09-14"),
+          observation("ru", "Revenue", 141, "14 сентября 2026"),
+        ],
+        [{ ...group, observationIds: ["iso", "ru"] }],
+        (id) => id,
+      ),
+    ).toEqual([]);
+  });
+
   it("orders ISO and named dated periods on the same time scale", () => {
     const charts = calculateObservationCharts(
       [
