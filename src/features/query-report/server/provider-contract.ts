@@ -25,7 +25,7 @@ export const providerEnvelopeSchema = z
       )
       .max(7),
     queryId: z.string().max(160),
-    purpose: z.enum(["lookup", "count"]).default("count"),
+    purpose: z.enum(["lookup", "count"]),
     filters: z
       .array(
         z
@@ -57,10 +57,7 @@ export const providerEnvelopeSchema = z
       )
       .max(20),
     groupBy: z.string().max(160),
-    groupByDateBucket: z
-      .enum(["day", "month", "quarter", "year"])
-      .or(z.literal(""))
-      .default(""),
+    groupByDateBucket: z.enum(["", "day", "month", "quarter", "year"]),
     select: z.array(z.string().max(160)).max(30),
     metrics: z
       .array(

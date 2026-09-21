@@ -1,8 +1,10 @@
+import { zodSchema } from "ai";
 import { describe, expect, it } from "vitest";
 import { datasetQuerySchema } from "@/entities/dataset";
 import {
   decodeOutcome,
   decodeQuery,
+  providerEnvelopeSchema,
   providerQueryEnvelopeSchema,
 } from "./provider-contract";
 
@@ -14,8 +16,10 @@ const queryWire = {
   message: "",
   references: [],
   queryId: "",
+  purpose: "count" as const,
   filters: [],
   groupBy: "city",
+  groupByDateBucket: "",
   select: [],
   metrics: [{ id: "total", aggregation: "sum" as const, fieldId: "sales" }],
   orderBy: [
@@ -31,6 +35,21 @@ const queryWire = {
 };
 
 describe("provider query wire contract", () => {
+  it("emits a strict required root schema for structured output", async () => {
+    const schema = await zodSchema(providerEnvelopeSchema).jsonSchema;
+    const properties = Object.keys(schema.properties ?? {});
+    expect(schema.required).toEqual(expect.arrayContaining(properties));
+
+    const visit = (value: unknown) => {
+      if (!value || typeof value !== "object") return;
+      expect(value).not.toHaveProperty("anyOf");
+      expect(value).not.toHaveProperty("oneOf");
+      expect(value).not.toHaveProperty("default");
+      for (const child of Object.values(value)) visit(child);
+    };
+    visit(schema);
+  });
+
   it("decodes a quarterly date bucket into groupBy", () => {
     const wire = providerQueryEnvelopeSchema.parse({
       ...queryWire,
