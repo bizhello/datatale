@@ -443,9 +443,9 @@ async function answerChatCore(
     question: parsed.question,
     history,
   };
-  let intent: ProviderEnvelope;
+  let candidate: unknown;
   try {
-    intent = decodeOutcome(await callProvider(provider, profile, signal));
+    candidate = await callProvider(provider, profile, signal);
   } catch (error) {
     if (error instanceof ChatProviderError) throw error;
     throw new ChatProviderError(
@@ -455,15 +455,16 @@ async function answerChatCore(
         : "Provider returned invalid query intent.",
     );
   }
-  if (intent.outcome === "clarification") return clarification(intent.message);
-  if (intent.outcome === "unsupported_operation")
-    return unsupported(intent.message);
   let query: DatasetQuery;
-  let candidate = intent;
   for (let attempt = 0; ; attempt += 1) {
     try {
+      const intent = decodeOutcome(candidate);
+      if (intent.outcome === "clarification")
+        return clarification(intent.message);
+      if (intent.outcome === "unsupported_operation")
+        return unsupported(intent.message);
       query = validateQuery(
-        decodeQuery(candidate, parsed.messageId),
+        decodeQuery(intent, parsed.messageId),
         context.source,
         parsed.question,
       );
@@ -475,19 +476,17 @@ async function answerChatCore(
           error instanceof Error ? error.message : "Invalid query plan.",
         );
       try {
-        candidate = decodeOutcome(
-          await callProvider(
-            provider,
-            {
-              kind: "repair",
-              question: parsed.question,
-              profile,
-              invalidQuery: candidate,
-              error: error instanceof Error ? error.message : "Invalid query",
-            },
-            signal,
-            "query",
-          ),
+        candidate = await callProvider(
+          provider,
+          {
+            kind: "repair",
+            question: parsed.question,
+            profile,
+            invalidQuery: candidate,
+            error: error instanceof Error ? error.message : "Invalid query",
+          },
+          signal,
+          "query",
         );
       } catch (repairError) {
         if (repairError instanceof ChatProviderError) throw repairError;

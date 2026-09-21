@@ -208,10 +208,7 @@ export function decodeOutcome(raw: unknown): ProviderEnvelope {
       output.calculationUnit !== "")
   )
     throw new Error("Non-answer outcome contains calculation fields.");
-  if (
-    output.outcome !== "answer" &&
-    (output.answerMode !== "quote" || output.answerEvidenceIds.length > 0)
-  )
+  if (output.outcome !== "answer" && output.answerEvidenceIds.length > 0)
     throw new Error("Non-answer outcome contains answer proposal fields.");
   if (
     output.outcome === "answer" &&

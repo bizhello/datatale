@@ -848,6 +848,57 @@ describe("planned grounded chat", () => {
     expect(executor.execute).toHaveBeenCalledOnce();
   });
 
+  it("repairs an invalid initial structured outcome before executing the plan", async () => {
+    const executor = {
+      execute: vi.fn(async (_dataset: Dataset, query: DatasetQuery) => ({
+        queryId: query.queryId,
+        rows: [{ city: "Краснодар" }],
+        groups: [],
+        metrics: {},
+        matchedRows: 1,
+        scannedRows: 1,
+        returnedRows: 1,
+        truncated: false,
+        rowReferences: [{ rowId: "r1", sourceRowNumber: 2 }],
+      })),
+    };
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ...wireQuery({ select: ["city"], limit: 1 }),
+        answerEvidenceIds: ["invalid"],
+      })
+      .mockResolvedValueOnce(wireQuery({ select: ["city"], limit: 1 }))
+      .mockResolvedValueOnce(
+        wireAnswer("Краснодар", [{ id: "row-r1" }], ["row-r1:field:city"]),
+      );
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(dataset),
+        provider,
+        queryExecutor: executor,
+      }),
+    ).resolves.toMatchObject({ outcome: "answered" });
+    expect(provider).toHaveBeenCalledTimes(3);
+    expect(executor.execute).toHaveBeenCalledOnce();
+  });
+
+  it("fails after one repeated invalid initial structured outcome", async () => {
+    const invalid = {
+      ...wireQuery({ select: ["city"], limit: 1 }),
+      answerEvidenceIds: ["invalid"],
+    };
+    const provider = vi.fn().mockResolvedValue(invalid);
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(dataset),
+        provider,
+        queryExecutor: { execute: vi.fn() },
+      }),
+    ).rejects.toMatchObject({ code: "invalid_provider_output" });
+    expect(provider).toHaveBeenCalledTimes(2);
+  });
+
   it("repairs a premature dataset absence before returning the canonical refusal", async () => {
     const executor = {
       execute: vi.fn(async (_dataset: Dataset, query: DatasetQuery) => ({

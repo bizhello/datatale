@@ -35,6 +35,50 @@ const queryWire = {
 };
 
 describe("provider query wire contract", () => {
+  it.each(["quote", "values", "calculation"] as const)(
+    "accepts inactive %s mode on non-answer outcomes with empty evidence",
+    (answerMode) => {
+      for (const outcome of [
+        "query",
+        "clarification",
+        "not_in_source",
+        "unsupported_operation",
+      ] as const) {
+        const wire = {
+          ...queryWire,
+          outcome,
+          answerMode,
+          ...(outcome === "query"
+            ? {}
+            : {
+                groupBy: "",
+                metrics: [],
+                message: outcome === "not_in_source" ? "" : "Уточните вопрос.",
+              }),
+        };
+        expect(() => decodeOutcome(wire)).not.toThrow();
+      }
+    },
+  );
+
+  it.each([
+    "query",
+    "clarification",
+    "not_in_source",
+    "unsupported_operation",
+  ] as const)("rejects non-empty evidence on %s outcomes", (outcome) => {
+    expect(() =>
+      decodeOutcome({
+        ...queryWire,
+        outcome,
+        answerEvidenceIds: ["paragraph-1"],
+        ...(outcome === "query"
+          ? {}
+          : { groupBy: "", metrics: [], message: "Уточните вопрос." }),
+      }),
+    ).toThrow(/answer proposal fields/i);
+  });
+
   it("emits a strict required root schema for structured output", async () => {
     const schema = await zodSchema(providerEnvelopeSchema).jsonSchema;
     const properties = Object.keys(schema.properties ?? {});
