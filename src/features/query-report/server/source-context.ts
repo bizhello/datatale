@@ -453,8 +453,9 @@ export function resultReferences(
     seen.add(reference.rowId);
     const rowEvidence = sourceReferences({ ...source, rows: [row] })[0];
     if (!rowEvidence?.excerpt) continue;
+    const rowReferenceId = `row-${result.queryId}-${row.id}`;
     references.push({
-      id: `row-${row.id}`,
+      id: rowReferenceId,
       queryId: result.queryId,
       excerpt: rowEvidence.excerpt,
       ...(rowEvidence.numericValues
@@ -465,11 +466,11 @@ export function resultReferences(
         : {}),
       ...(rowEvidence.isoDates ? { isoDates: rowEvidence.isoDates } : {}),
       values: source.columns.map((column) => ({
-        id: `row-${row.id}:field:${column.id}`,
+        id: `${rowReferenceId}:field:${column.id}`,
         label: column.label,
         value: row.values[column.id] ?? null,
         ...(column.unit ? { unit: column.unit } : {}),
-        referenceId: `row-${row.id}`,
+        referenceId: rowReferenceId,
       })),
     });
     if (references.length >= 100) break;

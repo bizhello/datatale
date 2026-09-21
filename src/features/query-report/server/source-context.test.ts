@@ -127,6 +127,56 @@ describe("sourceReferences", () => {
     }
   });
 
+  it("namespaces overlapping row evidence by application query ID", () => {
+    const source: Dataset = {
+      version: 1,
+      id: "overlap",
+      source: { kind: "csv" },
+      columns: [{ id: "city", label: "Город", scalarType: "string" }],
+      rows: [
+        {
+          id: "r1",
+          values: { city: "Москва" },
+          provenance: { sourceRowNumber: 2 },
+        },
+      ],
+    };
+    const result = (queryId: string) =>
+      resultReferences(
+        {
+          queryId,
+          rows: [{ city: "Москва" }],
+          groups: [],
+          metrics: {},
+          matchedRows: 1,
+          scannedRows: 1,
+          returnedRows: 1,
+          truncated: false,
+          rowReferences: [{ rowId: "r1", sourceRowNumber: 2 }],
+        },
+        source,
+        {
+          queryId,
+          purpose: "count",
+          filters: [],
+          select: ["city"],
+          metrics: [],
+          orderBy: [],
+          limit: 1,
+        },
+      );
+    const first = result("q1");
+    const second = result("q2");
+    expect(first.find((item) => item.id === "row-q1-r1")?.queryId).toBe("q1");
+    expect(second.find((item) => item.id === "row-q2-r1")?.queryId).toBe("q2");
+    expect(
+      first.find((item) => item.id === "row-q1-r1:field:city")?.queryId,
+    ).toBe("q1");
+    expect(
+      second.find((item) => item.id === "row-q2-r1:field:city")?.queryId,
+    ).toBe("q2");
+  });
+
   it("keeps a row date grounded when it follows a truncated display field", () => {
     const source: Dataset = {
       version: 1,
