@@ -477,6 +477,8 @@ describe("useAnalysis HTTP lifecycle", () => {
     const { result } = renderHook(() => useAnalysis(source));
 
     await act(async () => result.current.run());
+    expect(result.current.state.status).toBe("error");
+    if (result.current.state.status !== "error") return;
     expect(result.current.state.error).toBe("quota");
     await act(async () => result.current.run());
 
