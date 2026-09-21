@@ -127,6 +127,25 @@ describe("localized date evidence", () => {
     ).toThrow(/date absent/i);
   });
 
+  it("does not treat words sharing a month stem as date evidence", () => {
+    const textEvidence = new Map([
+      [
+        "paragraph-1",
+        {
+          id: "paragraph-1",
+          excerpt:
+            "В зоопарке живёт мартышка, рядом установлен бюст августейшего императора.",
+          numericValues: [],
+        },
+      ],
+    ]);
+
+    for (const answer of ["Событие было в марте.", "Событие было в августе."])
+      expect(() =>
+        validateAnswerReferences(answer, [{ id: "paragraph-1" }], textEvidence),
+      ).toThrow(/date absent/i);
+  });
+
   it("validates both ends of a Russian date range", () => {
     const unrelatedNumbers = new Map([
       [
