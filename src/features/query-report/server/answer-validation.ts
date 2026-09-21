@@ -10,7 +10,9 @@ type QueryResultReference = {
 };
 
 const russianMonth =
-  /(?:(\d{1,2})\s+)?(январ\p{L}*|феврал\p{L}*|март\p{L}*|апрел\p{L}*|ма[йяею]|июн\p{L}*|июл\p{L}*|август\p{L}*|сентябр\p{L}*|октябр\p{L}*|ноябр\p{L}*|декабр\p{L}*)(?:\s+(\d{4})(?:\s+г(?:од(?:а|у|ом|е)?)?\.?)?)?/giu;
+  /(?<!\p{L})(?:(\d{1,2})\s+)?(январ\p{L}*|феврал\p{L}*|март\p{L}*|апрел\p{L}*|ма[йяею]|июн\p{L}*|июл\p{L}*|август\p{L}*|сентябр\p{L}*|октябр\p{L}*|ноябр\p{L}*|декабр\p{L}*)(?:\s+(\d{4})(?:\s+г(?:од(?:а|у|ом|е)?)?\.?)?)?(?!\p{L})/giu;
+const russianDateRange =
+  /(?<!\p{L})(\d{1,2})\s*(?:[-–—]|по)\s*(\d{1,2})\s+(январ\p{L}*|феврал\p{L}*|март\p{L}*|апрел\p{L}*|ма[йяею]|июн\p{L}*|июл\p{L}*|август\p{L}*|сентябр\p{L}*|октябр\p{L}*|ноябр\p{L}*|декабр\p{L}*)(?:\s+(\d{4})(?:\s+г(?:од(?:а|у|ом|е)?)?\.?)?)?(?!\p{L})/giu;
 const monthNumber = (value: string) => {
   const normalized = value.toLocaleLowerCase("ru-RU");
   const stems = [
@@ -32,11 +34,42 @@ const monthNumber = (value: string) => {
 type LocalizedDate = { day?: number; month: number; year?: number };
 
 function localizedDates(value: string): LocalizedDate[] {
-  return [...value.matchAll(russianMonth)].map((match) => ({
+  const ranges = [...value.matchAll(russianDateRange)].map((match) => ({
+    day: Number(match[1]),
+    month: monthNumber(match[3] ?? ""),
+    ...(match[4] ? { year: Number(match[4]) } : {}),
+  }));
+  const dates = [...value.matchAll(russianMonth)].map((match) => ({
     ...(match[1] ? { day: Number(match[1]) } : {}),
     month: monthNumber(match[2] ?? ""),
     ...(match[3] ? { year: Number(match[3]) } : {}),
   }));
+  return [...ranges, ...dates];
+}
+
+function dateSupported(
+  date: LocalizedDate,
+  evidenceDates: Set<string>,
+  localizedEvidence: LocalizedDate[],
+) {
+  return (
+    [...evidenceDates].some((sourceDate) => {
+      const [sourceYear, sourceMonth, sourceDay] = sourceDate
+        .split("-")
+        .map(Number);
+      return (
+        sourceMonth === date.month &&
+        (date.day === undefined || sourceDay === date.day) &&
+        (date.year === undefined || sourceYear === date.year)
+      );
+    }) ||
+    localizedEvidence.some(
+      (source) =>
+        source.month === date.month &&
+        (date.day === undefined || source.day === date.day) &&
+        (date.year === undefined || source.year === date.year),
+    )
+  );
 }
 
 function localizedDateNumbers(
@@ -47,24 +80,7 @@ function localizedDateNumbers(
   const numbers = new Set<number>();
   const localizedEvidence = evidenceExcerpts.flatMap(localizedDates);
   for (const date of localizedDates(answer)) {
-    const supported =
-      [...evidenceDates].some((sourceDate) => {
-        const [sourceYear, sourceMonth, sourceDay] = sourceDate
-          .split("-")
-          .map(Number);
-        return (
-          sourceMonth === date.month &&
-          (date.day === undefined || sourceDay === date.day) &&
-          (date.year === undefined || sourceYear === date.year)
-        );
-      }) ||
-      localizedEvidence.some(
-        (source) =>
-          source.month === date.month &&
-          (date.day === undefined || source.day === date.day) &&
-          (date.year === undefined || source.year === date.year),
-      );
-    if (!supported)
+    if (!dateSupported(date, evidenceDates, localizedEvidence))
       throw new Error("Answer contains a date absent from cited evidence.");
     if (date.day !== undefined) numbers.add(date.day);
     if (date.year !== undefined) numbers.add(date.year);
@@ -118,8 +134,16 @@ export function validateAnswerReferences(
           1e-9 * Math.max(1, Math.abs(derivedValue)))
     )
       throw new Error("Answer contains a number absent from cited evidence.");
-  for (const date of isoDateValues(answer))
-    if (!evidenceDates.has(date))
+  const localizedEvidence = trusted.flatMap((reference) =>
+    localizedDates(reference.excerpt),
+  );
+  for (const date of isoDateValues(answer)) {
+    const parts = date.split("-");
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    const day = Number(parts[2]);
+    if (!dateSupported({ day, month, year }, evidenceDates, localizedEvidence))
       throw new Error("Answer contains a date absent from cited evidence.");
+  }
   return trusted;
 }
