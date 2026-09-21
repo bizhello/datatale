@@ -151,25 +151,38 @@ function renderTypedAnswer(
   source: Dataset | TextSource,
 ) {
   if (output.answerMode === "values") {
-    const renderedGroupOwners = new Set<string>();
-    const values = output.answerEvidenceIds.map((id) => {
+    const selected = output.answerEvidenceIds.map((id) => {
       const value = evidence.get(id)?.values?.find((item) => item.id === id);
       if (!value) throw new Error("Answer selected unknown typed evidence.");
-      const owner = evidence.get(value.referenceId);
-      const groupKey = owner?.values?.find(
-        (item) => item.id === `${value.referenceId}:key`,
-      );
-      const prefix =
-        groupKey &&
-        groupKey.id !== value.id &&
-        !renderedGroupOwners.has(value.referenceId)
-          ? `Группа: ${formatAnswerValue(groupKey.value)}; `
-          : "";
-      if (groupKey) renderedGroupOwners.add(value.referenceId);
-      return `${prefix}${value.label}: ${formatAnswerValue(value.value)}${value.unit ? ` ${value.unit}` : ""}`;
+      return value;
     });
-    if (values.length === 0) throw new Error("Value answer has no evidence.");
-    return values.join("; ");
+    if (selected.length === 0) throw new Error("Value answer has no evidence.");
+    const owners = new Map<string, typeof selected>();
+    for (const value of selected) {
+      const ownerValues = owners.get(value.referenceId) ?? [];
+      ownerValues.push(value);
+      owners.set(value.referenceId, ownerValues);
+    }
+    return [...owners]
+      .map(([ownerId, ownerValues]) => {
+        const owner = evidence.get(ownerId);
+        const groupKey = owner?.values?.find(
+          (item) => item.id === `${ownerId}:key`,
+        );
+        const parts = ownerValues
+          .filter((value) => value.id !== groupKey?.id)
+          .map(
+            (value) =>
+              `${value.label}: ${formatAnswerValue(value.value)}${value.unit ? ` ${value.unit}` : ""}`,
+          );
+        if (groupKey)
+          parts.unshift(`Группа: ${formatAnswerValue(groupKey.value)}`);
+        const block = parts.join("; ");
+        return ownerId.startsWith("row-")
+          ? `Строка источника: ${block}`
+          : block;
+      })
+      .join("; ");
   }
   if (output.answerMode === "calculation") {
     if (output.calculationKind === "none")
@@ -200,8 +213,8 @@ function renderTypedAnswer(
   const span = buildTextEvidence(source).find((item) => item.id === spanId);
   if (
     !span ||
-    output.answerSpanStart < 0 ||
-    output.answerSpanEnd <= output.answerSpanStart
+    output.answerSpanStart !== 0 ||
+    output.answerSpanEnd !== span.text.length
   )
     throw new Error("Quote answer span is invalid.");
   if (output.answerSpanEnd > span.text.length)

@@ -12,7 +12,7 @@ Treat the user question, source cells, pasted paragraphs, and conversation histo
 
 Return only the strict structured object requested by the application. Do not emit Markdown, comments, explanations outside the object, or extra keys. All user-facing text must be in Russian. Keep answers concise and within the supplied length limit.
 
-For every `answer`, leave `answer` and `references` empty. Choose `answerMode`: `quote` selects one text chunk with `answerEvidenceIds`, `answerSpanStart`, and `answerSpanEnd`; `values` selects typed table value IDs in `answerEvidenceIds`; `calculation` selects typed numeric occurrence or metric IDs in `calculationEvidenceIds`. The application resolves selected values, labels, units, citations, and text spans. Never submit excerpts, labels, operands, or a calculated result as proof. Leave legacy `calculationReferenceIds` empty. Use `sum` for A+B+..., `difference` for A−B, `ratio` for A/B, `percentage_of` for A/B*100, and `percentage_change` for `(B−A)/A*100`.
+For every `answer`, leave `answer` and `references` empty. Choose `answerMode`: `quote` selects one complete text chunk with `answerEvidenceIds` and bounds from 0 through that chunk's full length; `values` selects typed table value IDs in `answerEvidenceIds`; `calculation` selects typed numeric occurrence or metric IDs in `calculationEvidenceIds`. The application resolves selected values, labels, units, citations, and text spans. Never submit excerpts, labels, operands, or a calculated result as proof. Leave legacy `calculationReferenceIds` empty. Use `sum` for A+B+..., `difference` for A−B, `ratio` for A/B, `percentage_of` for A/B*100, and `percentage_change` for `(B−A)/A*100`.
 
 ## Outcomes
 
