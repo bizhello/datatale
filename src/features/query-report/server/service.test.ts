@@ -55,6 +55,11 @@ function context(
 }
 const emptyWire = {
   purpose: "count",
+  answerMode: "quote",
+  answerEvidenceIds: [],
+  answerSpanStart: -1,
+  answerSpanEnd: -1,
+  calculationEvidenceIds: [],
   answer: "",
   message: "",
   references: [],
@@ -98,6 +103,16 @@ const wireAnswer = (answer: string, references: Array<{ id: string }>) => ({
   answer,
   references: references.map((reference) => ({ ...reference, excerpt: "" })),
 });
+const typedQuote = (id: string, start: number, end: number) => ({
+  ...emptyWire,
+  outcome: "answer" as const,
+  answer: "",
+  references: [],
+  answerMode: "quote" as const,
+  answerEvidenceIds: [id],
+  answerSpanStart: start,
+  answerSpanEnd: end,
+});
 
 describe("planned grounded chat", () => {
   it("gives a text model the complete indexed source and validates paragraph citations", async () => {
@@ -119,6 +134,63 @@ describe("planned grounded chat", () => {
         { id: "paragraph-1", excerpt: "Краснодарская команда победила." },
       ],
     });
+  });
+
+  it("renders a selected text span instead of accepting provider prose", async () => {
+    const source: TextSource = {
+      ...text,
+      rawText: "Dogs: 5; cats: 8.",
+      paragraphs: [{ index: 1, text: "Dogs: 5; cats: 8." }],
+    };
+    const provider = vi.fn().mockResolvedValue(typedQuote("paragraph-1", 0, 7));
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(source),
+        provider,
+      }),
+    ).resolves.toMatchObject({ outcome: "answered", answer: "Dogs: 5" });
+  });
+
+  it("recomputes a typed calculation from occurrence IDs", async () => {
+    const source: TextSource = {
+      ...text,
+      rawText: "8 кошек и 3 собаки.",
+      paragraphs: [{ index: 1, text: "8 кошек и 3 собаки." }],
+    };
+    const provider = vi.fn().mockResolvedValue({
+      ...emptyWire,
+      outcome: "answer",
+      answerMode: "calculation",
+      calculationKind: "difference",
+      calculationEvidenceIds: ["paragraph-1:number:0", "paragraph-1:number:1"],
+    });
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(source),
+        provider,
+      }),
+    ).resolves.toMatchObject({ outcome: "answered", answer: "5" });
+  });
+
+  it("renders a naturally rounded percentage from typed operands", async () => {
+    const source: TextSource = {
+      ...text,
+      rawText: "1 из 3.",
+      paragraphs: [{ index: 1, text: "1 из 3." }],
+    };
+    const provider = vi.fn().mockResolvedValue({
+      ...emptyWire,
+      outcome: "answer",
+      answerMode: "calculation",
+      calculationKind: "percentage_of",
+      calculationEvidenceIds: ["paragraph-1:number:0", "paragraph-1:number:1"],
+    });
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(source),
+        provider,
+      }),
+    ).resolves.toMatchObject({ outcome: "answered", answer: "33.33%" });
   });
 
   it("accepts a localized date quoted by a text source", async () => {
@@ -208,6 +280,49 @@ describe("planned grounded chat", () => {
     ).resolves.toMatchObject({ outcome: "answered", answer: "Продажи: 10." });
     expect(provider).toHaveBeenCalledTimes(2);
     expect(executor.execute).toHaveBeenCalledOnce();
+  });
+
+  it("renders a selected typed table metric with a canonical label", async () => {
+    const executor = {
+      execute: vi.fn(async (_dataset: Dataset, query: DatasetQuery) => ({
+        queryId: query.queryId,
+        rows: [],
+        groups: [],
+        metrics: { total: 10 },
+        matchedRows: 1,
+        scannedRows: 1,
+        returnedRows: 0,
+        truncated: false,
+        rowReferences: [],
+      })),
+    };
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(
+        wireQuery({
+          metrics: [{ id: "total", aggregation: "sum", fieldId: "sales" }],
+          limit: 1,
+        }),
+      )
+      .mockResolvedValueOnce({
+        ...emptyWire,
+        outcome: "answer",
+        answerMode: "values",
+        answerEvidenceIds: [`query-${request.messageId}:metric:total`],
+      });
+    await expect(
+      answerChat(
+        { ...request, question: "Каковы продажи?" },
+        {
+          loadContext: async () => context(dataset),
+          provider,
+          queryExecutor: executor,
+        },
+      ),
+    ).resolves.toMatchObject({
+      outcome: "answered",
+      answer: "Сумма: Продажи: 10",
+    });
   });
 
   it("repairs a sort that references both a field and a metric", async () => {

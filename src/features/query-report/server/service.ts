@@ -20,6 +20,7 @@ import {
 import type { FinalReport } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
 import { validateAnswerReferences } from "./answer-validation";
+import { validateArithmetic } from "./arithmetic";
 import {
   decodeOutcome,
   decodeQuery,
@@ -33,6 +34,7 @@ import {
   resultReferences as buildResultReferences,
   sourceReferences as buildSourceReferences,
   textEvidence as buildTextEvidence,
+  type QueryResultReference,
 } from "./source-context";
 
 export const CHAT_TIMEOUT_MS = 60_000;
@@ -97,6 +99,119 @@ const notInSource = (): ChatResult => ({
 const unsupported = (
   message = "Эта операция не поддерживается для данного источника.",
 ): ChatResult => ({ outcome: "unsupported_operation", message });
+
+function formatAnswerValue(value: string | number | boolean | null) {
+  if (value === null) return "нет значения";
+  if (typeof value === "number") return String(Number(value.toFixed(2)));
+  return String(value);
+}
+function calculationInput(
+  output: ProviderEnvelope,
+  evidence: Map<string, QueryResultReference>,
+) {
+  const values = output.calculationEvidenceIds.map((id) => {
+    const item = evidence.get(id)?.values?.find((value) => value.id === id);
+    if (!item || typeof item.value !== "number")
+      throw new Error("Calculation selected non-numeric evidence.");
+    return item.value;
+  });
+  const first = values[0] as number;
+  const second = values[1] as number;
+  const units = output.calculationEvidenceIds.flatMap((id) => {
+    const item = evidence.get(id)?.values?.find((value) => value.id === id);
+    return item?.unit ? [item.unit] : [];
+  });
+  const result =
+    output.calculationKind === "sum"
+      ? values.reduce((sum, value) => sum + value, 0)
+      : output.calculationKind === "difference"
+        ? first - second
+        : output.calculationKind === "ratio"
+          ? first / second
+          : output.calculationKind === "percentage_of"
+            ? (first / second) * 100
+            : ((second - first) / first) * 100;
+  const unit = units[0] ?? "";
+  return {
+    kind: output.calculationKind,
+    referenceIds: output.calculationEvidenceIds,
+    values,
+    result,
+    unit,
+  } as const;
+}
+function renderTypedAnswer(
+  output: ProviderEnvelope,
+  evidence: Map<string, QueryResultReference>,
+  source: Dataset | TextSource,
+) {
+  if (output.answerMode === "values") {
+    const values = output.answerEvidenceIds.map((id) => {
+      const value = evidence.get(id)?.values?.find((item) => item.id === id);
+      if (!value) throw new Error("Answer selected unknown typed evidence.");
+      return `${value.label}: ${formatAnswerValue(value.value)}${value.unit ? ` ${value.unit}` : ""}`;
+    });
+    if (values.length === 0) throw new Error("Value answer has no evidence.");
+    return values.join("; ");
+  }
+  if (output.answerMode === "calculation") {
+    if (output.calculationKind === "none")
+      throw new Error("Calculation answer requires a calculation.");
+    if (
+      new Set(output.calculationEvidenceIds).size !==
+      output.calculationEvidenceIds.length
+    )
+      throw new Error("Calculation operands must use distinct evidence IDs.");
+    const input = calculationInput(output, evidence);
+    const result = validateArithmetic(
+      input,
+      new Set(output.calculationEvidenceIds),
+      evidence,
+    );
+    const unit =
+      output.calculationKind === "percentage_of" ||
+      output.calculationKind === "percentage_change"
+        ? "%"
+        : input.unit;
+    return `${formatAnswerValue(result as number)}${unit === "%" ? "%" : unit ? ` ${unit}` : ""}`;
+  }
+  if (output.answerEvidenceIds.length !== 1)
+    throw new Error("Quote answer requires one source span.");
+  if ("rows" in source)
+    throw new Error("Quote answers are only available for text sources.");
+  const spanId = output.answerEvidenceIds[0] as string;
+  const span = buildTextEvidence(source).find((item) => item.id === spanId);
+  if (
+    !span ||
+    output.answerSpanStart < 0 ||
+    output.answerSpanEnd <= output.answerSpanStart
+  )
+    throw new Error("Quote answer span is invalid.");
+  if (output.answerSpanEnd > span.text.length)
+    throw new Error("Quote answer span exceeds source bounds.");
+  return span.text.slice(output.answerSpanStart, output.answerSpanEnd);
+}
+function proposalReferenceIds(output: ProviderEnvelope) {
+  return output.answerMode === "calculation"
+    ? output.calculationEvidenceIds
+    : output.answerEvidenceIds;
+}
+function ownerReferences(
+  ids: string[],
+  evidence: Map<string, QueryResultReference>,
+) {
+  const seen = new Set<string>();
+  return ids.flatMap((id) => {
+    const reference = evidence.get(id);
+    const owner =
+      reference?.values?.find((value) => value.id === id)?.referenceId ?? id;
+    if (!reference || seen.has(owner)) return [];
+    seen.add(owner);
+    return [
+      { id: owner, excerpt: evidence.get(owner)?.excerpt ?? reference.excerpt },
+    ];
+  });
+}
 
 function fieldId(field: string | { fieldId: string }) {
   return typeof field === "string" ? field : field.fieldId;
@@ -255,24 +370,37 @@ async function answerChatCore(
     for (let attempt = 0; ; attempt += 1) {
       try {
         const output = decodeOutcome(raw);
-        if (output.outcome === "answer")
+        if (output.outcome === "answer") {
+          const answer = renderTypedAnswer(output, allowed, context.source);
+          const references = proposalReferenceIds(output).map((id) => ({ id }));
+          const arithmetic =
+            output.answerMode === "calculation"
+              ? calculationInput(output, allowed)
+              : {
+                  kind: "none" as const,
+                  referenceIds: [],
+                  values: [],
+                  result: 0,
+                  unit: "",
+                };
+          const validated = validateAnswerReferences(
+            answer,
+            references,
+            allowed,
+            undefined,
+            {
+              ...arithmetic,
+            },
+          );
           return chatResultSchema.parse({
             outcome: "answered",
-            answer: output.answer,
-            references: validateAnswerReferences(
-              output.answer,
-              output.references,
+            answer,
+            references: ownerReferences(
+              validated.map((item) => item.id),
               allowed,
-              undefined,
-              {
-                kind: output.calculationKind,
-                referenceIds: output.calculationReferenceIds,
-                values: output.calculationValues,
-                result: output.calculationResult,
-                unit: output.calculationUnit,
-              },
             ),
           });
+        }
         if (output.outcome === "clarification")
           return clarification(output.message);
         if (output.outcome === "unsupported_operation")
@@ -412,26 +540,37 @@ async function answerChatCore(
   for (let attempt = 0; ; attempt += 1) {
     try {
       const output = decodeOutcome(rawAnswer);
-      if (output.outcome === "answer")
+      if (output.outcome === "answer") {
+        const answer = renderTypedAnswer(output, finalAllowed, context.source);
+        const references = proposalReferenceIds(output).map((id) => ({ id }));
+        const arithmetic =
+          output.answerMode === "calculation"
+            ? calculationInput(output, finalAllowed)
+            : {
+                kind: "none" as const,
+                referenceIds: [],
+                values: [],
+                result: 0,
+                unit: "",
+              };
+        const validated = validateAnswerReferences(
+          answer,
+          references,
+          finalAllowed,
+          undefined,
+          {
+            ...arithmetic,
+          },
+        );
         return chatResultSchema.parse({
           outcome: "answered",
-          answer: output.answer,
-          references: validateAnswerReferences(
-            output.answer,
-            output.references,
+          answer,
+          references: ownerReferences(
+            validated.map((item) => item.id),
             finalAllowed,
-            Object.keys(result.metrics).length > 0 && result.groups.length === 0
-              ? `query-${result.queryId}`
-              : undefined,
-            {
-              kind: output.calculationKind,
-              referenceIds: output.calculationReferenceIds,
-              values: output.calculationValues,
-              result: output.calculationResult,
-              unit: output.calculationUnit,
-            },
           ),
         });
+      }
       if (output.outcome === "clarification")
         return clarification(output.message);
       if (output.outcome === "unsupported_operation")

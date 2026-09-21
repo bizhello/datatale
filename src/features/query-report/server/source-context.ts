@@ -13,6 +13,8 @@ import type { NumericEvidence } from "./arithmetic";
 
 export const CHAT_EVIDENCE_MAX_LENGTH = 1_000;
 const MAX_DISTINCT_VALUES = 40;
+const numericOccurrenceToken =
+  /(?<![\p{L}\d])(?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?|\d*[.,]\d+)(?![\p{L}\d])/gu;
 
 export type QueryResultReference = {
   id: string;
@@ -20,6 +22,13 @@ export type QueryResultReference = {
   numericValues?: number[];
   numericEvidence?: NumericEvidence[];
   isoDates?: string[];
+  values?: Array<{
+    id: string;
+    label: string;
+    value: string | number | boolean | null;
+    unit?: string;
+    referenceId: string;
+  }>;
 };
 
 export function boundedHistory(history: ChatMessage[]) {
@@ -96,7 +105,16 @@ export function numericValues(value: string) {
 
 export function textEvidence(source: TextSource) {
   return source.paragraphs.flatMap((paragraph) => {
-    const chunks: Array<{ id: string; text: string }> = [];
+    const chunks: Array<{
+      id: string;
+      text: string;
+      numericEvidence: Array<{
+        id: string;
+        value: number;
+        start: number;
+        end: number;
+      }>;
+    }> = [];
     for (let offset = 0; offset < paragraph.text.length; ) {
       let end = Math.min(
         offset + CHAT_EVIDENCE_MAX_LENGTH,
@@ -113,7 +131,25 @@ export function textEvidence(source: TextSource) {
         paragraph.text.length <= CHAT_EVIDENCE_MAX_LENGTH
           ? ""
           : `-${chunks.length + 1}`;
-      chunks.push({ id: `paragraph-${paragraph.index}${suffix}`, text: chunk });
+      const id = `paragraph-${paragraph.index}${suffix}`;
+      const numericEvidence = [
+        ...chunk.matchAll(numericOccurrenceToken),
+      ].flatMap((match, index) => {
+        const value = Number(
+          match[0].replace(/[ \u00a0\u202f]/gu, "").replace(",", "."),
+        );
+        return Number.isFinite(value)
+          ? [
+              {
+                id: `${id}:number:${index}`,
+                value,
+                start: match.index ?? 0,
+                end: (match.index ?? 0) + match[0].length,
+              },
+            ]
+          : [];
+      });
+      chunks.push({ id, text: chunk, numericEvidence });
       offset = hardBoundary ? Math.max(offset + 1, end - 64) : end;
       while (paragraph.text[offset] === " ") offset += 1;
     }
@@ -143,15 +179,35 @@ export function sourceReferences(
           ),
         };
       })
-    : textEvidence(source).map((paragraph) => {
+    : textEvidence(source).flatMap((paragraph) => {
         const values = numericValues(paragraph.text);
-        return {
+        const reference: QueryResultReference = {
           id: paragraph.id,
           excerpt: paragraph.text,
           numericValues: values,
           numericEvidence: values.map((value) => ({ value })),
           isoDates: isoDateValues(paragraph.text),
+          values: values.map((value, index) => ({
+            id: `${paragraph.id}:number:${index}`,
+            label: "Источник",
+            value,
+            referenceId: paragraph.id,
+          })),
         };
+        return [
+          reference,
+          ...(reference.values ?? []).map((value) => ({
+            id: value.id,
+            excerpt: `${value.label}: ${String(value.value)}`,
+            ...(typeof value.value === "number"
+              ? {
+                  numericValues: [value.value],
+                  numericEvidence: [{ value: value.value }],
+                }
+              : {}),
+            values: [value],
+          })),
+        ];
       });
 }
 
@@ -233,6 +289,29 @@ export function resultReferences(
       return unit ? [[metric.id, unit] as const] : [];
     }),
   );
+  const metricLabels = new Map(
+    (query.metrics ?? []).map((metric) => {
+      const column = metric.fieldId
+        ? source.columns.find((item) => item.id === metric.fieldId)
+        : undefined;
+      const aggregation =
+        metric.aggregation === "count"
+          ? "Количество"
+          : metric.aggregation === "sum"
+            ? "Сумма"
+            : metric.aggregation === "average"
+              ? "Среднее"
+              : metric.aggregation === "min"
+                ? "Минимум"
+                : metric.aggregation === "max"
+                  ? "Максимум"
+                  : "Уникальных значений";
+      return [
+        metric.id,
+        `${aggregation}${column ? `: ${column.label}` : ""}`,
+      ] as const;
+    }),
+  );
   const metricEvidence = (metrics: Record<string, number | null>) =>
     Object.entries(metrics).flatMap(([id, value]) =>
       value === null
@@ -255,6 +334,21 @@ export function resultReferences(
       ),
       numericValues: queryNumericEvidence.map((item) => item.value),
       numericEvidence: queryNumericEvidence,
+      values: Object.entries(result.metrics).flatMap(([id, value]) =>
+        value === null
+          ? []
+          : [
+              {
+                id: `query-${result.queryId}:metric:${id}`,
+                label: metricLabels.get(id) ?? "Метрика",
+                value,
+                ...(metricUnits.get(id)
+                  ? { unit: metricUnits.get(id) as string }
+                  : {}),
+                referenceId: `query-${result.queryId}`,
+              },
+            ],
+      ),
     },
   ];
   references[0]?.numericValues?.push(result.matchedRows, result.scannedRows);
@@ -278,7 +372,31 @@ export function resultReferences(
         ...groupNumericEvidence,
       ],
       isoDates: isoDateValues(String(group.key)),
+      values: Object.entries(group.metrics).flatMap(([id, value]) =>
+        value === null
+          ? []
+          : [
+              {
+                id: `group-${result.queryId}-${index}:metric:${id}`,
+                label: metricLabels.get(id) ?? "Метрика",
+                value,
+                ...(metricUnits.get(id)
+                  ? { unit: metricUnits.get(id) as string }
+                  : {}),
+                referenceId: `group-${result.queryId}-${index}`,
+              },
+            ],
+      ),
     });
+    if (group.key !== null) {
+      const groupReference = references[references.length - 1];
+      groupReference?.values?.push({
+        id: `group-${result.queryId}-${index}:key`,
+        label: "Группа",
+        value: group.key,
+        referenceId: `group-${result.queryId}-${index}`,
+      });
+    }
   }
   const seen = new Set<string>();
   for (const reference of [
@@ -301,8 +419,36 @@ export function resultReferences(
         ? { numericEvidence: rowEvidence.numericEvidence }
         : {}),
       ...(rowEvidence.isoDates ? { isoDates: rowEvidence.isoDates } : {}),
+      values: source.columns.map((column) => ({
+        id: `row-${row.id}:field:${column.id}`,
+        label: column.label,
+        value: row.values[column.id] ?? null,
+        ...(column.unit ? { unit: column.unit } : {}),
+        referenceId: `row-${row.id}`,
+      })),
     });
     if (references.length >= 100) break;
+  }
+  for (const reference of [...references]) {
+    for (const value of reference.values ?? []) {
+      if (references.length >= 160) break;
+      references.push({
+        id: value.id,
+        excerpt: `${value.label}: ${String(value.value)}`,
+        values: [value],
+        ...(typeof value.value === "number"
+          ? {
+              numericValues: [value.value],
+              numericEvidence: [
+                {
+                  value: value.value,
+                  ...(value.unit ? { unit: value.unit } : {}),
+                },
+              ],
+            }
+          : {}),
+      });
+    }
   }
   return references;
 }
