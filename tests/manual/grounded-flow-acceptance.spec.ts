@@ -103,11 +103,18 @@ test.beforeEach(async ({ page }) => {
   page.on("pageerror", (error) =>
     recordDiagnostic(`pageerror: ${error.message}`),
   );
-  page.on("requestfailed", (request) =>
+  page.on("requestfailed", (request) => {
+    const failure = request.failure()?.errorText ?? "unknown";
+    const url = new URL(request.url());
+    const expectedNavigationAbort =
+      request.method() === "GET" &&
+      url.pathname === "/api/saved-analysis" &&
+      failure === "net::ERR_ABORTED";
+    if (expectedNavigationAbort) return;
     recordDiagnostic(
-      `requestfailed: ${request.method()} ${request.url()} ${request.failure()?.errorText ?? "unknown"}`,
-    ),
-  );
+      `requestfailed: ${request.method()} ${request.url()} ${failure}`,
+    );
+  });
   page.on("response", (response) => {
     if (response.status() >= 500)
       recordDiagnostic(`HTTP ${response.status()}: ${response.url()}`);
