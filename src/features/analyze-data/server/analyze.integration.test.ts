@@ -278,7 +278,7 @@ describe("analysis orchestration", () => {
       observations: [
         {
           id: "delay",
-          subject: null,
+          subject: "Самые высокие расходы на корм",
           value: null,
           unit: null,
           period: null,
@@ -308,6 +308,7 @@ describe("analysis orchestration", () => {
     ).resolves.toMatchObject({
       charts: [],
       metrics: [],
+      observations: [],
       evidence: [{ excerpt: source.rawText }],
     });
   });

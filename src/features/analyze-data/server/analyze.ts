@@ -885,7 +885,6 @@ async function analyzeText(
         (candidate) => candidate.index === observation.paragraphIndex,
       );
       const qualitative =
-        observation.subject === null &&
         observation.value === null &&
         observation.role === null &&
         observation.unit === null &&
@@ -946,9 +945,11 @@ async function analyzeText(
       validObservations.push({
         id: observation.id,
         subject:
-          observation.subject !== null && observation.value !== null
+          !qualitative &&
+          observation.subject !== null &&
+          observation.value !== null
             ? normalizedSubject(observation.subject, observation.value)
-            : observation.subject,
+            : null,
         value: observation.value,
         unit:
           observation.unit !== null &&
