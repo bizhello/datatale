@@ -44,6 +44,8 @@ Parser integration exercises synthetic CSV/XLSX and canonical Dataset validation
 
 The reproducible manual pack in `tests/manual` contains deterministic CSV, multi-sheet XLSX and pasted-text sources plus malformed CSV and unsupported TSV rejection cases. Its source controls and questions cover dashboard calculations, charts, arbitrary grounded chat answers and the canonical absence response through the visible production UI.
 
+The final production history check reopened saved XLSX and pasted-text reports and visibly restored their source metadata, report, charts, evidence, and chat transcript. The same workspace had already consumed its 20-message daily allowance, so the attempted additional question correctly rendered the quota state rather than a provider response. Do not cite that quota-bound attempt as live evidence of a fresh answer after reopen; use the browser contract for request wiring and the earlier production follow-up checks for live answer evidence.
+
 ## Risk-to-test map
 
 | Risk | Required evidence |
