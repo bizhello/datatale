@@ -3,6 +3,7 @@ import {
   finalReportSchema,
   REPORT_QUOTE_MAX_LENGTH,
   textExtractionResponseSchema,
+  textReportResponseSchema,
 } from "./schema";
 
 describe("final report contract", () => {
@@ -111,6 +112,39 @@ describe("final report contract", () => {
         ...base,
         hero: [{ text: "Only one.", factIds: ["f"] }],
         noChartReason: "No visual relationship is supported.",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires every one-call narrative item to cite a returned observation", () => {
+    expect(
+      textReportResponseSchema.safeParse({
+        observations: [
+          {
+            id: "orders",
+            subject: "заявок",
+            value: 12,
+            unit: null,
+            period: null,
+            role: "snapshot",
+            paragraphIndex: 1,
+            quote: "Указано 12 заявок.",
+          },
+        ],
+        chartGroups: [],
+        hero: [
+          {
+            text: "Указано 12 заявок.",
+            observationIds: ["orders"],
+            kind: "observation",
+          },
+          {
+            text: "Источник содержит заявки.",
+            observationIds: ["missing"],
+            kind: "observation",
+          },
+        ],
+        recommendations: [],
       }).success,
     ).toBe(false);
   });

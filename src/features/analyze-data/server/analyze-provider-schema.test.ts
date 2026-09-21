@@ -14,6 +14,7 @@ import {
   providerNarrativeResponseSchema,
   providerOptionsForStage,
   providerTextExtractionResponseSchema,
+  providerTextReportResponseSchema,
   TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS,
   TEXT_EXTRACTION_REASONING_EFFORT,
   textExtractionFromProviderOutput,
@@ -104,7 +105,7 @@ describe("provider-facing structured output", () => {
   });
 
   it("keeps structured outputs compact for every stage", () => {
-    expect(MODEL_OUTPUT_TOKEN_LIMITS["text-extraction"]).toBe(1_800);
+    expect(MODEL_OUTPUT_TOKEN_LIMITS["text-extraction"]).toBe(2_200);
   });
 
   it("uses strict JSON schemas without oneOf or optional object properties", () => {
@@ -112,6 +113,7 @@ describe("provider-facing structured output", () => {
       providerAnalysisProposalSchema,
       providerNarrativeResponseSchema,
       providerTextExtractionResponseSchema,
+      providerTextReportResponseSchema,
     ])
       expectStrictProviderSchema(z.toJSONSchema(schema));
   });

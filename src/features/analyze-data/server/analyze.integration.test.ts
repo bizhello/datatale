@@ -274,40 +274,34 @@ describe("analysis orchestration", () => {
         { index: 1, text: "Команда отметила задержку согласования." },
       ],
     };
-    const call: ModelCall = async ({ stage }) =>
-      stage === "text-extraction"
-        ? {
-            observations: [
-              {
-                id: "delay",
-                subject: null,
-                value: null,
-                unit: null,
-                period: null,
-                role: null,
-                paragraphIndex: 1,
-                quote: source.rawText,
-              },
-            ],
-            chartGroups: [],
-          }
-        : {
-            hero: [
-              {
-                text: "Команда отметила задержку.",
-                factIds: [],
-                evidenceIds: ["quote-delay"],
-                kind: "observation",
-              },
-              {
-                text: "Числовая оценка не указана.",
-                factIds: [],
-                evidenceIds: ["quote-delay"],
-                kind: "observation",
-              },
-            ],
-            recommendations: [],
-          };
+    const call: ModelCall = async () => ({
+      observations: [
+        {
+          id: "delay",
+          subject: null,
+          value: null,
+          unit: null,
+          period: null,
+          role: null,
+          paragraphIndex: 1,
+          quote: source.rawText,
+        },
+      ],
+      chartGroups: [],
+      hero: [
+        {
+          text: "Команда отметила задержку.",
+          observationIds: ["delay"],
+          kind: "observation",
+        },
+        {
+          text: "Числовая оценка не указана.",
+          observationIds: ["delay"],
+          kind: "observation",
+        },
+      ],
+      recommendations: [],
+    });
 
     await expect(
       analyzeSource(source, { callModel: call }),
@@ -315,6 +309,76 @@ describe("analysis orchestration", () => {
       charts: [],
       metrics: [],
       evidence: [{ excerpt: source.rawText }],
+    });
+  });
+
+  it("keeps mixed-unit observations grounded without inventing a chart", async () => {
+    const source: TextSource = {
+      version: 1,
+      id: "mixed-units",
+      source: { kind: "text" },
+      rawText: "Продано 5 штук товаров. Выручка составила 1200 рублей.",
+      paragraphs: [
+        {
+          index: 1,
+          text: "Продано 5 штук товаров. Выручка составила 1200 рублей.",
+        },
+      ],
+    };
+    const call: ModelCall = async () => ({
+      observations: [
+        {
+          id: "items",
+          subject: "товаров",
+          value: 5,
+          unit: "штук",
+          period: null,
+          role: "snapshot",
+          paragraphIndex: 1,
+          quote: "Продано 5 штук товаров.",
+        },
+        {
+          id: "revenue",
+          subject: "Выручка",
+          value: 1200,
+          unit: "рублей",
+          period: null,
+          role: "snapshot",
+          paragraphIndex: 1,
+          quote: "Выручка составила 1200 рублей.",
+        },
+      ],
+      chartGroups: [
+        {
+          id: "mixed",
+          kind: "bar",
+          title: "Несовместимые показатели",
+          rationale: "Нельзя сравнивать разные единицы",
+          observationIds: ["items", "revenue"],
+          derivation: "direct",
+          operation: "none",
+        },
+      ],
+      hero: [
+        {
+          text: "В источнике указано количество проданных товаров.",
+          observationIds: ["items"],
+          kind: "observation",
+        },
+        {
+          text: "В источнике указана выручка.",
+          observationIds: ["revenue"],
+          kind: "observation",
+        },
+      ],
+      recommendations: [],
+    });
+
+    await expect(
+      analyzeSource(source, { callModel: call }),
+    ).resolves.toMatchObject({
+      charts: [],
+      metrics: [{ value: 5 }, { value: 1200 }],
     });
   });
 
@@ -343,48 +407,42 @@ describe("analysis orchestration", () => {
       paragraphIndex: 1,
       quote: rawText,
     }));
-    const call: ModelCall = async ({ stage }) =>
-      stage === "text-extraction"
-        ? {
-            observations,
-            chartGroups: [
-              {
-                id: "animals",
-                kind: "bar",
-                title: "Животные",
-                rationale: "Сравнение текущего количества",
-                observationIds: ["dogs", "cats", "parrot"],
-                derivation: "direct",
-                operation: "none",
-              },
-              {
-                id: "target-gap",
-                kind: "bar",
-                title: "Текущее количество и цель",
-                rationale: "Сопоставление текущего итога и цели",
-                observationIds: ["dogs", "cats", "parrot", "target"],
-                derivation: "current-target",
-                operation: "none",
-              },
-            ],
-          }
-        : {
-            hero: [
-              {
-                text: "Сейчас указано девять животных.",
-                factIds: ["dogs"],
-                evidenceIds: ["quote-dogs"],
-                kind: "observation",
-              },
-              {
-                text: "Цель составляет двадцать животных.",
-                factIds: ["target"],
-                evidenceIds: ["quote-dogs"],
-                kind: "observation",
-              },
-            ],
-            recommendations: [],
-          };
+    const call: ModelCall = async () => ({
+      observations,
+      chartGroups: [
+        {
+          id: "animals",
+          kind: "bar",
+          title: "Животные",
+          rationale: "Сравнение текущего количества",
+          observationIds: ["dogs", "cats", "parrot"],
+          derivation: "direct",
+          operation: "none",
+        },
+        {
+          id: "target-gap",
+          kind: "bar",
+          title: "Текущее количество и цель",
+          rationale: "Сопоставление текущего итога и цели",
+          observationIds: ["dogs", "cats", "parrot", "target"],
+          derivation: "current-target",
+          operation: "none",
+        },
+      ],
+      hero: [
+        {
+          text: "Указаны собаки, кошки и попугай.",
+          observationIds: ["dogs", "cats", "parrot"],
+          kind: "observation",
+        },
+        {
+          text: "В источнике указана цель по количеству животных.",
+          observationIds: ["target"],
+          kind: "observation",
+        },
+      ],
+      recommendations: [],
+    });
 
     const report = await analyzeSource(source, { callModel: call });
     expect(report.charts).toHaveLength(2);
@@ -411,50 +469,44 @@ describe("analysis orchestration", () => {
       rawText: paragraphs.map((item) => item.text).join("\n"),
       paragraphs,
     };
-    const call: ModelCall = async ({ stage }) =>
-      stage === "text-extraction"
-        ? {
-            observations: paragraphs.map((paragraph) => ({
-              id: `metric-${paragraph.index}`,
-              subject: `Показатель ${paragraph.index}`,
-              value: paragraph.index,
-              unit: null,
-              period: null,
-              role: "snapshot",
-              paragraphIndex: paragraph.index,
-              quote: paragraph.text,
-            })),
-            chartGroups: [
-              {
-                id: "all-metrics",
-                kind: "bar",
-                title: "Все показатели",
-                rationale: "Сравнение",
-                observationIds: paragraphs.map(
-                  (paragraph) => `metric-${paragraph.index}`,
-                ),
-                derivation: "direct",
-                operation: "none",
-              },
-            ],
-          }
-        : {
-            hero: [
-              {
-                text: "Источник содержит несколько показателей.",
-                factIds: ["metric-1"],
-                evidenceIds: ["quote-metric-1"],
-                kind: "observation",
-              },
-              {
-                text: "В отчёт включён проверенный набор.",
-                factIds: ["metric-2"],
-                evidenceIds: ["quote-metric-2"],
-                kind: "observation",
-              },
-            ],
-            recommendations: [],
-          };
+    const call: ModelCall = async () => ({
+      observations: paragraphs.map((paragraph) => ({
+        id: `metric-${paragraph.index}`,
+        subject: `Показатель ${paragraph.index}`,
+        value: paragraph.index,
+        unit: null,
+        period: null,
+        role: "snapshot",
+        paragraphIndex: paragraph.index,
+        quote: paragraph.text,
+      })),
+      chartGroups: [
+        {
+          id: "all-metrics",
+          kind: "bar",
+          title: "Все показатели",
+          rationale: "Сравнение",
+          observationIds: paragraphs.map(
+            (paragraph) => `metric-${paragraph.index}`,
+          ),
+          derivation: "direct",
+          operation: "none",
+        },
+      ],
+      hero: [
+        {
+          text: "Источник содержит несколько показателей.",
+          observationIds: ["metric-1"],
+          kind: "observation",
+        },
+        {
+          text: "В отчёт включён проверенный набор.",
+          observationIds: ["metric-2"],
+          kind: "observation",
+        },
+      ],
+      recommendations: [],
+    });
 
     const report = await analyzeSource(source, { callModel: call });
     expect(report.evidence).toHaveLength(8);
@@ -499,29 +551,78 @@ describe("analysis orchestration", () => {
             },
           ],
           chartGroups: [],
+          hero: [
+            {
+              text: "Выручка составляет 12 RUB.",
+              observationIds: ["revenue"],
+              kind: "observation",
+            },
+            {
+              text: "Период в источнике не указан.",
+              observationIds: ["revenue"],
+              kind: "observation",
+            },
+          ],
+          recommendations: [],
         };
       }
+      throw new Error("Unexpected extra model call");
+    };
+    await expect(
+      analyzeSource(source, { callModel: call }),
+    ).resolves.toMatchObject({ metrics: [{ value: 12 }] });
+    expect(attempts).toBe(2);
+  });
+
+  it("repairs a schema-valid but source-invalid cited observation in one retry", async () => {
+    const source: TextSource = {
+      version: 1,
+      id: "grounding-repair",
+      source: { kind: "text" },
+      rawText: "В отчёте указано 12 заявок.",
+      paragraphs: [{ index: 1, text: "В отчёте указано 12 заявок." }],
+    };
+    let attempts = 0;
+    const call: ModelCall = async ({ stage, prompt }) => {
+      expect(stage).toBe("text-extraction");
+      attempts += 1;
+      expect(prompt).toContain(source.rawText);
+      const value = attempts === 1 ? 13 : 12;
       return {
+        observations: [
+          {
+            id: "orders",
+            subject: "заявок",
+            value,
+            unit: null,
+            period: null,
+            role: "snapshot",
+            paragraphIndex: 1,
+            quote: `В отчёте указано ${value} заявок.`,
+          },
+        ],
+        chartGroups: [],
         hero: [
           {
-            text: "Выручка составляет 12 RUB.",
-            factIds: ["revenue"],
-            evidenceIds: ["quote-revenue"],
+            text: `В отчёте указано ${value} заявок.`,
+            observationIds: ["orders"],
             kind: "observation",
           },
           {
-            text: "Период в источнике не указан.",
-            factIds: ["revenue"],
-            evidenceIds: ["quote-revenue"],
+            text: "Источник содержит явное количество заявок.",
+            observationIds: ["orders"],
             kind: "observation",
           },
         ],
         recommendations: [],
       };
     };
+
     await expect(
       analyzeSource(source, { callModel: call }),
-    ).resolves.toMatchObject({ metrics: [{ value: 12 }] });
+    ).resolves.toMatchObject({
+      metrics: [{ value: 12 }],
+    });
     expect(attempts).toBe(2);
   });
 
