@@ -81,6 +81,20 @@ describe("provider query wire contract", () => {
         ],
       }),
     ).toThrow();
+    expect(() =>
+      decodeOutcome({
+        outcome: "answer",
+        message: "",
+        queries: [],
+        answerParts: [
+          {
+            kind: "calculation",
+            evidenceIds: ["same", "same"],
+            operation: "difference",
+          },
+        ],
+      }),
+    ).toThrow(/invalid IDs/i);
   });
 
   it("requires zero answer parts on non-answer outcomes", () => {

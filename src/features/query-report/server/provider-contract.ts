@@ -75,7 +75,7 @@ const queryWireSchema = z
 
 const answerPartSchema = z
   .object({
-    kind: z.enum(["quote", "values", "calculation"]),
+    kind: z.enum(["quote", "values", "calculation", "not_in_source"]),
     evidenceIds: z
       .array(z.string().max(160))
       .min(1)
@@ -203,8 +203,17 @@ export function decodeOutcome(raw: unknown): ProviderEnvelope {
       )
         throw new Error("Quote answer requires one ID and no operation.");
       if (
+        part.kind === "not_in_source" &&
+        (part.operation !== "none" || part.evidenceIds.length !== 1)
+      )
+        throw new Error(
+          "Absence answer requires one witness ID and no operation.",
+        );
+      if (
         part.kind === "calculation" &&
-        (part.operation === "none" || part.evidenceIds.length < 2)
+        (part.operation === "none" ||
+          part.evidenceIds.length < 2 ||
+          new Set(part.evidenceIds).size !== part.evidenceIds.length)
       )
         throw new Error("Calculation answer has invalid IDs or operation.");
     }

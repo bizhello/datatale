@@ -2,6 +2,7 @@ import "server-only";
 import { readFile } from "node:fs/promises";
 import { generateText, Output } from "ai";
 import {
+  CHAT_ANSWER_MAX_LENGTH,
   CHAT_REFERENCE_MAX_COUNT,
   CHAT_REFUSAL,
   type ChatMessage,
@@ -41,7 +42,8 @@ import {
 export const CHAT_TIMEOUT_MS = 60_000;
 const MAX_PLAN_REPAIRS = 1;
 const MAX_FINAL_REPAIRS = 1;
-const PROVIDER_OUTPUT_MAX_TOKENS = 900;
+export const QUERY_PROVIDER_OUTPUT_MAX_TOKENS = 1_800;
+export const ANSWER_PROVIDER_OUTPUT_MAX_TOKENS = 1_200;
 
 /** Query validation and result shape are owned by the dataset entity. */
 export const sourceQueryPlanSchema = datasetQuerySchema;
@@ -152,6 +154,14 @@ function renderTypedPart(
   evidence: Map<string, QueryResultReference>,
   source: Dataset | TextSource,
 ) {
+  if (part.kind === "not_in_source") {
+    const witness = evidence.get(part.evidenceIds[0] as string);
+    if (!witness?.absenceWitness)
+      throw new Error(
+        "Absence answer requires an application-created witness.",
+      );
+    return CHAT_REFUSAL;
+  }
   if (part.kind === "values") {
     const selected = part.evidenceIds.map((id) => {
       const value = evidence.get(id)?.values?.find((item) => item.id === id);
@@ -242,14 +252,38 @@ function renderTypedPart(
   if (!span) throw new Error("Quote answer selected unknown text evidence.");
   return span.text;
 }
+
+function validateAnswerCompleteness(
+  parts: ProviderAnswerPart[],
+  results: Array<{ query: DatasetQuery; result: DatasetQueryResult }>,
+  evidence: Map<string, QueryResultReference>,
+) {
+  const selected = parts.flatMap((part) => part.evidenceIds);
+  for (const { query, result } of results) {
+    const scoped = selected
+      .map((id) => evidence.get(id))
+      .filter((reference) => reference?.queryId === query.queryId);
+    if (query.purpose === "lookup" && result.matchedRows === 0) {
+      if (!scoped.some((reference) => reference?.absenceWitness))
+        throw new Error(
+          "Every empty lookup query requires its absence witness.",
+        );
+    } else if (scoped.length === 0) {
+      throw new Error("Every planned query scope requires selected evidence.");
+    }
+  }
+}
 function renderTypedAnswer(
   output: ProviderEnvelope,
   evidence: Map<string, QueryResultReference>,
   source: Dataset | TextSource,
 ) {
-  return output.answerParts
+  const answer = output.answerParts
     .map((part) => renderTypedPart(part, evidence, source))
     .join("; ");
+  if (answer.length > CHAT_ANSWER_MAX_LENGTH)
+    throw new Error("Rendered answer exceeds the bounded answer length.");
+  return answer;
 }
 function proposalReferenceIds(output: ProviderEnvelope) {
   return output.answerParts.flatMap((part) => part.evidenceIds);
@@ -342,7 +376,10 @@ async function defaultProvider({
     }),
     prompt: `${promptFile}\n\n${prompt}`,
     maxRetries: 0,
-    maxOutputTokens: PROVIDER_OUTPUT_MAX_TOKENS,
+    maxOutputTokens:
+      output === "query"
+        ? QUERY_PROVIDER_OUTPUT_MAX_TOKENS
+        : ANSWER_PROVIDER_OUTPUT_MAX_TOKENS,
     abortSignal: signal,
     timeout: CHAT_TIMEOUT_MS,
   });
@@ -602,6 +639,7 @@ async function answerChatCore(
     try {
       const output = decodeOutcome(rawAnswer);
       if (output.outcome === "answer") {
+        validateAnswerCompleteness(output.answerParts, results, finalAllowed);
         const answer = renderTypedAnswer(output, finalAllowed, context.source);
         const references = proposalReferenceIds(output).map((id) => ({ id }));
         return chatResultSchema.parse({

@@ -285,8 +285,14 @@ describe("planned grounded chat", () => {
       .mockResolvedValueOnce(
         wireAnswer(
           "",
-          [{ id: `query-${request.messageId}-q1` }],
-          [`query-${request.messageId}-q1:metric:total`],
+          [
+            { id: `query-${request.messageId}-q1` },
+            { id: `query-${request.messageId}-q2` },
+          ],
+          [
+            `query-${request.messageId}-q1:metric:total`,
+            `query-${request.messageId}-q2:metric:total`,
+          ],
         ),
       );
     const executor = {
@@ -309,12 +315,88 @@ describe("planned grounded chat", () => {
     });
     expect(result).toMatchObject({
       outcome: "answered",
-      answer: "Сумма: Продажи: 100",
+      answer: "Сумма: Продажи: 100; Сумма: Продажи (Город: Краснодар): 10",
     });
     expect(executor.execute).toHaveBeenCalledTimes(2);
     expect(
       executor.execute.mock.calls.map(([_, query]) => query.queryId),
     ).toEqual([`${request.messageId}-q1`, `${request.messageId}-q2`]);
+  });
+
+  it("renders a verified absence witness alongside available facts", async () => {
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ...emptyWire,
+        outcome: "query",
+        queries: [
+          {
+            purpose: "count",
+            filters: [],
+            groupBy: "",
+            groupByDateBucket: "",
+            select: [],
+            metrics: [{ id: "total", aggregation: "sum", fieldId: "sales" }],
+            orderBy: [],
+            limit: 1,
+          },
+          {
+            purpose: "lookup",
+            filters: [
+              {
+                fieldId: "city",
+                operator: "eq",
+                valueKind: "string",
+                values: ["Самара"],
+              },
+            ],
+            groupBy: "",
+            groupByDateBucket: "",
+            select: [],
+            metrics: [{ id: "count", aggregation: "count", fieldId: "" }],
+            orderBy: [],
+            limit: 1,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ...emptyWire,
+        outcome: "answer",
+        answerParts: [
+          {
+            kind: "values",
+            operation: "none",
+            evidenceIds: [`query-${request.messageId}-q1:metric:total`],
+          },
+          {
+            kind: "not_in_source",
+            operation: "none",
+            evidenceIds: [`absence-${request.messageId}-q2`],
+          },
+        ],
+      });
+    const executor = {
+      execute: vi.fn(async (_source: Dataset, query: DatasetQuery) => ({
+        queryId: query.queryId,
+        rows: [],
+        groups: [],
+        metrics: query.purpose === "lookup" ? { count: 0 } : { total: 100 },
+        matchedRows: query.purpose === "lookup" ? 0 : 1,
+        scannedRows: 1,
+        returnedRows: 0,
+        truncated: false,
+        rowReferences: [],
+      })),
+    };
+    const result = await answerChat(request, {
+      loadContext: async () => context(dataset),
+      provider,
+      queryExecutor: executor,
+    });
+    expect(result).toMatchObject({
+      outcome: "answered",
+      answer: "Сумма: Продажи: 100; В этом отчете нет такой информации",
+    });
   });
   it("gives a text model the complete indexed source and validates paragraph citations", async () => {
     const provider = vi.fn(async ({ prompt }: { prompt: string }) => {
@@ -543,7 +625,7 @@ describe("planned grounded chat", () => {
       ),
     ).resolves.toMatchObject({
       outcome: "answered",
-      answer: "Сумма: Продажи: 10",
+      answer: "Сумма: Продажи (Город: Краснодар): 10",
     });
     expect(provider).toHaveBeenCalledTimes(2);
     expect(executor.execute).toHaveBeenCalledOnce();
@@ -816,7 +898,10 @@ describe("planned grounded chat", () => {
           },
         },
       ),
-    ).resolves.toMatchObject({ outcome: "answered", answer: "Количество: 0" });
+    ).resolves.toMatchObject({
+      outcome: "answered",
+      answer: "Количество (Город: Samara): 0",
+    });
 
     const lookupProvider = vi.fn().mockResolvedValueOnce(
       wireQuery({
@@ -1325,8 +1410,8 @@ describe("planned grounded chat", () => {
 
   it("exposes grouped aggregate evidence as a citable trusted reference", async () => {
     const executor = {
-      execute: vi.fn(async () => ({
-        queryId: "grouped",
+      execute: vi.fn(async (_source: Dataset, query: DatasetQuery) => ({
+        queryId: query.queryId,
         rows: [],
         groups: [
           {
@@ -1358,15 +1443,18 @@ describe("planned grounded chat", () => {
         expect(JSON.parse(prompt).references).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
-              id: "group-grouped-0",
+              id: `group-${request.messageId}-q1-0`,
               excerpt: 'Группа A; метрики: {"sum":30,"average":15}.',
             }),
           ]),
         );
         return wireAnswer(
           "Группа A: сумма 30, среднее 15.",
-          [{ id: "group-grouped-0" }],
-          ["group-grouped-0:metric:sum", "group-grouped-0:key"],
+          [{ id: `group-${request.messageId}-q1-0` }],
+          [
+            `group-${request.messageId}-q1-0:metric:sum`,
+            `group-${request.messageId}-q1-0:key`,
+          ],
         );
       });
     await expect(
