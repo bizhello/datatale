@@ -1,6 +1,6 @@
 import "server-only";
 import { readFile } from "node:fs/promises";
-import { generateText, Output } from "ai";
+import { generateText, NoObjectGeneratedError, Output } from "ai";
 import {
   CHAT_ANSWER_MAX_LENGTH,
   CHAT_REFERENCE_MAX_COUNT,
@@ -399,7 +399,7 @@ function validateQuery(
     );
   return parsed;
 }
-async function defaultProvider({
+export async function defaultProvider({
   prompt,
   signal,
   output,
@@ -410,24 +410,37 @@ async function defaultProvider({
     new URL("./prompts/chat.md", import.meta.url),
     "utf8",
   );
-  const response = await generateText({
-    model,
-    output: Output.object({
-      schema:
-        output === "query"
-          ? providerQueryEnvelopeSchema
-          : providerEnvelopeSchema,
-    }),
-    prompt: `${promptFile}\n\n${prompt}`,
-    maxRetries: 0,
-    maxOutputTokens:
-      output === "query"
-        ? QUERY_PROVIDER_OUTPUT_MAX_TOKENS
-        : ANSWER_PROVIDER_OUTPUT_MAX_TOKENS,
-    abortSignal: signal,
-    timeout: CHAT_TIMEOUT_MS,
-  });
-  return response.output;
+  const schema =
+    output === "query" ? providerQueryEnvelopeSchema : providerEnvelopeSchema;
+  const basePrompt = `${promptFile}\n\n${prompt}`;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const response = await generateText({
+        model,
+        output: Output.object({ schema }),
+        prompt:
+          attempt === 0
+            ? basePrompt
+            : `${basePrompt}\n\nStructured-output retry: return a complete object with every required field. Use the exact empty sentinel for every inactive field; do not omit schema fields.`,
+        maxRetries: 0,
+        maxOutputTokens:
+          output === "query"
+            ? QUERY_PROVIDER_OUTPUT_MAX_TOKENS
+            : ANSWER_PROVIDER_OUTPUT_MAX_TOKENS,
+        abortSignal: signal,
+        timeout: CHAT_TIMEOUT_MS,
+      });
+      return response.output;
+    } catch (error) {
+      if (
+        attempt === 0 &&
+        !signal.aborted &&
+        NoObjectGeneratedError.isInstance(error)
+      )
+        continue;
+      throw error;
+    }
+  }
 }
 async function callProvider(
   provider: ChatProvider,

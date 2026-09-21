@@ -1202,6 +1202,82 @@ describe("planned grounded chat", () => {
     expect(provider).toHaveBeenCalledTimes(2);
   });
 
+  it("answers January and February revenue from a grouped month query", async () => {
+    const source: Dataset = {
+      ...monthlyDataset,
+      columns: [
+        ...monthlyDataset.columns,
+        { id: "revenue", label: "Выручка", scalarType: "number", unit: "руб." },
+      ],
+      rows: [
+        ...monthlyDataset.rows.map((row) => ({
+          ...row,
+          values: { ...row.values, revenue: row.id === "january" ? 60 : 100 },
+        })),
+        {
+          id: "january-second",
+          values: { date: "2026-01-31", orders: 2, revenue: 60 },
+          provenance: { sourceRowNumber: 4 },
+        },
+      ],
+    };
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ...emptyWire,
+        outcome: "query",
+        queries: [
+          {
+            purpose: "count",
+            filters: [],
+            groupBy: "date",
+            groupByDateBucket: "month",
+            select: [],
+            metrics: [
+              { id: "revenue", aggregation: "sum", fieldId: "revenue" },
+            ],
+            orderBy: [],
+            limit: 2,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ...emptyWire,
+        outcome: "answer",
+        answerParts: [
+          {
+            kind: "values",
+            operation: "none",
+            evidenceIds: [
+              `group-${request.messageId}-q1-0:metric:revenue`,
+              `group-${request.messageId}-q1-1:metric:revenue`,
+            ],
+          },
+        ],
+      });
+
+    await expect(
+      answerChat(
+        {
+          ...request,
+          question: "Какая выручка была в январе и феврале 2026 года?",
+        },
+        {
+          loadContext: async () => context(source),
+          provider,
+          queryExecutor: {
+            execute: async (dataset, query) =>
+              executeDatasetQuery(dataset, query),
+          },
+        },
+      ),
+    ).resolves.toMatchObject({
+      outcome: "answered",
+      answer:
+        "Группа: 2026-01; Сумма: Выручка: 120 руб.; Группа: 2026-02; Сумма: Выручка: 100 руб.",
+    });
+  });
+
   it("keeps an empty lookup query as the canonical absence response", async () => {
     const provider = vi.fn().mockResolvedValueOnce(
       wireQuery({
