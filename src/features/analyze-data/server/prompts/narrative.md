@@ -51,6 +51,8 @@ Return only the requested structured object. Do not add Markdown, explanations, 
 - `recommendations`: zero to three items, each with kind `action`.
 - `text`: one concise Russian sentence per item.
 - `factIds` and `evidenceIds`: only supplied IDs that directly support the item.
+- Metric fact IDs are the IDs in the checked `facts` list. Chart IDs are never fact IDs.
+- Evidence IDs are the IDs in the checked `evidence` list. Never invent an ID or use a chart ID as evidence.
 - Each item must cite at least one supplied ID.
 
 # Final checklist
