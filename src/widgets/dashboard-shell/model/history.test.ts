@@ -81,6 +81,31 @@ describe("history hydration contract", () => {
       "Сколько строк?",
       "Три строки.",
     ]);
+    expect(messages[1]?.evidenceLabels).toEqual(["Источник 1"]);
+  });
+
+  it("does not expose persisted technical evidence excerpts", () => {
+    const messages = restoreMessages([
+      {
+        id: "m-1:assistant",
+        analysisId: base.analysisId,
+        role: "assistant",
+        content: "Выручка — 569 000.",
+        result: {
+          outcome: "answered",
+          answer: "Выручка — 569 000.",
+          references: [
+            {
+              id: "query-m-1",
+              excerpt: 'Метрики: {"sum_revenue":569000}; найдено строк: 4.',
+            },
+          ],
+        },
+        createdAt: "2026-09-19T12:00:01.000Z",
+      },
+    ]);
+
+    expect(messages[0]?.evidenceLabels).toEqual(["Источник 1"]);
   });
 
   it("restores clarification and absence as distinct assistant messages", () => {

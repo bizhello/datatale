@@ -81,7 +81,7 @@ describe("AskDataPanel", () => {
     expect(
       await screen.findByText("В этом отчете нет такой информации"),
     ).toBeVisible();
-    expect(screen.getByText("Нет в источнике")).toBeVisible();
+    expect(screen.queryByText("Нет в источнике")).toBeNull();
   });
 
   it("renders clarification separately from missing information", async () => {

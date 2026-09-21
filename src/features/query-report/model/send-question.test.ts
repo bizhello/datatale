@@ -27,7 +27,7 @@ describe("query report API adapter", () => {
     ).resolves.toEqual({
       status: "answered",
       answer: "Выручка: 200 RUB.",
-      evidenceLabels: ["Revenue: 200 RUB"],
+      evidenceLabels: ["Источник 1"],
     });
     expect(JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)).toEqual({
       analysisId,

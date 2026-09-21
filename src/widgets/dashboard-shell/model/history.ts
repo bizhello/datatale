@@ -7,7 +7,7 @@ import {
   textSourceSchema,
 } from "@/entities/dataset";
 import { finalReportSchema } from "@/entities/report";
-import type { AskDataMessage } from "@/features/query-report";
+import { type AskDataMessage, evidenceLabels } from "@/features/query-report";
 
 export const historyListSchema = z.array(
   z
@@ -81,10 +81,7 @@ export function restoreMessages(
             role: "assistant",
             text: result.answer,
             kind: "answer",
-            evidenceLabels: result.references.map(
-              (reference, index) =>
-                reference.excerpt ?? `Источник ${index + 1}`,
-            ),
+            evidenceLabels: evidenceLabels(result.references.length),
           }
         : result.outcome === "not_in_source"
           ? {

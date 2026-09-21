@@ -1,5 +1,6 @@
 "use client";
 
+export { evidenceLabels } from "./model/evidence-labels";
 export { createAskDataSend } from "./model/send-question";
 export {
   type AskDataAnswer,

@@ -1,4 +1,5 @@
 import { chatResultSchema } from "@/entities/chat";
+import { evidenceLabels } from "./evidence-labels";
 import {
   AskDataClientError,
   type AskDataResult,
@@ -45,9 +46,7 @@ export function createAskDataSend(analysisId: string): AskDataSend {
       return {
         status: "answered",
         answer: result.data.answer,
-        evidenceLabels: result.data.references.map(
-          (reference, index) => reference.excerpt ?? `Источник ${index + 1}`,
-        ),
+        evidenceLabels: evidenceLabels(result.data.references.length),
       };
     if (result.data.outcome === "not_in_source")
       return { status: "not_in_source", message: result.data.message };
