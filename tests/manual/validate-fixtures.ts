@@ -8,7 +8,7 @@ const text = async (name: string) =>
   readFile(path.join(directory, name), "utf8");
 const grouping = "[\\s\\u00a0\\u202f.,'’]*";
 const numberPattern = (value: number) => {
-  const [whole, fraction] = String(value).split(".");
+  const [whole = "", fraction] = String(value).split(".");
   const wholePattern = whole.split("").join(grouping);
   const fractionPattern = fraction
     ? `[.,]${fraction.split("").join(grouping)}`

@@ -12,7 +12,7 @@ const diagnosticsByPage = new WeakMap<Page, string[]>();
 const grouping = "[\\s\\u00a0\\u202f.,'’]*";
 
 function numericEvidencePattern(value: number) {
-  const [whole, fraction] = String(value).split(".");
+  const [whole = "", fraction] = String(value).split(".");
   const wholePattern = whole.split("").join(grouping);
   const fractionPattern = fraction
     ? `[.,]${fraction.split("").join(grouping)}`
@@ -176,7 +176,8 @@ test("runs quoted CSV source", async ({ page }) => {
 test("runs the sales worksheet controls", async ({ page }) => {
   await uploadAndAnalyze(page, "operations-multisheet.xlsx");
   await ask(page, {
-    prompt: "Какая общая выручка и какова выручка Москвы и Казани?",
+    prompt:
+      "Какая общая выручка и какова разница между выручкой Москвы и Казани? Назови обе суммы.",
     expected: [672_000, 405_000, 267_000],
   });
   await ask(page, {
@@ -275,12 +276,14 @@ test("runs the existing shelter text fixture", async ({ page }) => {
   await pasteAndAnalyze(page, "shelter-report.txt");
   await expect(page.locator(".chart-card").first()).toBeVisible();
   await ask(page, {
-    prompt: "Сколько животных было к концу 17 сентября?",
-    expected: 21,
+    prompt:
+      "Сколько животных было к концу 17 сентября и сколько кошек и собак осмотрел ветеринар?",
+    expected: [21, 7, 6],
   });
   await ask(page, {
-    prompt: "В какой день расходы на корм были максимальными?",
-    expected: 8_900,
+    prompt:
+      "Какова общая сумма расходов на корм и в какой день была максимальная сумма? Назови дату и сумму.",
+    expected: [31_500, "16 сентября", 8_900],
   });
   await ask(page, {
     prompt: "Сколько кроликов в приюте?",
