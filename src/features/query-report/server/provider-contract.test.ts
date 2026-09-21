@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { datasetQuerySchema } from "@/entities/dataset";
 import {
   decodeOutcome,
   decodeQuery,
@@ -27,6 +28,28 @@ const queryWire = {
 };
 
 describe("provider query wire contract", () => {
+  it("decodes a quarterly date bucket into groupBy", () => {
+    const wire = providerQueryEnvelopeSchema.parse({
+      ...queryWire,
+      groupBy: "date",
+      groupByDateBucket: "quarter",
+      orderBy: [],
+    });
+    expect(decodeQuery(wire, "query-id").groupBy).toEqual({
+      fieldId: "date",
+      dateBucket: "quarter",
+    });
+  });
+
+  it("rejects date buckets in select", () => {
+    expect(
+      datasetQuerySchema.safeParse({
+        queryId: "query-id",
+        select: [{ fieldId: "date", dateBucket: "month" }],
+      }).success,
+    ).toBe(false);
+  });
+
   it("keeps a semantically invalid sort available for the repair stage", () => {
     const wire = providerQueryEnvelopeSchema.parse(queryWire);
     const outcome = decodeOutcome(wire);

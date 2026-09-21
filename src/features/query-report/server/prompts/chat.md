@@ -35,7 +35,7 @@ When the user names one canonical category or entity and asks broadly for “inf
 
 The application validates the query against the entity-owned schema, checks field and type semantics, executes it across every accepted row, and may ask you once to repair an invalid query. On a repair call, the only permitted outcome is a complete replacement `query` object. Preserve the user's intent and fix only the reported contract or field error. If the requested field is absent from the complete column profile, request a bounded count plus representative existing fields so the result stage can confirm absence. Never repeat the invalid query or return an outcome without a query.
 
-For date columns, `groupBy` remains the field ID for exact daily grouping. To aggregate daily ISO dates by month or year, set `groupByDateBucket` to `month` or `year`; use `day` for an explicit daily bucket. Date bucketing is valid only for date fields and can be combined with ordinary filters such as city plus month.
+For date columns, `groupBy` remains the field ID for exact daily grouping. To aggregate daily ISO dates by month, quarter, or year, set `groupByDateBucket` to `month`, `quarter`, or `year`; use `day` for an explicit daily bucket. Quarter keys are `YYYY-Q1` through `YYYY-Q4`. Date bucketing is valid only for date fields and can be combined with ordinary filters such as city plus month.
 
 ## Answering from results
 

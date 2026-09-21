@@ -16,14 +16,10 @@ const fieldReference = z.object({ fieldId: id }).strict();
 const groupedFieldReference = z
   .object({
     fieldId: id,
-    dateBucket: z.enum(["day", "month", "year"]).optional(),
+    dateBucket: z.enum(["day", "month", "quarter", "year"]).optional(),
   })
   .strict();
-const queryFieldReference = z.union([
-  id,
-  fieldReference,
-  groupedFieldReference,
-]);
+const selectFieldReference = z.union([id, fieldReference]);
 
 export const datasetFilterOperatorSchema = z.enum([
   "eq",
@@ -89,9 +85,9 @@ export const datasetQuerySchema = z
       .array(datasetQueryFilterSchema)
       .max(DATASET_QUERY_MAX_FILTERS)
       .default([]),
-    groupBy: queryFieldReference.optional(),
+    groupBy: z.union([id, groupedFieldReference]).optional(),
     select: z
-      .array(queryFieldReference)
+      .array(selectFieldReference)
       .max(DATASET_QUERY_MAX_SELECT_FIELDS)
       .default([]),
     metrics: z

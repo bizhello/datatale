@@ -56,7 +56,7 @@ export const providerEnvelopeSchema = z
       .max(20),
     groupBy: z.string().max(160),
     groupByDateBucket: z
-      .enum(["day", "month", "year"])
+      .enum(["day", "month", "quarter", "year"])
       .or(z.literal(""))
       .default(""),
     select: z.array(z.string().max(160)).max(30),

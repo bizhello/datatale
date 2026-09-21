@@ -13,7 +13,10 @@ type Column = Dataset["columns"][number];
 type QueryField = string | { fieldId: string };
 type GroupBy =
   | string
-  | { fieldId: string; dateBucket?: "day" | "month" | "year" | undefined };
+  | {
+      fieldId: string;
+      dateBucket?: "day" | "month" | "quarter" | "year" | undefined;
+    };
 
 function fieldId(field: QueryField): string {
   return typeof field === "string" ? field : field.fieldId;
@@ -30,6 +33,8 @@ function groupKey(row: DatasetRow, groupBy: GroupBy): Scalar {
     return value;
   if (typeof value !== "string") fail("Date buckets require a date field.");
   if (reference.dateBucket === "month") return value.slice(0, 7);
+  if (reference.dateBucket === "quarter")
+    return `${value.slice(0, 4)}-Q${Math.floor((Number(value.slice(5, 7)) - 1) / 3) + 1}`;
   return value.slice(0, 4);
 }
 

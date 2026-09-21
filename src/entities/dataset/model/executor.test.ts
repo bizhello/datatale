@@ -228,6 +228,22 @@ describe("executeDatasetQuery", () => {
       ["2026-02", 100],
       ["2026-01", 30],
     ]);
+
+    const quarterly = executeDatasetQuery(dataset, {
+      queryId: "quarterly-city",
+      groupBy: { fieldId: "date", dateBucket: "quarter" },
+      metrics: [{ id: "total", aggregation: "sum", fieldId: "revenue" }],
+    });
+    expect(quarterly.groups.map((group) => group.key)).toEqual(["2026-Q1"]);
+  });
+
+  it("rejects date buckets in select references", () => {
+    expect(() =>
+      executeDatasetQuery(syntheticDatasetFixture, {
+        queryId: "invalid-select-bucket",
+        select: [{ fieldId: "date", dateBucket: "month" } as never],
+      }),
+    ).toThrow();
   });
 
   it("keeps null aggregate groups after non-null values for descending order", () => {
