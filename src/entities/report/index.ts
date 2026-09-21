@@ -25,8 +25,8 @@ export type {
   ReportCalculation,
   ReportChartCalculation,
   TextChartGroup,
-  TextExtractionResponse,
   TextObservation,
+  TextReportResponse,
 } from "./model/schema";
 export {
   aggregationSchema,
@@ -61,7 +61,7 @@ export {
   reportEvidenceSchema,
   reportFactSchema,
   textChartGroupSchema,
-  textExtractionResponseSchema,
   textObservationRoleSchema,
   textObservationSchema,
+  textReportResponseSchema,
 } from "./model/schema";

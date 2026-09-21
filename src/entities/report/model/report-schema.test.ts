@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   finalReportSchema,
   REPORT_QUOTE_MAX_LENGTH,
-  textExtractionResponseSchema,
+  textReportResponseSchema,
 } from "./schema";
 
 describe("final report contract", () => {
@@ -46,7 +46,7 @@ describe("final report contract", () => {
     ).toBe(false));
   it("bounds model-controlled text observations", () => {
     expect(
-      textExtractionResponseSchema.safeParse({
+      textReportResponseSchema.safeParse({
         observations: [
           {
             id: "observation",
@@ -60,6 +60,19 @@ describe("final report contract", () => {
           },
         ],
         chartGroups: [],
+        hero: [
+          {
+            template: "fact",
+            observationIds: ["observation"],
+            kind: "observation",
+          },
+          {
+            template: "fact",
+            observationIds: ["observation"],
+            kind: "observation",
+          },
+        ],
+        recommendations: [],
       }).success,
     ).toBe(false);
   });
@@ -111,6 +124,39 @@ describe("final report contract", () => {
         ...base,
         hero: [{ text: "Only one.", factIds: ["f"] }],
         noChartReason: "No visual relationship is supported.",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires every one-call narrative item to cite a returned observation", () => {
+    expect(
+      textReportResponseSchema.safeParse({
+        observations: [
+          {
+            id: "orders",
+            subject: "заявок",
+            value: 12,
+            unit: null,
+            period: null,
+            role: "snapshot",
+            paragraphIndex: 1,
+            quote: "Указано 12 заявок.",
+          },
+        ],
+        chartGroups: [],
+        hero: [
+          {
+            template: "fact",
+            observationIds: ["orders"],
+            kind: "observation",
+          },
+          {
+            template: "fact",
+            observationIds: ["missing"],
+            kind: "observation",
+          },
+        ],
+        recommendations: [],
       }).success,
     ).toBe(false);
   });

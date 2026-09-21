@@ -15,6 +15,8 @@ export type ObservationChart = {
   evidenceIds: string[];
 };
 
+export class ObservationChartValidationError extends Error {}
+
 function compatible(observations: TextObservation[]): boolean {
   return (
     observations.length >= 2 &&
@@ -63,24 +65,70 @@ export function calculateObservationCharts(
   observations: TextObservation[],
   groups: TextChartGroup[],
   evidenceId: (observationId: string) => string,
+  options: { strict?: boolean } = {},
 ): ObservationChart[] {
+  const reject = (message: string): false => {
+    if (options.strict) throw new ObservationChartValidationError(message);
+    return false;
+  };
   const byId = new Map(
     observations.map((observation) => [observation.id, observation]),
   );
   const charts: ObservationChart[] = [];
   for (const group of groups) {
+    const operation = group.operation ?? "none";
+    if (new Set(group.observationIds).size !== group.observationIds.length)
+      reject("Chart observation IDs must be unique.");
     if (new Set(group.observationIds).size !== group.observationIds.length)
       continue;
     const selected = group.observationIds.map((id) => byId.get(id));
-    if (selected.some((observation) => observation === undefined)) continue;
+    if (selected.some((observation) => observation === undefined)) {
+      reject("Chart references an unknown observation.");
+      continue;
+    }
     const items = selected as TextObservation[];
-    if (!compatible(items)) continue;
+    if (!compatible(items)) {
+      reject("Chart observations use incompatible units.");
+      continue;
+    }
+    if (
+      group.derivation === "direct" &&
+      (items.some((item) => item.role !== "snapshot") ||
+        (group.kind === "bar" &&
+          (new Set(items.map((item) => item.subject)).size !== items.length ||
+            new Set(items.map((item) => item.period)).size > 1)))
+    ) {
+      reject(
+        "Direct bar charts require distinct snapshot subjects in one period context.",
+      );
+      continue;
+    }
+    if (
+      group.derivation === "current-target" &&
+      (group.kind !== "bar" || operation !== "none")
+    ) {
+      reject("Current-target charts require a bar and no operation.");
+      continue;
+    }
+    if (
+      group.derivation === "baseline-change" &&
+      (group.kind !== "bar" || operation === "none")
+    ) {
+      reject("Baseline-change charts require a bar and an operation.");
+      continue;
+    }
     if (group.kind === "line") {
       if (
         items.some((item) => item.period === null) ||
-        new Set(items.map((item) => item.subject)).size !== 1
-      )
+        new Set(items.map((item) => item.subject)).size !== 1 ||
+        items.some((item) => periodRank(item.period as string) === undefined) ||
+        group.derivation !== "direct"
+      ) {
+        reject(
+          "Line charts require one snapshot subject and explicit periods.",
+        );
         continue;
+      }
       items.sort((left, right) => {
         const leftRank = periodRank(left.period as string);
         const rightRank = periodRank(right.period as string);
@@ -96,8 +144,10 @@ export function calculateObservationCharts(
         targets.length !== 1 ||
         snapshots.length < 1 ||
         snapshots.length + targets.length !== items.length
-      )
+      ) {
+        reject("Current-target chart roles are incompatible.");
         continue;
+      }
       const target = targets[0] as TextObservation;
       points = [
         {
@@ -117,12 +167,14 @@ export function calculateObservationCharts(
         items.length !== 2 ||
         !baseline ||
         !change ||
-        group.operation === "none" ||
+        operation === "none" ||
         new Set(items.map((item) => item.subject)).size !== 1 ||
-        (group.operation === "increase" && change.value < 0) ||
-        (group.operation === "decrease" && change.value > 0)
-      )
+        (operation === "increase" && change.value < 0) ||
+        (operation === "decrease" && change.value > 0)
+      ) {
+        reject("Baseline-change chart roles are incompatible.");
         continue;
+      }
       points = [
         { label: "База", value: baseline.value },
         { label: "Изменение", value: change.value },
@@ -138,12 +190,31 @@ export function calculateObservationCharts(
       }));
     }
     const evidenceIds = items.map((item) => evidenceId(item.id));
-    if (evidenceIds.some((id) => id.length === 0)) continue;
+    if (evidenceIds.some((id) => id.length === 0)) {
+      reject("Chart observations require quote evidence.");
+      continue;
+    }
+    const title =
+      group.derivation === "current-target"
+        ? "Текущее значение и цель"
+        : group.derivation === "baseline-change"
+          ? "База и изменение"
+          : group.kind === "line"
+            ? `Динамика: ${items[0]?.subject ?? "показатель"}`
+            : "Сравнение показателей";
+    const rationale =
+      group.derivation === "current-target"
+        ? "Сопоставление проверенного текущего значения и цели"
+        : group.derivation === "baseline-change"
+          ? "База, явное изменение и рассчитанный итог"
+          : group.kind === "line"
+            ? "Один показатель по явно указанным периодам"
+            : "Сопоставление совместимых показателей источника";
     charts.push({
       id: group.id,
       kind: group.kind,
-      title: group.title,
-      rationale: group.rationale,
+      title,
+      rationale,
       aggregation: {
         kind: "count",
         dimensionFieldId: "observation",

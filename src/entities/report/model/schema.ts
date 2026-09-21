@@ -26,7 +26,7 @@ export const REPORT_QUOTE_MAX_LENGTH = 1_000;
 export const REPORT_NO_CHART_REASON_MAX_LENGTH = 300;
 export const REPORT_MAX_SERIALIZED_BYTES = 24 * 1_024;
 export const REPORT_MAX_EVIDENCE = 8;
-export const REPORT_MAX_TEXT_OBSERVATIONS = 24;
+export const REPORT_MAX_TEXT_OBSERVATIONS = 8;
 export const REPORT_MAX_TEXT_CHART_GROUPS = 3;
 
 const boundedNonblankString = (maxLength: number) =>
@@ -389,7 +389,30 @@ export const narrativeResponseSchema = z
       .max(3),
   })
   .strict();
-export const textExtractionResponseSchema = z
+const textReportNarrativeItemSchema = z
+  .object({
+    template: z.enum([
+      "fact",
+      "fact-list",
+      "qualitative",
+      "change",
+      "target",
+      "source-context",
+    ]),
+    observationIds: z.array(identifierString).min(1).max(REPORT_MAX_EVIDENCE),
+    kind: z.enum(["observation", "hypothesis", "action"]),
+  })
+  .strict();
+const textReportRecommendationSchema = textReportNarrativeItemSchema.extend({
+  kind: z.literal("action"),
+});
+
+/**
+ * The single model response used for unstructured text sources. Narrative
+ * references observations directly; the application resolves them to facts
+ * and quote evidence only after validating the source excerpts.
+ */
+export const textReportResponseSchema = z
   .object({
     observations: z
       .array(
@@ -411,11 +434,35 @@ export const textExtractionResponseSchema = z
       .array(textChartGroupSchema)
       .max(REPORT_MAX_TEXT_CHART_GROUPS)
       .default([]),
+    hero: z.array(textReportNarrativeItemSchema).min(2).max(3),
+    recommendations: z.array(textReportRecommendationSchema).max(3),
   })
   .strict()
-  .superRefine((value, context) =>
-    idsAreUnique(value.observations, context, "observations"),
-  );
+  .superRefine((value, context) => {
+    idsAreUnique(value.observations, context, "observations");
+    const observationIds = new Set(value.observations.map((item) => item.id));
+    for (const [section, items] of [
+      ["hero", value.hero],
+      ["recommendations", value.recommendations],
+    ] as const) {
+      for (const [index, item] of items.entries()) {
+        if (item.observationIds.some((id) => !observationIds.has(id)))
+          context.addIssue({
+            code: "custom",
+            message: "Narrative references an unknown observation.",
+            path: [section, index, "observationIds"],
+          });
+      }
+    }
+    for (const [index, group] of value.chartGroups.entries()) {
+      if (group.observationIds.some((id) => !observationIds.has(id)))
+        context.addIssue({
+          code: "custom",
+          message: "Chart references an unknown observation.",
+          path: ["chartGroups", index, "observationIds"],
+        });
+    }
+  });
 
 export type FieldReference = z.infer<typeof fieldReferenceSchema>;
 export type CountAggregation = z.infer<typeof countAggregationSchema>;
@@ -437,8 +484,6 @@ export type ReportCalculation = z.infer<typeof reportCalculationSchema>;
 export type ReportChartCalculation = z.infer<
   typeof reportChartCalculationSchema
 >;
-export type TextExtractionResponse = z.infer<
-  typeof textExtractionResponseSchema
->;
+export type TextReportResponse = z.infer<typeof textReportResponseSchema>;
 export type TextObservation = z.infer<typeof textObservationSchema>;
 export type TextChartGroup = z.input<typeof textChartGroupSchema>;

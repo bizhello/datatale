@@ -27,7 +27,7 @@ import {
   REPORT_RATIONALE_MAX_LENGTH,
   REPORT_TITLE_MAX_LENGTH,
   REPORT_UNIT_MAX_LENGTH,
-  textExtractionResponseSchema,
+  textReportResponseSchema,
 } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
 import type { AnalysisFocus } from "../model/analysis-focus";
@@ -37,7 +37,10 @@ import {
   reportChartCalculation,
 } from "../model/calculate";
 import { validateFinalReportReferences } from "../model/final-report";
-import { calculateObservationCharts } from "../model/observation-charts";
+import {
+  calculateObservationCharts,
+  ObservationChartValidationError,
+} from "../model/observation-charts";
 import { boundedSourceDescription } from "../model/profile";
 import { chartCopy } from "../model/report-copy";
 import {
@@ -69,14 +72,115 @@ export const MODEL_CALL_TIMEOUT_MS = 45_000;
 export const TEXT_EXTRACTION_MODEL_CALL_TIMEOUT_MS = 75_000;
 export const ANALYSIS_TIMEOUT_MS = 165_000;
 export const DEFAULT_TEXT_EXTRACTION_MODEL = "gpt-5.6-luna";
+export const TEXT_EXTRACTION_REASONING_EFFORT = "low" as const;
 export const MODEL_OUTPUT_TOKEN_LIMITS: Readonly<
   Record<AnalysisStage, number>
 > = {
   "table-plan": 1_200,
   "table-repair": 1_200,
-  "text-extraction": 1_800,
+  "text-extraction": 2_200,
   narrative: 1_200,
 };
+
+/** Keep exact numbers in the report, but give the narrative model readable values. */
+function formatNarrativeNumber(value: number): string {
+  return new Intl.NumberFormat("ru-RU", {
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+type TextReportTemplate =
+  | "fact"
+  | "fact-list"
+  | "qualitative"
+  | "change"
+  | "target"
+  | "source-context";
+
+function renderTextTemplate(
+  template: TextReportTemplate,
+  observations: Array<{
+    subject: string | null;
+    value: number | null;
+    unit: string | null;
+    period: string | null;
+    role: "snapshot" | "change" | "target" | null;
+    quote: string;
+  }>,
+  kind: "observation" | "hypothesis" | "action",
+): string {
+  const numeric = observations.filter(
+    (item): item is typeof item & { subject: string; value: number } =>
+      item.subject !== null && item.value !== null,
+  );
+  if (template === "qualitative") {
+    if (observations.length !== 1 || numeric.length !== 0)
+      throw new AnalysisError(
+        "invalid-model-output",
+        "Invalid qualitative narrative template.",
+      );
+    return `${kind === "action" ? "Стоит учесть: " : "Источник сообщает: "}${observations[0]?.quote ?? ""}`;
+  }
+  if (template === "source-context") {
+    if (observations.length !== 1)
+      throw new AnalysisError(
+        "invalid-model-output",
+        "Source-context template requires one observation.",
+      );
+    return `${kind === "action" ? "Стоит проверить источник: " : "Источник прямо сообщает: "}${observations[0]?.quote ?? ""}`;
+  }
+  if (template === "fact-list") {
+    if (
+      numeric.length < 2 ||
+      numeric.length !== observations.length ||
+      numeric.some((item) => item.role !== "snapshot") ||
+      new Set(numeric.map((item) => item.unit)).size !== 1
+    )
+      throw new AnalysisError(
+        "invalid-model-output",
+        "Invalid fact-list narrative template.",
+      );
+    const values = numeric
+      .map(
+        (item) =>
+          `${item.subject}: ${formatNarrativeNumber(item.value)}${item.unit ? ` ${item.unit}` : ""}${item.period ? ` (${item.period})` : ""}`,
+      )
+      .join(", ");
+    return `${kind === "action" ? "Стоит проверить: " : "В источнике указаны: "}${values}.`;
+  }
+  if (numeric.length !== 1 || observations.length !== 1)
+    throw new AnalysisError(
+      "invalid-model-output",
+      "Invalid single-observation narrative template.",
+    );
+  const item = numeric[0];
+  if (!item)
+    throw new AnalysisError(
+      "invalid-model-output",
+      "Narrative template has no numeric observation.",
+    );
+  if (template === "change" && item.role !== "change")
+    throw new AnalysisError(
+      "invalid-model-output",
+      "Change template requires a change observation.",
+    );
+  if (template === "target" && item.role !== "target")
+    throw new AnalysisError(
+      "invalid-model-output",
+      "Target template requires a target observation.",
+    );
+  if (template === "fact" && item.role !== "snapshot")
+    throw new AnalysisError(
+      "invalid-model-output",
+      "Fact template requires a numeric observation role.",
+    );
+  const value = `${item.subject}: ${formatNarrativeNumber(item.value)}${item.unit ? ` ${item.unit}` : ""}${item.period ? ` (${item.period})` : ""}`;
+  if (template === "change")
+    return `${kind === "action" ? "Стоит проверить изменение: " : "Зафиксировано изменение: "}${value}.`;
+  if (template === "target")
+    return `${kind === "action" ? "Стоит проверить цель: " : "В источнике указана цель: "}${value}.`;
+  return `${kind === "action" ? "Стоит проверить показатель: " : "В источнике указано: "}${value}.`;
+}
 export type ModelCall = (request: {
   stage: AnalysisStage;
   prompt: string;
@@ -90,6 +194,14 @@ export type AnalyzeOptions = {
   timeoutMs?: number;
   focus?: AnalysisFocus;
 };
+
+export function providerOptionsForStage(stage: AnalysisStage) {
+  return stage === "text-extraction"
+    ? {
+        openai: { reasoningEffort: TEXT_EXTRACTION_REASONING_EFFORT },
+      }
+    : {};
+}
 
 function isTimeoutFailure(error: unknown): boolean {
   const visited = new Set<unknown>();
@@ -201,52 +313,72 @@ export const providerNarrativeResponseSchema = z
       .max(3),
   })
   .strict();
-export const providerTextExtractionResponseSchema = z
+const providerTextObservationSchema = z
+  .object({
+    id: providerIdentifierString,
+    subject: providerLabelString.nullable(),
+    value: z.number().finite().nullable(),
+    unit: providerUnitString.nullable(),
+    period: providerPeriodString.nullable(),
+    role: z.enum(["snapshot", "change", "target"]).nullable(),
+    paragraphIndex: z.number().int().positive(),
+    quote: providerQuoteString,
+  })
+  .strict();
+const providerTextChartGroupSchema = z
+  .object({
+    id: providerIdentifierString,
+    kind: z.enum(["bar", "line"]),
+    title: providerTitleString,
+    rationale: providerRationaleString,
+    observationIds: z
+      .array(providerIdentifierString)
+      .min(2)
+      .max(REPORT_MAX_EVIDENCE),
+    derivation: z.enum(["direct", "current-target", "baseline-change"]),
+    operation: z.enum(["none", "increase", "decrease"]),
+  })
+  .strict()
+  .superRefine((group, context) => {
+    if (new Set(group.observationIds).size !== group.observationIds.length)
+      context.addIssue({
+        code: "custom",
+        message: "Chart observation IDs must be unique.",
+        path: ["observationIds"],
+      });
+  });
+
+const providerTextReportNarrativeItemSchema = z
+  .object({
+    template: z.enum([
+      "fact",
+      "fact-list",
+      "qualitative",
+      "change",
+      "target",
+      "source-context",
+    ]),
+    observationIds: z
+      .array(providerIdentifierString)
+      .min(1)
+      .max(REPORT_MAX_EVIDENCE),
+    kind: z.enum(["observation", "hypothesis", "action"]),
+  })
+  .strict();
+const providerTextReportRecommendationSchema =
+  providerTextReportNarrativeItemSchema.extend({
+    kind: z.literal("action"),
+  });
+export const providerTextReportResponseSchema = z
   .object({
     observations: z
-      .array(
-        z
-          .object({
-            id: providerIdentifierString,
-            subject: providerLabelString.nullable(),
-            value: z.number().finite().nullable(),
-            unit: providerUnitString.nullable(),
-            period: providerPeriodString.nullable(),
-            role: z.enum(["snapshot", "change", "target"]).nullable(),
-            paragraphIndex: z.number().int().positive(),
-            quote: providerQuoteString,
-          })
-          .strict(),
-      )
+      .array(providerTextObservationSchema)
       .max(REPORT_MAX_TEXT_OBSERVATIONS),
     chartGroups: z
-      .array(
-        z
-          .object({
-            id: providerIdentifierString,
-            kind: z.enum(["bar", "line"]),
-            title: providerTitleString,
-            rationale: providerRationaleString,
-            observationIds: z
-              .array(providerIdentifierString)
-              .min(2)
-              .max(REPORT_MAX_EVIDENCE),
-            derivation: z.enum(["direct", "current-target", "baseline-change"]),
-            operation: z.enum(["none", "increase", "decrease"]),
-          })
-          .strict()
-          .superRefine((group, context) => {
-            if (
-              new Set(group.observationIds).size !== group.observationIds.length
-            )
-              context.addIssue({
-                code: "custom",
-                message: "Chart observation IDs must be unique.",
-                path: ["observationIds"],
-              });
-          }),
-      )
+      .array(providerTextChartGroupSchema)
       .max(REPORT_MAX_TEXT_CHART_GROUPS),
+    hero: z.array(providerTextReportNarrativeItemSchema).min(2).max(3),
+    recommendations: z.array(providerTextReportRecommendationSchema).max(3),
   })
   .strict();
 
@@ -445,9 +577,9 @@ export function narrativeFromProviderOutput(output: unknown) {
   );
 }
 
-export function textExtractionFromProviderOutput(output: unknown) {
-  return textExtractionResponseSchema.parse(
-    providerTextExtractionResponseSchema.parse(output),
+export function textReportFromProviderOutput(output: unknown) {
+  return textReportResponseSchema.parse(
+    providerTextReportResponseSchema.parse(output),
   );
 }
 
@@ -474,6 +606,7 @@ function defaultCallModel(): ModelCall {
       prompt,
       maxRetries: 0,
       maxOutputTokens: MODEL_OUTPUT_TOKEN_LIMITS[stage],
+      providerOptions: providerOptionsForStage(stage),
       abortSignal: signal,
       timeout:
         stage === "text-extraction"
@@ -614,9 +747,11 @@ type TextRange = { start: number; end: number };
 
 function exactPhraseRanges(text: string, phrase: string): TextRange[] {
   const ranges: TextRange[] = [];
-  const [first] = Array.from(phrase);
-  const last = Array.from(phrase).at(-1);
-  let start = text.indexOf(phrase);
+  const normalizedText = text.toLocaleLowerCase("ru-RU");
+  const normalizedPhrase = phrase.toLocaleLowerCase("ru-RU");
+  const [first] = Array.from(normalizedPhrase);
+  const last = Array.from(normalizedPhrase).at(-1);
+  let start = normalizedText.indexOf(normalizedPhrase);
   while (start !== -1) {
     const before = text[start - 1] ?? "";
     const after = text[start + phrase.length] ?? "";
@@ -626,13 +761,40 @@ function exactPhraseRanges(text: string, phrase: string): TextRange[] {
       !last?.match(semanticCharacter) || !after.match(semanticCharacter);
     if (leftIsBounded && rightIsBounded)
       ranges.push({ start, end: start + phrase.length });
-    start = text.indexOf(phrase, start + 1);
+    start = normalizedText.indexOf(normalizedPhrase, start + 1);
   }
   return ranges;
 }
 
 function quoteHasExactPhrase(quote: string, phrase: string): boolean {
   return exactPhraseRanges(quote, phrase).length > 0;
+}
+
+const sourceWordPattern = /[\p{L}\p{N}_]+/gu;
+
+function sourceWords(value: string): string[] {
+  return value.toLocaleLowerCase("ru-RU").match(sourceWordPattern) ?? [];
+}
+
+function subjectMatchesQuote(subject: string, value: number, quote: string) {
+  const subjectWords = sourceWords(subject);
+  if (canonicalNumericToken(subjectWords[0] ?? "") === value)
+    subjectWords.shift();
+  const quoteWords = sourceWords(quote);
+  if (subjectWords.length === 0) return false;
+  let quoteIndex = 0;
+  for (const subjectWord of subjectWords) {
+    const found = quoteWords.indexOf(subjectWord, quoteIndex);
+    if (found < 0) return false;
+    quoteIndex = found + 1;
+  }
+  return true;
+}
+
+function normalizedSubject(subject: string, value: number): string {
+  const words = sourceWords(subject);
+  if (canonicalNumericToken(words[0] ?? "") === value) words.shift();
+  return words.join(" ");
 }
 
 function boundedExactExcerpt(text: string) {
@@ -644,7 +806,8 @@ function repairableModelOutput(error: unknown) {
   return (
     NoObjectGeneratedError.isInstance(error) ||
     error instanceof z.ZodError ||
-    (error instanceof AnalysisError && error.code === "invalid-model-output")
+    (error instanceof AnalysisError && error.code === "invalid-model-output") ||
+    error instanceof ObservationChartValidationError
   );
 }
 
@@ -659,176 +822,283 @@ async function analyzeText(
   signal: AbortSignal,
   focus?: AnalysisFocus,
 ): Promise<FinalReport> {
-  const [extractPrompt, narrativePrompt] = await Promise.all([
-    loadPrompt("text"),
-    loadPrompt("narrative"),
-  ]);
+  const extractPrompt = await loadPrompt("text");
   const extractionPrompt = `${extractPrompt}\n\n${boundedSourceDescription(source)}${focusContext(focus)}`;
   const extract = (prompt: string) =>
     callModel({
       stage: "text-extraction",
-      schema: textExtractionResponseSchema,
-      providerSchema: providerTextExtractionResponseSchema,
-      decodeProviderOutput: textExtractionFromProviderOutput,
+      schema: textReportResponseSchema,
+      providerSchema: providerTextReportResponseSchema,
+      decodeProviderOutput: textReportFromProviderOutput,
       signal,
       prompt,
-    }).then((output) => textExtractionResponseSchema.parse(output));
-  let extraction: z.infer<typeof textExtractionResponseSchema>;
-  try {
-    extraction = await extract(extractionPrompt);
-  } catch (error) {
-    if (!repairableModelOutput(error)) throw error;
-    extraction = await extract(repairPrompt(extractionPrompt, error));
-  }
-  const evidenceByQuote = new Map<string, string>();
-  const evidence = [] as Array<{
-    id: string;
-    kind: "quote";
-    label: string;
-    excerpt: string;
-  }>;
-  const addQuoteEvidence = (
-    id: string,
-    paragraphIndex: number,
-    quote: string,
-  ): string | undefined => {
-    const key = `${paragraphIndex}:${quote}`;
-    const existing = evidenceByQuote.get(key);
-    if (existing) return existing;
-    if (evidence.length >= REPORT_MAX_EVIDENCE) return undefined;
-    const evidenceId = `quote-${id}`;
-    evidenceByQuote.set(key, evidenceId);
-    evidence.push({
-      id: evidenceId,
-      kind: "quote",
-      label: `Абзац ${paragraphIndex}`,
-      excerpt: quote,
-    });
-    return evidenceId;
-  };
-  const checkedObservations = [] as Array<{
-    id: string;
-    subject: string;
-    value: number;
-    unit: string | null;
-    period: string | null;
-    role: "snapshot" | "change" | "target";
-    paragraphIndex: number;
-    quote: string;
-  }>;
-  for (const observation of extraction.observations) {
-    const paragraph = source.paragraphs.find(
-      (candidate) => candidate.index === observation.paragraphIndex,
+    }).then((output) => textReportResponseSchema.parse(output));
+  const buildReport = (
+    extraction: z.infer<typeof textReportResponseSchema>,
+  ): FinalReport => {
+    const citedObservationIds = new Set(
+      [...extraction.hero, ...extraction.recommendations].flatMap(
+        (item) => item.observationIds,
+      ),
     );
-    if (!paragraph?.text.includes(observation.quote)) continue;
-    if (
-      observation.subject !== null &&
-      observation.value !== null &&
-      observation.role !== null &&
-      quoteHasValue(observation.quote, observation.value) &&
-      quoteHasExactPhrase(observation.quote, observation.subject) &&
-      (observation.unit === undefined ||
-        observation.unit === null ||
-        quoteHasExactPhrase(observation.quote, observation.unit)) &&
-      (observation.period === undefined ||
-        observation.period === null ||
-        quoteHasExactPhrase(observation.quote, observation.period))
-    ) {
+    for (const group of extraction.chartGroups)
+      for (const observationId of group.observationIds)
+        citedObservationIds.add(observationId);
+    const evidenceByQuote = new Map<string, string>();
+    const evidence = [] as Array<{
+      id: string;
+      kind: "quote";
+      label: string;
+      excerpt: string;
+    }>;
+    const addQuoteEvidence = (
+      id: string,
+      paragraphIndex: number,
+      quote: string,
+    ): string | undefined => {
+      const key = `${paragraphIndex}:${quote}`;
+      const existing = evidenceByQuote.get(key);
+      if (existing) return existing;
+      if (evidence.length >= REPORT_MAX_EVIDENCE) return undefined;
+      const evidenceId = `quote-${id}`;
+      evidenceByQuote.set(key, evidenceId);
+      evidence.push({
+        id: evidenceId,
+        kind: "quote",
+        label: `Абзац ${paragraphIndex}`,
+        excerpt: quote,
+      });
+      return evidenceId;
+    };
+    const validObservations = [] as Array<{
+      id: string;
+      subject: string | null;
+      value: number | null;
+      unit: string | null;
+      period: string | null;
+      role: "snapshot" | "change" | "target" | null;
+      paragraphIndex: number;
+      quote: string;
+    }>;
+    for (const observation of extraction.observations) {
+      const paragraph = source.paragraphs.find(
+        (candidate) => candidate.index === observation.paragraphIndex,
+      );
+      const qualitative =
+        observation.value === null &&
+        observation.role === null &&
+        observation.unit === null &&
+        observation.period === null;
+      const numeric =
+        observation.subject !== null &&
+        observation.value !== null &&
+        observation.role !== null &&
+        quoteHasValue(observation.quote, observation.value) &&
+        subjectMatchesQuote(
+          observation.subject,
+          observation.value,
+          observation.quote,
+        );
+      const failedChecks = [
+        !paragraph && "paragraph does not exist",
+        paragraph &&
+          !paragraph.text.includes(observation.quote) &&
+          "quote is not contiguous in paragraph",
+        !qualitative && observation.subject === null && "subject is missing",
+        !qualitative && observation.value === null && "value is missing",
+        !qualitative && observation.role === null && "role is missing",
+        !qualitative &&
+          observation.value !== null &&
+          !quoteHasValue(observation.quote, observation.value) &&
+          `value ${observation.value} is absent from quote`,
+        !qualitative &&
+          observation.subject !== null &&
+          !subjectMatchesQuote(
+            observation.subject,
+            observation.value ?? Number.NaN,
+            observation.quote,
+          ) &&
+          `subject ${JSON.stringify(observation.subject)} is absent from quote`,
+      ].filter((item): item is string => typeof item === "string");
+      const valid = failedChecks.length === 0 && (qualitative || numeric);
+      if (!valid) {
+        if (citedObservationIds.has(observation.id))
+          throw new AnalysisError(
+            "invalid-model-output",
+            `Cited observation ${observation.id} failed source validation: ${failedChecks.join("; ") || "numeric observation fields are inconsistent"}.`,
+          );
+        continue;
+      }
       const observationEvidenceId = addQuoteEvidence(
         observation.id,
         observation.paragraphIndex,
         observation.quote,
       );
-      if (!observationEvidenceId) continue;
-      checkedObservations.push({
+      if (!observationEvidenceId) {
+        if (citedObservationIds.has(observation.id))
+          throw new AnalysisError(
+            "invalid-model-output",
+            `Cited observation ${observation.id} has no evidence budget.`,
+          );
+        continue;
+      }
+      validObservations.push({
         id: observation.id,
-        subject: observation.subject,
+        subject:
+          !qualitative &&
+          observation.subject !== null &&
+          observation.value !== null
+            ? normalizedSubject(observation.subject, observation.value)
+            : null,
         value: observation.value,
-        unit: observation.unit ?? null,
-        period: observation.period ?? null,
+        unit:
+          observation.unit !== null &&
+          quoteHasExactPhrase(observation.quote, observation.unit)
+            ? observation.unit
+            : null,
+        period:
+          observation.period !== null &&
+          quoteHasExactPhrase(observation.quote, observation.period)
+            ? observation.period
+            : null,
         role: observation.role,
         paragraphIndex: observation.paragraphIndex,
         quote: observation.quote,
       });
     }
-    if (observation.subject === null)
-      addQuoteEvidence(
+    if (!evidence.length) {
+      const paragraph = source.paragraphs[0];
+      if (!paragraph)
+        throw new AnalysisError(
+          "invalid-source",
+          "Text source has no paragraphs.",
+        );
+      evidence.push({
+        id: "quote-source",
+        kind: "quote",
+        label: `Абзац ${paragraph.index}`,
+        excerpt: boundedExactExcerpt(paragraph.text),
+      });
+    }
+    const observationEvidence = new Map(
+      validObservations.map((observation) => [
         observation.id,
-        observation.paragraphIndex,
-        observation.quote,
-      );
-  }
-  if (!evidence.length) {
-    const paragraph = source.paragraphs[0];
-    if (!paragraph)
+        evidenceByQuote.get(
+          `${observation.paragraphIndex}:${observation.quote}`,
+        ) ?? "",
+      ]),
+    );
+    const checkedObservations = validObservations.filter(
+      (
+        observation,
+      ): observation is typeof observation & {
+        subject: string;
+        value: number;
+        role: "snapshot" | "change" | "target";
+      } =>
+        observation.subject !== null &&
+        observation.value !== null &&
+        observation.role !== null,
+    );
+    const facts = checkedObservations.slice(0, 4).map((observation) => ({
+      id: observation.id,
+      label: observation.subject,
+      value: observation.value,
+      ...(observation.unit ? { unit: observation.unit } : {}),
+      calculation: { kind: "direct-source" as const },
+      evidenceIds: [observationEvidence.get(observation.id) ?? "quote-source"],
+    }));
+    const charts = calculateObservationCharts(
+      checkedObservations,
+      extraction.chartGroups,
+      (observationId) => observationEvidence.get(observationId) ?? "",
+      { strict: true },
+    );
+    const validById = new Map(validObservations.map((item) => [item.id, item]));
+    const renderNarrativeItem = (item: (typeof extraction.hero)[number]) => {
+      const observations = item.observationIds
+        .map((id) => validById.get(id))
+        .filter((observation): observation is NonNullable<typeof observation> =>
+          Boolean(observation),
+        );
+      const factIds = observations
+        .map((observation) => observation.id)
+        .filter((id) => factIdsSet.has(id));
+      const evidenceIdsForItem = item.observationIds
+        .map((id) => observationEvidence.get(id))
+        .filter((id): id is string => Boolean(id));
+      return {
+        text: renderTextTemplate(item.template, observations, item.kind),
+        factIds,
+        evidenceIds: evidenceIdsForItem,
+        kind: item.kind,
+      };
+    };
+    const factIdsSet = new Set(facts.map((fact) => fact.id));
+    const narrative = {
+      hero: extraction.hero.map(renderNarrativeItem),
+      recommendations: extraction.recommendations.map(renderNarrativeItem),
+    };
+    if (
+      new Set(narrative.hero.map((item) => item.text)).size !==
+      narrative.hero.length
+    )
       throw new AnalysisError(
-        "invalid-source",
-        "Text source has no paragraphs.",
+        "invalid-model-output",
+        "Text report hero items must render as distinct sentences.",
       );
-    evidence.push({
-      id: "quote-source",
-      kind: "quote",
-      label: `Абзац ${paragraph.index}`,
-      excerpt: boundedExactExcerpt(paragraph.text),
+    if (narrative.hero.some((item) => item.kind === "action"))
+      throw new AnalysisError(
+        "invalid-model-output",
+        "Text report hero cannot contain recommendations.",
+      );
+    if (narrative.recommendations.some((item) => item.kind !== "action"))
+      throw new AnalysisError(
+        "invalid-model-output",
+        "Text report recommendations must use the action kind.",
+      );
+    if (
+      narrative.hero.some(
+        (item) => item.factIds.length + item.evidenceIds.length === 0,
+      )
+    )
+      throw new AnalysisError(
+        "invalid-model-output",
+        "Text report narrative must reference checked evidence.",
+      );
+    return finalReportSchema.parse({
+      version: 1,
+      hero: narrative.hero,
+      metrics: facts,
+      observations: checkedObservations,
+      charts,
+      evidence,
+      recommendations: narrative.recommendations,
+      ...(charts.length === 0
+        ? {
+            noChartReason:
+              "Недостаточно совместимых количественных наблюдений для достоверного графика.",
+          }
+        : {}),
     });
-  }
-  const observationEvidence = new Map(
-    checkedObservations.map((observation) => [
-      observation.id,
-      addQuoteEvidence(
-        observation.id,
-        observation.paragraphIndex,
-        observation.quote,
-      ) ?? "",
-    ]),
-  );
-  const facts = checkedObservations.slice(0, 4).map((observation) => ({
-    id: observation.id,
-    label: observation.subject,
-    value: observation.value,
-    ...(observation.unit ? { unit: observation.unit } : {}),
-    calculation: { kind: "direct-source" as const },
-    evidenceIds: [observationEvidence.get(observation.id) ?? "quote-source"],
-  }));
-  const factIds = new Set(facts.map((fact) => fact.id));
-  const evidenceIds = new Set(evidence.map((item) => item.id));
-  const charts = calculateObservationCharts(
-    checkedObservations,
-    extraction.chartGroups,
-    (observationId) => observationEvidence.get(observationId) ?? "",
-  );
-  const checkedNarrativePrompt = `${narrativePrompt}\n\nChecked facts, source-backed observations, calculated chart series, and evidence only:\n${JSON.stringify({ facts, observations: checkedObservations, charts, evidence })}\nEvery chart point is deterministic code output. Change observations are signed deltas: a decrease is negative, and calculated totals add the signed change once. Explain calculated current totals or change totals only when their chart provenance supports it; never invent a value or relationship.${focusContext(focus)}`;
-  const narrate = (prompt: string) =>
-    callModel({
-      stage: "narrative",
-      schema: narrativeResponseSchema,
-      providerSchema: providerNarrativeResponseSchema,
-      decodeProviderOutput: narrativeFromProviderOutput,
-      signal,
-      prompt,
-    }).then((output) => checkedNarrative(output, factIds, evidenceIds));
-  let narrative: z.infer<typeof narrativeResponseSchema>;
+  };
   try {
-    narrative = await narrate(checkedNarrativePrompt);
+    return buildReport(await extract(extractionPrompt));
   } catch (error) {
     if (!repairableModelOutput(error)) throw error;
-    narrative = await narrate(repairPrompt(checkedNarrativePrompt, error));
+    try {
+      return buildReport(await extract(repairPrompt(extractionPrompt, error)));
+    } catch (repairError) {
+      if (repairableModelOutput(repairError))
+        throw new AnalysisError(
+          "invalid-model-output",
+          repairError instanceof Error
+            ? repairError.message
+            : "Repair response was invalid.",
+        );
+      throw repairError;
+    }
   }
-  return finalReportSchema.parse({
-    version: 1,
-    hero: narrative.hero,
-    metrics: facts,
-    observations: checkedObservations,
-    charts,
-    evidence,
-    recommendations: narrative.recommendations,
-    ...(charts.length === 0
-      ? {
-          noChartReason:
-            "Недостаточно совместимых количественных наблюдений для достоверного графика.",
-        }
-      : {}),
-  });
 }
 export async function analyzeSource(
   source: Dataset | TextSource,
@@ -891,6 +1161,17 @@ export async function analyzeSource(
       evidenceIds: ["rows-all"],
     }));
     const charts = calculateTableCharts(source, proposal);
+    const narrativeMetrics = metrics.map((metric) => ({
+      ...metric,
+      value: formatNarrativeNumber(metric.value),
+    }));
+    const narrativeCharts = charts.map((chart) => ({
+      ...chart,
+      points: chart.points.map((point) => ({
+        ...point,
+        value: formatNarrativeNumber(point.value),
+      })),
+    }));
     const narrative = checkedNarrative(
       await callModel({
         stage: "narrative",
@@ -898,7 +1179,7 @@ export async function analyzeSource(
         providerSchema: providerNarrativeResponseSchema,
         decodeProviderOutput: narrativeFromProviderOutput,
         signal: controller.signal,
-        prompt: `${narrativePrompt}\n\nChecked facts and calculated chart series only; do not add values:\n${JSON.stringify({ facts: metrics, charts, evidence: tableEvidence(source) })}\nEvery chart point is deterministic code output and may be explained when its evidence supports the statement.${focusContext(focus)}`,
+        prompt: `${narrativePrompt}\n\nChecked facts and calculated chart series only; do not add values:\n${JSON.stringify({ facts: narrativeMetrics, charts: narrativeCharts, evidence: tableEvidence(source) })}\nEvery chart point is deterministic code output and may be explained when its evidence supports the statement.${focusContext(focus)}`,
       }),
       new Set(metrics.map((metric) => metric.id)),
       new Set(["rows-all"]),
