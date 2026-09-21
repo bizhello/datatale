@@ -94,7 +94,8 @@ type TextReportTemplate =
   | "fact-list"
   | "qualitative"
   | "change"
-  | "target";
+  | "target"
+  | "source-context";
 
 function renderTextTemplate(
   template: TextReportTemplate,
@@ -119,6 +120,14 @@ function renderTextTemplate(
         "Invalid qualitative narrative template.",
       );
     return `${kind === "action" ? "Стоит учесть: " : "Источник сообщает: "}${observations[0]?.quote ?? ""}`;
+  }
+  if (template === "source-context") {
+    if (observations.length !== 1)
+      throw new AnalysisError(
+        "invalid-model-output",
+        "Source-context template requires one observation.",
+      );
+    return `${kind === "action" ? "Стоит проверить источник: " : "Источник прямо сообщает: "}${observations[0]?.quote ?? ""}`;
   }
   if (template === "fact-list") {
     if (
@@ -341,7 +350,14 @@ const providerTextChartGroupSchema = z
 
 const providerTextReportNarrativeItemSchema = z
   .object({
-    template: z.enum(["fact", "fact-list", "qualitative", "change", "target"]),
+    template: z.enum([
+      "fact",
+      "fact-list",
+      "qualitative",
+      "change",
+      "target",
+      "source-context",
+    ]),
     observationIds: z
       .array(providerIdentifierString)
       .min(1)
@@ -857,13 +873,37 @@ async function analyzeText(
           quoteHasExactPhrase(observation.quote, observation.unit)) &&
         (observation.period === null ||
           quoteHasExactPhrase(observation.quote, observation.period));
-      const valid =
-        paragraph?.text.includes(observation.quote) && (qualitative || numeric);
+      const failedChecks = [
+        !paragraph && "paragraph does not exist",
+        paragraph &&
+          !paragraph.text.includes(observation.quote) &&
+          "quote is not contiguous in paragraph",
+        !qualitative && observation.subject === null && "subject is missing",
+        !qualitative && observation.value === null && "value is missing",
+        !qualitative && observation.role === null && "role is missing",
+        !qualitative &&
+          observation.value !== null &&
+          !quoteHasValue(observation.quote, observation.value) &&
+          `value ${observation.value} is absent from quote`,
+        !qualitative &&
+          observation.subject !== null &&
+          !quoteHasExactPhrase(observation.quote, observation.subject) &&
+          `subject ${JSON.stringify(observation.subject)} is absent from quote`,
+        !qualitative &&
+          observation.unit !== null &&
+          !quoteHasExactPhrase(observation.quote, observation.unit) &&
+          `unit ${JSON.stringify(observation.unit)} is absent from quote`,
+        !qualitative &&
+          observation.period !== null &&
+          !quoteHasExactPhrase(observation.quote, observation.period) &&
+          `period ${JSON.stringify(observation.period)} is absent from quote`,
+      ].filter((item): item is string => typeof item === "string");
+      const valid = failedChecks.length === 0 && (qualitative || numeric);
       if (!valid) {
         if (citedObservationIds.has(observation.id))
           throw new AnalysisError(
             "invalid-model-output",
-            `Cited observation ${observation.id} failed source validation.`,
+            `Cited observation ${observation.id} failed source validation: ${failedChecks.join("; ") || "numeric observation fields are inconsistent"}.`,
           );
         continue;
       }
@@ -964,6 +1004,14 @@ async function analyzeText(
       hero: extraction.hero.map(renderNarrativeItem),
       recommendations: extraction.recommendations.map(renderNarrativeItem),
     };
+    if (
+      new Set(narrative.hero.map((item) => item.text)).size !==
+      narrative.hero.length
+    )
+      throw new AnalysisError(
+        "invalid-model-output",
+        "Text report hero items must render as distinct sentences.",
+      );
     if (narrative.hero.some((item) => item.kind === "action"))
       throw new AnalysisError(
         "invalid-model-output",

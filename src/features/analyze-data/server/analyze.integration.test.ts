@@ -290,7 +290,7 @@ describe("analysis orchestration", () => {
       chartGroups: [],
       hero: [
         {
-          template: "qualitative",
+          template: "source-context",
           observationIds: ["delay"],
           kind: "observation",
         },
@@ -367,7 +367,7 @@ describe("analysis orchestration", () => {
             : [],
         hero: [
           {
-            template: "fact",
+            template: "source-context",
             observationIds: ["items"],
             kind: "observation",
           },
@@ -650,7 +650,7 @@ describe("analysis orchestration", () => {
           chartGroups: [],
           hero: [
             {
-              template: "fact",
+              template: "source-context",
               observationIds: ["revenue"],
               kind: "observation",
             },
@@ -706,7 +706,7 @@ describe("analysis orchestration", () => {
             kind: "observation",
           },
           {
-            template: "fact",
+            template: "source-context",
             observationIds: ["orders"],
             kind: "observation",
           },
@@ -720,6 +720,48 @@ describe("analysis orchestration", () => {
     ).resolves.toMatchObject({
       metrics: [{ value: 12 }],
     });
+    expect(attempts).toBe(2);
+  });
+
+  it("repairs duplicate rendered hero items with a distinct safe template", async () => {
+    const source: TextSource = {
+      version: 1,
+      id: "duplicate-hero",
+      source: { kind: "text" },
+      rawText: "Указано 12 заявок.",
+      paragraphs: [{ index: 1, text: "Указано 12 заявок." }],
+    };
+    let attempts = 0;
+    const call: ModelCall = async () => {
+      attempts += 1;
+      return {
+        observations: [
+          {
+            id: "orders",
+            subject: "заявок",
+            value: 12,
+            unit: null,
+            period: null,
+            role: "snapshot",
+            paragraphIndex: 1,
+            quote: source.rawText,
+          },
+        ],
+        chartGroups: [],
+        hero: [
+          { template: "fact", observationIds: ["orders"], kind: "observation" },
+          {
+            template: attempts === 1 ? "fact" : "source-context",
+            observationIds: ["orders"],
+            kind: "observation",
+          },
+        ],
+        recommendations: [],
+      };
+    };
+    await expect(
+      analyzeSource(source, { callModel: call }),
+    ).resolves.toBeDefined();
     expect(attempts).toBe(2);
   });
 

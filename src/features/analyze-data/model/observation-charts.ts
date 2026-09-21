@@ -189,11 +189,27 @@ export function calculateObservationCharts(
       reject("Chart observations require quote evidence.");
       continue;
     }
+    const title =
+      group.derivation === "current-target"
+        ? "Текущее значение и цель"
+        : group.derivation === "baseline-change"
+          ? "База и изменение"
+          : group.kind === "line"
+            ? `Динамика: ${items[0]?.subject ?? "показатель"}`
+            : "Сравнение показателей";
+    const rationale =
+      group.derivation === "current-target"
+        ? "Сопоставление проверенного текущего значения и цели"
+        : group.derivation === "baseline-change"
+          ? "База, явное изменение и рассчитанный итог"
+          : group.kind === "line"
+            ? "Один показатель по явно указанным периодам"
+            : "Сопоставление совместимых показателей источника";
     charts.push({
       id: group.id,
       kind: group.kind,
-      title: group.title,
-      rationale: group.rationale,
+      title,
+      rationale,
       aggregation: {
         kind: "count",
         dimensionFieldId: "observation",

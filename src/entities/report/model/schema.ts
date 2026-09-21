@@ -391,7 +391,14 @@ export const narrativeResponseSchema = z
   .strict();
 const textReportNarrativeItemSchema = z
   .object({
-    template: z.enum(["fact", "fact-list", "qualitative", "change", "target"]),
+    template: z.enum([
+      "fact",
+      "fact-list",
+      "qualitative",
+      "change",
+      "target",
+      "source-context",
+    ]),
     observationIds: z.array(identifierString).min(1).max(REPORT_MAX_EVIDENCE),
     kind: z.enum(["observation", "hypothesis", "action"]),
   })
