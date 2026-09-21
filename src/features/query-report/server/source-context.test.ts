@@ -18,6 +18,18 @@ describe("numericValues", () => {
     expect(numericValues("Дата отчёта: 2026-09-21")).toEqual([]);
     expect(isoDateValues("Дата отчёта: 2026-09-21")).toEqual(["2026-09-21"]);
   });
+
+  it("parses mixed decimal and thousands separators exactly", () => {
+    expect(numericValues("1.234,56; 1 234,56; 1'234.56; 1 234,56")).toEqual([
+      1234.56, 1234.56, 1234.56, 1234.56,
+    ]);
+  });
+
+  it("keeps a single dot or comma decimal and removes repeated grouping separators", () => {
+    expect(numericValues("1.234; 1,234; 12.345.678; 1,234,567")).toEqual([
+      1.234, 1.234, 12345678, 1234567,
+    ]);
+  });
 });
 
 describe("textEvidence", () => {

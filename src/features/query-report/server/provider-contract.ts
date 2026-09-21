@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CHAT_ANSWER_MAX_LENGTH } from "@/entities/chat";
 import { type DatasetQuery, datasetQuerySchema } from "@/entities/dataset";
+import { MAX_ARITHMETIC_OPERANDS } from "./arithmetic";
 
 /* One flat, all-required envelope avoids oneOf/anyOf in the Spiro JSON schema. */
 export const providerEnvelopeSchema = z
@@ -93,8 +94,12 @@ export const providerEnvelopeSchema = z
       "percentage_of",
       "percentage_change",
     ]),
-    calculationReferenceIds: z.array(z.string().max(160)).max(2),
-    calculationValues: z.array(z.number().finite()).max(2),
+    calculationReferenceIds: z
+      .array(z.string().max(160))
+      .max(MAX_ARITHMETIC_OPERANDS),
+    calculationValues: z
+      .array(z.number().finite())
+      .max(MAX_ARITHMETIC_OPERANDS),
     calculationResult: z.number().finite(),
     calculationUnit: z.string().max(80),
   })

@@ -23,6 +23,34 @@ describe("validateArithmetic", () => {
     ).toBe(5);
   });
 
+  it("recomputes a bounded n-ary sum from repeated cited evidence", () => {
+    const paragraph = new Map([
+      [
+        "paragraph-1",
+        {
+          numericEvidence: [
+            { value: 10, unit: "шт." },
+            { value: 7, unit: "шт." },
+            { value: 4, unit: "шт." },
+          ],
+        },
+      ],
+    ]);
+    expect(
+      validateArithmetic(
+        {
+          kind: "sum",
+          referenceIds: ["paragraph-1", "paragraph-1", "paragraph-1"],
+          values: [10, 7, 4],
+          result: 21,
+          unit: "шт.",
+        },
+        new Set(["paragraph-1"]),
+        paragraph,
+      ),
+    ).toBe(21);
+  });
+
   it.each([["sum", [3, 2], 6, "result does not match"]] as const)(
     "rejects invalid %s arithmetic",
     (kind, values, result, message) => {

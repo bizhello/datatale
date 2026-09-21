@@ -122,6 +122,108 @@ describe("calculateObservationCharts", () => {
     ]);
   });
 
+  it("orders ISO month periods and normalizes them with named months", () => {
+    const observations = [
+      observation("march", "Revenue", 30, "март 2026"),
+      observation("january", "Revenue", 10, "2026-01"),
+      observation("february", "Revenue", 20, "2026-02"),
+    ];
+    const charts = calculateObservationCharts(
+      observations,
+      [
+        {
+          id: "monthly-revenue",
+          kind: "line",
+          title: "Месяцы",
+          rationale: "Месяцы",
+          observationIds: ["march", "january", "february"],
+          derivation: "direct",
+        },
+      ],
+      (id) => id,
+    );
+    expect(charts[0]?.points.map((point) => point.label)).toEqual([
+      "2026-01",
+      "2026-02",
+      "март 2026",
+    ]);
+    expect(
+      calculateObservationCharts(
+        [
+          observation("iso", "Revenue", 10, "2026-01"),
+          observation("named", "Revenue", 11, "январь 2026"),
+        ],
+        [
+          {
+            id: "duplicate-month",
+            kind: "line",
+            title: "Дубликат",
+            rationale: "Дубликат",
+            observationIds: ["iso", "named"],
+            derivation: "direct",
+          },
+        ],
+        (id) => id,
+      ),
+    ).toEqual([]);
+  });
+
+  it("sorts shuffled consecutive September days and rejects normalized duplicates", () => {
+    const observations = [
+      observation("16", "Revenue", 160, "16 сентября 2026"),
+      observation("14", "Revenue", 140, "2026-09-14"),
+      observation("15", "Revenue", 150, "15 сентября 2026"),
+    ];
+    const group = {
+      id: "daily",
+      kind: "line" as const,
+      title: "Дни",
+      rationale: "Дни",
+      observationIds: ["16", "14", "15"],
+      derivation: "direct" as const,
+    };
+    expect(
+      calculateObservationCharts(observations, [group], (id) => id)[0]?.points,
+    ).toEqual([
+      { label: "2026-09-14", value: 140 },
+      { label: "15 сентября 2026", value: 150 },
+      { label: "16 сентября 2026", value: 160 },
+    ]);
+    expect(
+      calculateObservationCharts(
+        [
+          observation("iso", "Revenue", 140, "2026-09-14"),
+          observation("ru", "Revenue", 141, "14 сентября 2026"),
+        ],
+        [{ ...group, observationIds: ["iso", "ru"] }],
+        (id) => id,
+      ),
+    ).toEqual([]);
+  });
+
+  it("strictly rejects an impossible named date without a year", () => {
+    expect(() =>
+      calculateObservationCharts(
+        [
+          observation("bad", "Revenue", 1, "31 февраля"),
+          observation("good", "Revenue", 2, "1 марта"),
+        ],
+        [
+          {
+            id: "invalid-date",
+            kind: "line",
+            title: "Даты",
+            rationale: "Проверка",
+            observationIds: ["bad", "good"],
+            derivation: "direct",
+          },
+        ],
+        (id) => id,
+        { strict: true },
+      ),
+    ).toThrow("explicit periods");
+  });
+
   it("orders ISO and named dated periods on the same time scale", () => {
     const charts = calculateObservationCharts(
       [

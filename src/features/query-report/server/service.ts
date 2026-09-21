@@ -37,6 +37,7 @@ import {
 
 export const CHAT_TIMEOUT_MS = 60_000;
 const MAX_PLAN_REPAIRS = 1;
+const MAX_FINAL_REPAIRS = 1;
 const PROVIDER_OUTPUT_MAX_TOKENS = 900;
 
 /** Query validation and result shape are owned by the dataset entity. */
@@ -243,7 +244,7 @@ async function answerChatCore(
       return unsupported(
         "Текстовый источник слишком велик для прямого чтения.",
       );
-    const raw = await callProvider(
+    let raw = await callProvider(
       provider,
       {
         kind: "text",
@@ -253,40 +254,54 @@ async function answerChatCore(
       },
       signal,
     );
-    try {
-      const output = decodeOutcome(raw);
-      if (output.outcome === "answer")
-        return chatResultSchema.parse({
-          outcome: "answered",
-          answer: output.answer,
-          references: validateAnswerReferences(
-            output.answer,
-            output.references,
-            allowed,
-            undefined,
-            {
-              kind: output.calculationKind,
-              referenceIds: output.calculationReferenceIds,
-              values: output.calculationValues,
-              result: output.calculationResult,
-              unit: output.calculationUnit,
-            },
-          ),
-        });
-      if (output.outcome === "clarification")
-        return clarification(output.message);
-      if (output.outcome === "unsupported_operation")
-        return unsupported(output.message);
-      if (output.outcome === "query")
-        throw new Error("Query outcome is invalid for a text answer.");
-      return notInSource();
-    } catch (error) {
-      throw new ChatProviderError(
-        "invalid_provider_output",
-        error instanceof Error
-          ? error.message
-          : "Provider returned invalid text answer.",
-      );
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        const output = decodeOutcome(raw);
+        if (output.outcome === "answer")
+          return chatResultSchema.parse({
+            outcome: "answered",
+            answer: output.answer,
+            references: validateAnswerReferences(
+              output.answer,
+              output.references,
+              allowed,
+              undefined,
+              {
+                kind: output.calculationKind,
+                referenceIds: output.calculationReferenceIds,
+                values: output.calculationValues,
+                result: output.calculationResult,
+                unit: output.calculationUnit,
+              },
+            ),
+          });
+        if (output.outcome === "clarification")
+          return clarification(output.message);
+        if (output.outcome === "unsupported_operation")
+          return unsupported(output.message);
+        if (output.outcome === "query")
+          throw new Error("Query outcome is invalid for a text answer.");
+        return notInSource();
+      } catch (error) {
+        if (attempt >= MAX_FINAL_REPAIRS)
+          throw new ChatProviderError(
+            "invalid_provider_output",
+            error instanceof Error
+              ? error.message
+              : "Provider returned invalid text answer.",
+          );
+        raw = await callProvider(
+          provider,
+          {
+            kind: "answer-repair",
+            question: parsed.question,
+            source: buildTextEvidence(context.source),
+            invalidAnswer: raw,
+            error: error instanceof Error ? error.message : "Invalid answer",
+          },
+          signal,
+        );
+      }
     }
   }
   if (!dependencies.queryExecutor)
@@ -375,7 +390,7 @@ async function answerChatCore(
   const finalAllowed = new Map(
     references.map((reference) => [reference.id, reference]),
   );
-  const rawAnswer = await callProvider(
+  let rawAnswer = await callProvider(
     provider,
     {
       kind: "query-result",
@@ -395,42 +410,62 @@ async function answerChatCore(
     },
     signal,
   );
-  try {
-    const output = decodeOutcome(rawAnswer);
-    if (output.outcome === "answer")
-      return chatResultSchema.parse({
-        outcome: "answered",
-        answer: output.answer,
-        references: validateAnswerReferences(
-          output.answer,
-          output.references,
-          finalAllowed,
-          Object.keys(result.metrics).length > 0 && result.groups.length === 0
-            ? `query-${result.queryId}`
-            : undefined,
-          {
-            kind: output.calculationKind,
-            referenceIds: output.calculationReferenceIds,
-            values: output.calculationValues,
-            result: output.calculationResult,
-            unit: output.calculationUnit,
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const output = decodeOutcome(rawAnswer);
+      if (output.outcome === "answer")
+        return chatResultSchema.parse({
+          outcome: "answered",
+          answer: output.answer,
+          references: validateAnswerReferences(
+            output.answer,
+            output.references,
+            finalAllowed,
+            Object.keys(result.metrics).length > 0 && result.groups.length === 0
+              ? `query-${result.queryId}`
+              : undefined,
+            {
+              kind: output.calculationKind,
+              referenceIds: output.calculationReferenceIds,
+              values: output.calculationValues,
+              result: output.calculationResult,
+              unit: output.calculationUnit,
+            },
+          ),
+        });
+      if (output.outcome === "clarification")
+        return clarification(output.message);
+      if (output.outcome === "unsupported_operation")
+        return unsupported(output.message);
+      if (output.outcome === "query")
+        throw new Error("Query outcome is invalid for a final answer.");
+      return notInSource();
+    } catch (error) {
+      if (attempt >= MAX_FINAL_REPAIRS)
+        throw new ChatProviderError(
+          "invalid_provider_output",
+          error instanceof Error
+            ? error.message
+            : "Provider returned invalid query answer.",
+        );
+      rawAnswer = await callProvider(
+        provider,
+        {
+          kind: "answer-repair",
+          question: parsed.question,
+          query,
+          queryResult: {
+            rows: result.rows.slice(0, 100),
+            groups: result.groups.slice(0, 100),
+            metrics: result.metrics,
+            references,
           },
-        ),
-      });
-    if (output.outcome === "clarification")
-      return clarification(output.message);
-    if (output.outcome === "unsupported_operation")
-      return unsupported(output.message);
-    if (output.outcome === "query")
-      throw new Error("Query outcome is invalid for a final answer.");
-    return notInSource();
-  } catch (error) {
-    throw new ChatProviderError(
-      "invalid_provider_output",
-      error instanceof Error
-        ? error.message
-        : "Provider returned invalid query answer.",
-    );
+          invalidAnswer: rawAnswer,
+          error: error instanceof Error ? error.message : "Invalid answer",
+        },
+        signal,
+      );
+    }
   }
 }
 
