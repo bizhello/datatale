@@ -13,8 +13,6 @@ import type { NumericEvidence } from "./arithmetic";
 
 export const CHAT_EVIDENCE_MAX_LENGTH = 1_000;
 const MAX_DISTINCT_VALUES = 40;
-const numericOccurrenceToken =
-  /(?<![\p{L}\d])(?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?|\d*[.,]\d+)(?![\p{L}\d])/gu;
 
 export type QueryResultReference = {
   id: string;
@@ -54,53 +52,60 @@ const isoDateToken = /\b\d{4}-\d{2}-\d{2}\b/gu;
 export function isoDateValues(value: string) {
   return value.match(isoDateToken) ?? [];
 }
-export function numericValues(value: string) {
-  return (
-    value.match(numericToken)?.flatMap((token) => {
-      if (isoDateValues(token).length > 0) return [];
-      const sign =
-        token.startsWith("-") || token.startsWith("−")
-          ? "-"
-          : token.startsWith("+")
-            ? "+"
-            : "";
-      const unsigned = token
-        .replace(/^[+\-−]/u, "")
-        .replace(/[ \u00a0\u202f'’]/gu, "");
-      const commas = [...unsigned.matchAll(/,/gu)].map(
-        (match) => match.index ?? -1,
-      );
-      const dots = [...unsigned.matchAll(/\./gu)].map(
-        (match) => match.index ?? -1,
-      );
-      const lastComma = commas.at(-1) ?? -1;
-      const lastDot = dots.at(-1) ?? -1;
-      let normalized = unsigned;
-      if (lastComma >= 0 && lastDot >= 0) {
-        const decimal = Math.max(lastComma, lastDot);
-        const separator = unsigned[decimal];
-        normalized = unsigned.replace(/[.,]/gu, (_value, index) =>
-          index === decimal ? "." : "",
-        );
-        if (separator !== "," && separator !== ".") return [];
-      } else if (commas.length >= 2 || dots.length >= 2) {
-        const separator = commas.length >= 2 ? "," : ".";
-        const parts = unsigned.split(separator);
-        if (
-          parts.length < 3 ||
-          parts.slice(1).some((part) => !/^\d{3}$/u.test(part))
-        )
-          return [];
-        normalized = parts.join("");
-      } else if (lastComma >= 0 || lastDot >= 0) {
-        const separator = lastComma >= 0 ? "," : ".";
-        normalized = unsigned.replace(separator, ".");
-      }
-      normalized = sign + normalized;
-      const parsed = Number(normalized);
-      return Number.isFinite(parsed) ? [parsed] : [];
-    }) ?? []
+function parseNumericToken(token: string) {
+  if (isoDateValues(token).length > 0) return undefined;
+  const sign =
+    token.startsWith("-") || token.startsWith("−")
+      ? "-"
+      : token.startsWith("+")
+        ? "+"
+        : "";
+  const unsigned = token
+    .replace(/^[+\-−]/u, "")
+    .replace(/[ \u00a0\u202f'’]/gu, "");
+  const commas = [...unsigned.matchAll(/,/gu)].map(
+    (match) => match.index ?? -1,
   );
+  const dots = [...unsigned.matchAll(/\./gu)].map((match) => match.index ?? -1);
+  const lastComma = commas.at(-1) ?? -1;
+  const lastDot = dots.at(-1) ?? -1;
+  let normalized = unsigned;
+  if (lastComma >= 0 && lastDot >= 0) {
+    const decimal = Math.max(lastComma, lastDot);
+    normalized = unsigned.replace(/[.,]/gu, (_value, index) =>
+      index === decimal ? "." : "",
+    );
+  } else if (commas.length >= 2 || dots.length >= 2) {
+    const separator = commas.length >= 2 ? "," : ".";
+    const parts = unsigned.split(separator);
+    if (
+      parts.length < 3 ||
+      parts.slice(1).some((part) => !/^\d{3}$/u.test(part))
+    )
+      return undefined;
+    normalized = parts.join("");
+  } else if (lastComma >= 0 || lastDot >= 0) {
+    normalized = unsigned.replace(lastComma >= 0 ? "," : ".", ".");
+  }
+  const parsed = Number(sign + normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+export function numericOccurrences(value: string) {
+  return [...value.matchAll(numericToken)].flatMap((match) => {
+    const parsed = parseNumericToken(match[0]);
+    return parsed === undefined
+      ? []
+      : [
+          {
+            value: parsed,
+            start: match.index ?? 0,
+            end: (match.index ?? 0) + match[0].length,
+          },
+        ];
+  });
+}
+export function numericValues(value: string) {
+  return numericOccurrences(value).map((occurrence) => occurrence.value);
 }
 
 export function textEvidence(source: TextSource) {
@@ -132,23 +137,12 @@ export function textEvidence(source: TextSource) {
           ? ""
           : `-${chunks.length + 1}`;
       const id = `paragraph-${paragraph.index}${suffix}`;
-      const numericEvidence = [
-        ...chunk.matchAll(numericOccurrenceToken),
-      ].flatMap((match, index) => {
-        const value = Number(
-          match[0].replace(/[ \u00a0\u202f]/gu, "").replace(",", "."),
-        );
-        return Number.isFinite(value)
-          ? [
-              {
-                id: `${id}:number:${index}`,
-                value,
-                start: match.index ?? 0,
-                end: (match.index ?? 0) + match[0].length,
-              },
-            ]
-          : [];
-      });
+      const numericEvidence = numericOccurrences(chunk).map(
+        (occurrence, index) => ({
+          id: `${id}:number:${index}`,
+          ...occurrence,
+        }),
+      );
       chunks.push({ id, text: chunk, numericEvidence });
       offset = hardBoundary ? Math.max(offset + 1, end - 64) : end;
       while (paragraph.text[offset] === " ") offset += 1;

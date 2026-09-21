@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Dataset, TextSource } from "@/entities/dataset";
 import {
   isoDateValues,
+  numericOccurrences,
   numericValues,
   sourceReferences,
   textEvidence,
@@ -29,6 +30,15 @@ describe("numericValues", () => {
     expect(numericValues("1.234; 1,234; 12.345.678; 1,234,567")).toEqual([
       1.234, 1.234, 12345678, 1234567,
     ]);
+  });
+
+  it("preserves exact offsets for duplicate and signed localized occurrences", () => {
+    const occurrences = numericOccurrences("1'234,56; -3; 1'234,56");
+    expect(occurrences.map((item) => item.value)).toEqual([
+      1234.56, -3, 1234.56,
+    ]);
+    expect(occurrences[0]?.start).toBeLessThan(occurrences[2]?.start ?? 0);
+    expect(occurrences[0]?.start).not.toBe(occurrences[2]?.start);
   });
 });
 
