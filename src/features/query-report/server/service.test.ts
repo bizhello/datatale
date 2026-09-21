@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import type { Dataset, DatasetQuery, TextSource } from "@/entities/dataset";
+import {
+  type Dataset,
+  type DatasetQuery,
+  executeDatasetQuery,
+  type TextSource,
+} from "@/entities/dataset";
 import { answerChat, type ChatContext } from "./service";
 
 const request = {
@@ -39,6 +44,27 @@ const dataset: Dataset = {
       id: "r1",
       values: { city: "Краснодар", sales: 10 },
       provenance: { sourceRowNumber: 2 },
+    },
+  ],
+};
+const monthlyDataset: Dataset = {
+  version: 1,
+  id: "monthly-buckets",
+  source: { kind: "csv", filename: "monthly-buckets.csv" },
+  columns: [
+    { id: "date", label: "Дата", scalarType: "date" },
+    { id: "orders", label: "Заказы", scalarType: "number" },
+  ],
+  rows: [
+    {
+      id: "january",
+      values: { date: "2026-01-02", orders: 1 },
+      provenance: { sourceRowNumber: 2 },
+    },
+    {
+      id: "february",
+      values: { date: "2026-02-01", orders: 3 },
+      provenance: { sourceRowNumber: 3 },
     },
   ],
 };
@@ -1123,6 +1149,96 @@ describe("planned grounded chat", () => {
         },
       ),
     ).resolves.toMatchObject({ outcome: "not_in_source" });
+  });
+
+  it("answers zero for an empty count query using the real dataset executor", async () => {
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(
+        wireQuery({
+          filters: [
+            {
+              fieldId: "date",
+              operator: "gte",
+              valueKind: "string",
+              values: ["2026-03-01"],
+            },
+            {
+              fieldId: "date",
+              operator: "lt",
+              valueKind: "string",
+              values: ["2026-04-01"],
+            },
+          ],
+          metrics: [
+            { id: "total_orders", aggregation: "sum", fieldId: "orders" },
+          ],
+          limit: 1,
+        }),
+      )
+      .mockResolvedValueOnce(
+        wireAnswer(
+          "Заказов: 0",
+          [{ id: `query-${request.messageId}-q1` }],
+          [`query-${request.messageId}-q1:metric:total_orders`],
+        ),
+      );
+
+    const result = await answerChat(
+      { ...request, question: "Сколько заказов было в марте 2026 года?" },
+      {
+        loadContext: async () => context(monthlyDataset),
+        provider,
+        queryExecutor: {
+          execute: async (source, query) => executeDatasetQuery(source, query),
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      outcome: "answered",
+      answer: "Сумма: Заказы (Дата ≥ 2026-03-01; Дата < 2026-04-01): 0",
+    });
+    expect(provider).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps an empty lookup query as the canonical absence response", async () => {
+    const provider = vi.fn().mockResolvedValueOnce(
+      wireQuery({
+        purpose: "lookup",
+        filters: [
+          {
+            fieldId: "date",
+            operator: "gte",
+            valueKind: "string",
+            values: ["2026-03-01"],
+          },
+          {
+            fieldId: "date",
+            operator: "lt",
+            valueKind: "string",
+            values: ["2026-04-01"],
+          },
+        ],
+        metrics: [{ id: "total_orders", aggregation: "count", fieldId: "" }],
+        limit: 1,
+      }),
+    );
+
+    await expect(
+      answerChat(
+        { ...request, question: "Есть ли записи за март 2026 года?" },
+        {
+          loadContext: async () => context(monthlyDataset),
+          provider,
+          queryExecutor: {
+            execute: async (source, query) =>
+              executeDatasetQuery(source, query),
+          },
+        },
+      ),
+    ).resolves.toMatchObject({ outcome: "not_in_source" });
+    expect(provider).toHaveBeenCalledTimes(1);
   });
 
   it("repairs a query owner citation to the typed zero metric value", async () => {

@@ -179,7 +179,8 @@ function aggregate(
   const numbers = values.filter(
     (value): value is number => typeof value === "number",
   );
-  if (numbers.length === 0) return null;
+  if (numbers.length === 0)
+    return metric.aggregation === "sum" && rows.length === 0 ? 0 : null;
   if (metric.aggregation === "sum") return addNumbers(numbers);
   if (metric.aggregation === "average")
     return (addNumbers(numbers) as number) / numbers.length;
