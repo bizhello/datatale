@@ -265,6 +265,48 @@ function validateAnswerCompleteness(
     const scoped = selected
       .map((id) => evidence.get(id))
       .filter((reference) => reference?.queryId === query.queryId);
+    if (result.groups.length > 0) {
+      const groupOwners = result.groups.map(
+        (_group, index) => `group-${query.queryId}-${index}`,
+      );
+      const metricOwners = new Set(
+        groupOwners.filter((ownerId) =>
+          evidence
+            .get(ownerId)
+            ?.values?.some((value) =>
+              value.id.startsWith(`${ownerId}:metric:`),
+            ),
+        ),
+      );
+      if (metricOwners.size > 0) {
+        const selectedLeaves = selected.flatMap((id) => {
+          const reference = evidence.get(id);
+          const value = reference?.values?.find((item) => item.id === id);
+          return value ? [value] : [];
+        });
+        const selectedMetricOwners = new Set(
+          selectedLeaves
+            .filter(
+              (value) =>
+                metricOwners.has(value.referenceId) &&
+                value.id.startsWith(`${value.referenceId}:metric:`),
+            )
+            .map((value) => value.referenceId),
+        );
+        if (selectedMetricOwners.size === 0)
+          throw new Error("Grouped query requires selected metric evidence.");
+        for (const value of selectedLeaves) {
+          if (
+            metricOwners.has(value.referenceId) &&
+            value.id === `${value.referenceId}:key` &&
+            !selectedMetricOwners.has(value.referenceId)
+          )
+            throw new Error(
+              "Grouped key requires selected metric from the same group.",
+            );
+        }
+      }
+    }
     if (query.purpose === "lookup" && result.matchedRows === 0) {
       if (!scoped.some((reference) => reference?.absenceWitness))
         throw new Error(
@@ -646,8 +688,8 @@ async function answerChatCore(
     try {
       const output = decodeOutcome(rawAnswer);
       if (output.outcome === "answer") {
-        validateAnswerCompleteness(output.answerParts, results, finalAllowed);
         const answer = renderTypedAnswer(output, finalAllowed, context.source);
+        validateAnswerCompleteness(output.answerParts, results, finalAllowed);
         const references = proposalReferenceIds(output).map((id) => ({ id }));
         return chatResultSchema.parse({
           outcome: "answered",
