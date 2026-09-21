@@ -3,28 +3,9 @@ import { CHAT_ANSWER_MAX_LENGTH } from "@/entities/chat";
 import { type DatasetQuery, datasetQuerySchema } from "@/entities/dataset";
 import { MAX_ARITHMETIC_OPERANDS } from "./arithmetic";
 
-/* One flat, all-required envelope avoids oneOf/anyOf in the Spiro JSON schema. */
-export const providerEnvelopeSchema = z
+/** Flat strict gateway contract: the application resolves all facts from IDs. */
+const queryWireSchema = z
   .object({
-    outcome: z.enum([
-      "answer",
-      "clarification",
-      "not_in_source",
-      "unsupported_operation",
-      "query",
-    ]),
-    answer: z.string().max(CHAT_ANSWER_MAX_LENGTH),
-    answerMode: z.enum(["quote", "values", "calculation"]),
-    answerEvidenceIds: z.array(z.string().max(160)).max(8),
-    message: z.string().max(CHAT_ANSWER_MAX_LENGTH),
-    references: z
-      .array(
-        z
-          .object({ id: z.string().max(160), excerpt: z.string().max(1_000) })
-          .strict(),
-      )
-      .max(7),
-    queryId: z.string().max(160),
     purpose: z.enum(["lookup", "count"]),
     filters: z
       .array(
@@ -77,7 +58,6 @@ export const providerEnvelopeSchema = z
           .strict(),
       )
       .max(20),
-    // DatasetQuery owns semantic exclusivity so one repair call can inspect a malformed draft.
     orderBy: z
       .array(
         z
@@ -89,8 +69,18 @@ export const providerEnvelopeSchema = z
           .strict(),
       )
       .max(20),
-    limit: z.number().int().min(0).max(100),
-    calculationKind: z.enum([
+    limit: z.number().int().min(1).max(100),
+  })
+  .strict();
+
+const answerPartSchema = z
+  .object({
+    kind: z.enum(["quote", "values", "calculation"]),
+    evidenceIds: z
+      .array(z.string().max(160))
+      .min(1)
+      .max(MAX_ARITHMETIC_OPERANDS),
+    operation: z.enum([
       "none",
       "sum",
       "difference",
@@ -98,26 +88,30 @@ export const providerEnvelopeSchema = z
       "percentage_of",
       "percentage_change",
     ]),
-    calculationReferenceIds: z
-      .array(z.string().max(160))
-      .max(MAX_ARITHMETIC_OPERANDS),
-    calculationEvidenceIds: z
-      .array(z.string().max(160))
-      .max(MAX_ARITHMETIC_OPERANDS),
-    calculationValues: z
-      .array(z.number().finite())
-      .max(MAX_ARITHMETIC_OPERANDS),
-    calculationResult: z.number().finite(),
-    calculationUnit: z.string().max(80),
   })
   .strict();
-export const providerQueryEnvelopeSchema = providerEnvelopeSchema.extend({
-  outcome: z.literal("query"),
-});
+
+export const providerEnvelopeSchema = z
+  .object({
+    outcome: z.enum([
+      "answer",
+      "clarification",
+      "not_in_source",
+      "unsupported_operation",
+      "query",
+    ]),
+    message: z.string().max(CHAT_ANSWER_MAX_LENGTH),
+    answerParts: z.array(answerPartSchema).max(8),
+    queries: z.array(queryWireSchema).max(4),
+  })
+  .strict();
+export const providerQueryEnvelopeSchema = providerEnvelopeSchema;
 export type ProviderEnvelope = z.output<typeof providerEnvelopeSchema>;
+export type ProviderAnswerPart = ProviderEnvelope["answerParts"][number];
+export type ProviderQuery = ProviderEnvelope["queries"][number];
 
 function decodeValue(
-  filter: ProviderEnvelope["filters"][number],
+  filter: ProviderQuery["filters"][number],
 ): string | number | boolean | null | Array<string | number | boolean | null> {
   const list = filter.valueKind.endsWith("_list");
   if (
@@ -147,23 +141,9 @@ function decodeValue(
 }
 
 export function decodeQuery(
-  input: ProviderEnvelope,
+  input: ProviderQuery,
   applicationQueryId: string,
 ): DatasetQuery {
-  if (input.outcome !== "query") throw new Error("Expected a query outcome.");
-  if (
-    !input.limit ||
-    input.answer ||
-    input.message ||
-    input.references.length ||
-    input.calculationKind !== "none" ||
-    input.calculationReferenceIds.length ||
-    input.calculationEvidenceIds.length ||
-    input.calculationValues.length ||
-    input.calculationResult !== 0 ||
-    input.calculationUnit
-  )
-    throw new Error("Query outcome contains invalid sentinels.");
   if (!input.groupBy && input.groupByDateBucket)
     throw new Error("A date bucket requires groupBy.");
   return datasetQuerySchema.parse({
@@ -198,51 +178,43 @@ export function decodeQuery(
 
 export function decodeOutcome(raw: unknown): ProviderEnvelope {
   const output = providerEnvelopeSchema.parse(raw);
-  if (
-    output.outcome !== "answer" &&
-    (output.calculationKind !== "none" ||
-      output.calculationReferenceIds.length > 0 ||
-      output.calculationEvidenceIds.length > 0 ||
-      output.calculationValues.length > 0 ||
-      output.calculationResult !== 0 ||
-      output.calculationUnit !== "")
-  )
-    throw new Error("Non-answer outcome contains calculation fields.");
-  if (output.outcome !== "answer" && output.answerEvidenceIds.length > 0)
-    throw new Error("Non-answer outcome contains answer proposal fields.");
-  if (
-    output.outcome === "answer" &&
-    (output.answer ||
-      output.references.length > 0 ||
-      output.calculationReferenceIds.length > 0 ||
-      output.calculationValues.length > 0 ||
-      output.calculationResult !== 0 ||
-      output.calculationUnit)
-  )
-    throw new Error("Answer outcome contains provider-authored answer fields.");
-  if (output.outcome === "answer") {
-    if (output.answerMode === "quote" && output.answerEvidenceIds.length !== 1)
-      throw new Error("Quote answers require one evidence ID.");
-    if (output.answerMode === "values" && output.answerEvidenceIds.length < 1)
-      throw new Error("Value answers require evidence IDs.");
+  if (output.outcome === "query") {
     if (
-      output.answerMode !== "calculation" &&
-      (output.calculationKind !== "none" ||
-        output.calculationEvidenceIds.length > 0)
+      output.answerParts.length ||
+      output.message ||
+      output.queries.length < 1 ||
+      output.queries.length > 4
     )
-      throw new Error("Non-calculation answers contain calculation fields.");
+      throw new Error("Query outcome sentinels are invalid.");
+  } else if (output.outcome === "answer") {
     if (
-      output.answerMode === "calculation" &&
-      (output.calculationKind === "none" ||
-        output.calculationEvidenceIds.length < 2 ||
-        output.answerEvidenceIds.length > 0)
+      output.message ||
+      output.queries.length ||
+      output.answerParts.length < 1 ||
+      output.answerParts.length > 8
     )
-      throw new Error("Calculation answer sentinels are invalid.");
+      throw new Error("Answer outcome sentinels are invalid.");
+    for (const part of output.answerParts) {
+      if (part.kind !== "calculation" && part.operation !== "none")
+        throw new Error("Non-calculation answer has an operation.");
+      if (
+        part.kind === "quote" &&
+        (part.operation !== "none" || part.evidenceIds.length !== 1)
+      )
+        throw new Error("Quote answer requires one ID and no operation.");
+      if (
+        part.kind === "calculation" &&
+        (part.operation === "none" || part.evidenceIds.length < 2)
+      )
+        throw new Error("Calculation answer has invalid IDs or operation.");
+    }
+  } else if (
+    output.answerParts.length ||
+    output.queries.length ||
+    (output.outcome !== "not_in_source" && !output.message.trim()) ||
+    (output.outcome === "not_in_source" && output.message)
+  ) {
+    throw new Error("Non-answer outcome contains answer or query fields.");
   }
-  if (
-    ["clarification", "unsupported_operation"].includes(output.outcome) &&
-    !output.message.trim()
-  )
-    throw new Error("Message outcome requires a message.");
   return output;
 }
