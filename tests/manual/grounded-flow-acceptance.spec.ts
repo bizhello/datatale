@@ -116,13 +116,14 @@ async function ask(page: Page, question: Question) {
     90_000,
   );
   const answer = answers.nth(answerCount);
+  const answerText = answer.locator("p");
   for (const expected of Array.isArray(question.expected)
     ? question.expected
     : [question.expected]) {
     if (typeof expected === "number") {
-      await expect(answer).toContainText(numericEvidencePattern(expected));
+      await expect(answerText).toContainText(numericEvidencePattern(expected));
     } else {
-      await expect(answer).toContainText(expected);
+      await expect(answerText).toContainText(expected);
     }
   }
 }

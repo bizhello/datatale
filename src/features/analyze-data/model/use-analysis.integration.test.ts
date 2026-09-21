@@ -454,6 +454,38 @@ describe("useAnalysis HTTP lifecycle", () => {
     });
   });
 
+  it("consumes a completed guest bootstrap before a quota retry", async () => {
+    vi.stubGlobal("crypto", { randomUUID: () => key });
+    const guestResponse = Response.json({ expiresAt: "later" });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(guestResponse)
+        .mockResolvedValueOnce(
+          Response.json({ code: "quota", scope: "workspace" }, { status: 429 }),
+        )
+        .mockResolvedValueOnce(Response.json({ expiresAt: "later" }))
+        .mockResolvedValueOnce(
+          Response.json({
+            analysisId,
+            report,
+            expiresAt: "2026-09-26T12:00:00.000Z",
+          }),
+        ),
+    );
+    const { result } = renderHook(() => useAnalysis(source));
+
+    await act(async () => result.current.run());
+    expect(result.current.state.status).toBe("error");
+    if (result.current.state.status !== "error") return;
+    expect(result.current.state.error).toBe("quota");
+    await act(async () => result.current.run());
+
+    expect(guestResponse.bodyUsed).toBe(true);
+    expect(result.current.state.status).toBe("ready");
+  });
+
   it("synchronously clears a completed report when the accepted source changes", async () => {
     vi.stubGlobal("crypto", { randomUUID: () => key });
     const fetch = vi

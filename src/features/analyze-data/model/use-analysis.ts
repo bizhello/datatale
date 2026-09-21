@@ -163,12 +163,12 @@ export function useAnalysis(
           method: "POST",
           signal: abortController.signal,
         });
+        const bootstrapValue: AnalyzeResponse = await bootstrap
+          .json()
+          .catch(() => ({}));
         if (!bootstrap.ok) {
-          const value: AnalyzeResponse = await bootstrap
-            .json()
-            .catch(() => ({}));
           if (!ownsRequest()) return;
-          const mapped = responseError(bootstrap, value);
+          const mapped = responseError(bootstrap, bootstrapValue);
           clearOwnedTimers();
           if (abortController.signal.aborted) {
             dispatch({ type: "cancel", requestId });
