@@ -134,6 +134,105 @@ describe("executeDatasetQuery", () => {
     expect(result.groups[0]?.key).toBe(true);
   });
 
+  it("returns zero for an empty sum while keeping undefined extrema null", () => {
+    const result = executeDatasetQuery(syntheticDatasetFixture, {
+      queryId: "empty-aggregate-test",
+      filters: [{ fieldId: "note", operator: "eq", value: "not present" }],
+      metrics: [
+        { id: "count", aggregation: "count" },
+        { id: "sum", aggregation: "sum", fieldId: "revenue" },
+        { id: "average", aggregation: "average", fieldId: "revenue" },
+        { id: "min", aggregation: "min", fieldId: "revenue" },
+        { id: "max", aggregation: "max", fieldId: "revenue" },
+        { id: "distinct", aggregation: "distinctCount", fieldId: "revenue" },
+      ],
+    });
+
+    expect(result.metrics).toEqual({
+      count: 0,
+      sum: 0,
+      average: null,
+      min: null,
+      max: null,
+      distinct: 0,
+    });
+  });
+
+  it("keeps all-null nonempty sums undefined and preserves real zero values", () => {
+    const dataset = {
+      ...syntheticDatasetFixture,
+      rows: [
+        {
+          id: "null-revenue",
+          values: { date: "2026-01-01", revenue: null, paid: true, note: "x" },
+          provenance: { sourceRowNumber: 2 },
+        },
+        {
+          id: "zero-revenue",
+          values: { date: "2026-01-02", revenue: 0, paid: false, note: "y" },
+          provenance: { sourceRowNumber: 3 },
+        },
+      ],
+    };
+
+    const allNull = executeDatasetQuery(dataset, {
+      queryId: "all-null-sum",
+      filters: [{ fieldId: "paid", operator: "eq", value: true }],
+      metrics: [{ id: "sum", aggregation: "sum", fieldId: "revenue" }],
+    });
+    expect(allNull.metrics.sum).toBeNull();
+
+    const realZero = executeDatasetQuery(dataset, {
+      queryId: "real-zero-sum",
+      filters: [{ fieldId: "paid", operator: "eq", value: false }],
+      metrics: [{ id: "sum", aggregation: "sum", fieldId: "revenue" }],
+    });
+    expect(realZero.metrics.sum).toBe(0);
+  });
+
+  it("returns an empty global sum without creating empty groups", () => {
+    const result = executeDatasetQuery(syntheticDatasetFixture, {
+      queryId: "empty-group-sum",
+      filters: [{ fieldId: "note", operator: "eq", value: "not present" }],
+      groupBy: "paid",
+      metrics: [{ id: "sum", aggregation: "sum", fieldId: "revenue" }],
+    });
+
+    expect(result.metrics.sum).toBe(0);
+    expect(result.groups).toEqual([]);
+
+    const allNullGroup = executeDatasetQuery(
+      {
+        ...syntheticDatasetFixture,
+        rows: [
+          {
+            id: "null-revenue",
+            values: {
+              date: "2026-01-01",
+              revenue: null,
+              paid: true,
+              note: "null",
+            },
+            provenance: { sourceRowNumber: 2 },
+          },
+        ],
+      },
+      {
+        queryId: "all-null-group-sum",
+        groupBy: "paid",
+        metrics: [{ id: "sum", aggregation: "sum", fieldId: "revenue" }],
+      },
+    );
+    expect(allNullGroup.metrics.sum).toBeNull();
+    expect(allNullGroup.groups).toEqual([
+      {
+        key: true,
+        metrics: { sum: null },
+        rowReferences: [{ rowId: "null-revenue", sourceRowNumber: 2 }],
+      },
+    ]);
+  });
+
   it("orders grouped numeric metrics with all order clauses", () => {
     const dataset = {
       ...syntheticDatasetFixture,
