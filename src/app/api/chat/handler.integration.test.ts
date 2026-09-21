@@ -200,4 +200,45 @@ describe("POST /api/chat handler", () => {
       expect(saveReply).not.toHaveBeenCalled();
     },
   );
+
+  it("logs only a structural stage for invalid provider output", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const response = await createChatHandler(
+        dependencies({
+          answer: async () =>
+            Promise.reject(
+              new ChatProviderError(
+                "invalid_provider_output",
+                "secret raw provider output with the user question",
+                "query_answer",
+              ),
+            ),
+        }),
+      )(request({ ...body, question: "secret question and source value" }));
+
+      expect(response.status).toBe(502);
+      expect(log).toHaveBeenCalledWith(
+        "DataTale chat provider output rejected",
+        { code: "invalid_provider_output", stage: "query_answer" },
+      );
+      expect(JSON.stringify(log.mock.calls)).not.toContain("secret");
+      log.mockClear();
+
+      await createChatHandler(
+        dependencies({
+          answer: async () =>
+            Promise.reject(
+              new ChatProviderError(
+                "provider_failure",
+                "secret transport details",
+              ),
+            ),
+        }),
+      )(request());
+      expect(log).not.toHaveBeenCalled();
+    } finally {
+      log.mockRestore();
+    }
+  });
 });

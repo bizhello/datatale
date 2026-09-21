@@ -72,8 +72,13 @@ function providerFailure(error: ChatProviderError) {
     return privateJson({ code: "timeout" }, 504);
   if (error.code === "provider_aborted")
     return privateJson({ code: "cancelled" }, 499);
-  if (error.code === "invalid_provider_output")
+  if (error.code === "invalid_provider_output") {
+    console.error("DataTale chat provider output rejected", {
+      code: error.code,
+      stage: error.stage,
+    });
     return privateJson({ code: "invalid-answer" }, 502);
+  }
   return privateJson({ code: "provider" }, 502);
 }
 

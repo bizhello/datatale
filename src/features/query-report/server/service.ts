@@ -79,6 +79,12 @@ export type ChatDependencies = {
   signal?: AbortSignal;
 };
 
+export type ChatProviderStage =
+  | "provider"
+  | "text_answer"
+  | "query_plan"
+  | "query_answer";
+
 export class ChatProviderError extends Error {
   constructor(
     readonly code:
@@ -87,6 +93,7 @@ export class ChatProviderError extends Error {
       | "invalid_provider_output"
       | "provider_failure",
     message: string,
+    readonly stage: ChatProviderStage = "provider",
   ) {
     super(message);
   }
@@ -447,6 +454,7 @@ async function callProvider(
   prompt: unknown,
   signal: AbortSignal,
   output: "outcome" | "query" = "outcome",
+  stage: ChatProviderStage = "provider",
 ) {
   try {
     return await provider({ prompt: JSON.stringify(prompt), signal, output });
@@ -464,6 +472,12 @@ async function callProvider(
       throw new ChatProviderError(
         "provider_timeout",
         "Chat provider timed out.",
+      );
+    if (NoObjectGeneratedError.isInstance(error))
+      throw new ChatProviderError(
+        "invalid_provider_output",
+        "Structured provider output was invalid.",
+        stage,
       );
     throw new ChatProviderError(
       "provider_failure",
@@ -520,6 +534,8 @@ async function answerChatCore(
         history,
       },
       signal,
+      "outcome",
+      "text_answer",
     );
     for (let attempt = 0; ; attempt += 1) {
       try {
@@ -550,6 +566,7 @@ async function answerChatCore(
             error instanceof Error
               ? error.message
               : "Provider returned invalid text answer.",
+            "text_answer",
           );
         raw = await callProvider(
           provider,
@@ -561,6 +578,8 @@ async function answerChatCore(
             error: error instanceof Error ? error.message : "Invalid answer",
           },
           signal,
+          "outcome",
+          "text_answer",
         );
       }
     }
@@ -577,7 +596,13 @@ async function answerChatCore(
   };
   let candidate: unknown;
   try {
-    candidate = await callProvider(provider, profile, signal);
+    candidate = await callProvider(
+      provider,
+      profile,
+      signal,
+      "outcome",
+      "query_plan",
+    );
   } catch (error) {
     if (error instanceof ChatProviderError) throw error;
     throw new ChatProviderError(
@@ -585,6 +610,7 @@ async function answerChatCore(
       error instanceof Error
         ? error.message
         : "Provider returned invalid query intent.",
+      "query_plan",
     );
   }
   let queries: DatasetQuery[] = [];
@@ -610,6 +636,7 @@ async function answerChatCore(
         throw new ChatProviderError(
           "invalid_provider_output",
           error instanceof Error ? error.message : "Invalid query plan.",
+          "query_plan",
         );
       try {
         candidate = await callProvider(
@@ -623,6 +650,7 @@ async function answerChatCore(
           },
           signal,
           "query",
+          "query_plan",
         );
       } catch (repairError) {
         if (repairError instanceof ChatProviderError) throw repairError;
@@ -631,6 +659,7 @@ async function answerChatCore(
           repairError instanceof Error
             ? repairError.message
             : "Invalid repaired query plan.",
+          "query_plan",
         );
       }
     }
@@ -696,6 +725,8 @@ async function answerChatCore(
       references,
     },
     signal,
+    "outcome",
+    "query_answer",
   );
   for (let attempt = 0; ; attempt += 1) {
     try {
@@ -739,6 +770,7 @@ async function answerChatCore(
           error instanceof Error
             ? error.message
             : "Provider returned invalid query answer.",
+          "query_answer",
         );
       rawAnswer = await callProvider(
         provider,
@@ -756,6 +788,8 @@ async function answerChatCore(
           error: error instanceof Error ? error.message : "Invalid answer",
         },
         signal,
+        "outcome",
+        "query_answer",
       );
     }
   }
