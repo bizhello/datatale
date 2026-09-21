@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { Dataset, TextSource } from "@/entities/dataset";
+import type { Dataset, DatasetQuery, TextSource } from "@/entities/dataset";
 import {
   isoDateValues,
   numericOccurrences,
   numericValues,
+  resultReferences,
   sourceReferences,
   textEvidence,
 } from "./source-context";
@@ -61,6 +62,71 @@ describe("textEvidence", () => {
 });
 
 describe("sourceReferences", () => {
+  it("renders every supported filter operator in code-owned scope labels", () => {
+    const source: Dataset = {
+      version: 1,
+      id: "scopes",
+      source: { kind: "csv" },
+      columns: [
+        { id: "city", label: "Город", scalarType: "string" },
+        { id: "sales", label: "Продажи", scalarType: "number" },
+      ],
+      rows: [
+        {
+          id: "r1",
+          values: { city: "Москва", sales: 10 },
+          provenance: { sourceRowNumber: 2 },
+        },
+      ],
+    };
+    const operators = [
+      "eq",
+      "ne",
+      "in",
+      "lt",
+      "lte",
+      "gt",
+      "gte",
+      "contains",
+    ] as const;
+    const labels = ["=", "≠", "∈", "<", "≤", ">", "≥", "содержит"];
+    for (const [index, operator] of operators.entries()) {
+      const query = {
+        queryId: `q-${index}`,
+        purpose: "count",
+        filters: [
+          {
+            fieldId: "city",
+            operator,
+            value: operator === "in" ? ["Москва"] : "Москва",
+          },
+        ],
+        select: [],
+        metrics: [{ id: "total", aggregation: "sum", fieldId: "sales" }],
+        orderBy: [],
+        limit: 1,
+      } as DatasetQuery;
+      const references = resultReferences(
+        {
+          queryId: query.queryId,
+          rows: [],
+          groups: [],
+          metrics: { total: 10 },
+          matchedRows: 1,
+          scannedRows: 1,
+          returnedRows: 0,
+          truncated: false,
+          rowReferences: [],
+        },
+        source,
+        query,
+      );
+      expect(references[0]?.scopeLabel).toContain(
+        `Город ${labels[index]} Москва`,
+      );
+    }
+  });
+
   it("keeps a row date grounded when it follows a truncated display field", () => {
     const source: Dataset = {
       version: 1,

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CHAT_ANSWER_MAX_LENGTH } from "@/entities/chat";
+import { CHAT_PROVIDER_MESSAGE_MAX_LENGTH } from "@/entities/chat";
 import { type DatasetQuery, datasetQuerySchema } from "@/entities/dataset";
 import { MAX_ARITHMETIC_OPERANDS } from "./arithmetic";
 
@@ -100,7 +100,7 @@ export const providerEnvelopeSchema = z
       "unsupported_operation",
       "query",
     ]),
-    message: z.string().max(CHAT_ANSWER_MAX_LENGTH),
+    message: z.string().max(CHAT_PROVIDER_MESSAGE_MAX_LENGTH),
     answerParts: z.array(answerPartSchema).max(8),
     queries: z.array(queryWireSchema).max(4),
   })

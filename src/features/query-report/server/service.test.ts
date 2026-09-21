@@ -315,7 +315,7 @@ describe("planned grounded chat", () => {
     });
     expect(result).toMatchObject({
       outcome: "answered",
-      answer: "Сумма: Продажи: 100; Сумма: Продажи (Город: Краснодар): 10",
+      answer: "Сумма: Продажи: 100; Сумма: Продажи (Город = Краснодар): 10",
     });
     expect(executor.execute).toHaveBeenCalledTimes(2);
     expect(
@@ -395,7 +395,8 @@ describe("planned grounded chat", () => {
     });
     expect(result).toMatchObject({
       outcome: "answered",
-      answer: "Сумма: Продажи: 100; В этом отчете нет такой информации",
+      answer:
+        "Сумма: Продажи: 100; По условиям «Город = Самара»: В этом отчете нет такой информации",
     });
   });
   it("gives a text model the complete indexed source and validates paragraph citations", async () => {
@@ -625,7 +626,7 @@ describe("planned grounded chat", () => {
       ),
     ).resolves.toMatchObject({
       outcome: "answered",
-      answer: "Сумма: Продажи (Город: Краснодар): 10",
+      answer: "Сумма: Продажи (Город = Краснодар): 10",
     });
     expect(provider).toHaveBeenCalledTimes(2);
     expect(executor.execute).toHaveBeenCalledOnce();
@@ -900,7 +901,7 @@ describe("planned grounded chat", () => {
       ),
     ).resolves.toMatchObject({
       outcome: "answered",
-      answer: "Количество (Город: Samara): 0",
+      answer: "Количество (Город = Samara): 0",
     });
 
     const lookupProvider = vi.fn().mockResolvedValueOnce(
@@ -1230,11 +1231,8 @@ describe("planned grounded chat", () => {
           queryExecutor: executor,
         },
       ),
-    ).resolves.toEqual({
-      outcome: "not_in_source",
-      message: "В этом отчете нет такой информации",
-    });
-    expect(provider).toHaveBeenCalledTimes(3);
+    ).rejects.toMatchObject({ code: "invalid_provider_output" });
+    expect(provider).toHaveBeenCalledTimes(4);
     expect(provider.mock.calls[1]?.[0]).toMatchObject({ output: "query" });
     expect(executor.execute).toHaveBeenCalledOnce();
   });

@@ -160,7 +160,9 @@ function renderTypedPart(
       throw new Error(
         "Absence answer requires an application-created witness.",
       );
-    return CHAT_REFUSAL;
+    return witness.scopeLabel
+      ? `По условиям «${witness.scopeLabel}»: ${CHAT_REFUSAL}`
+      : CHAT_REFUSAL;
   }
   if (part.kind === "values") {
     const selected = part.evidenceIds.map((id) => {
@@ -605,8 +607,13 @@ async function answerChatCore(
       ({ query, result }) =>
         result.matchedRows === 0 && query.purpose === "lookup",
     )
-  )
+  ) {
+    if (
+      results.some(({ result }) => result.scannedRows !== dataset.rows.length)
+    )
+      throw new Error("Lookup absence requires a complete source scan.");
     return notInSource();
+  }
   const references = results.flatMap(({ query, result }) =>
     buildResultReferences(result, dataset, query),
   );
@@ -657,6 +664,18 @@ async function answerChatCore(
         return unsupported(output.message);
       if (output.outcome === "query")
         throw new Error("Query outcome is invalid for a final answer.");
+      if (output.outcome === "not_in_source") {
+        if (
+          results.some(
+            ({ query, result }) =>
+              query.purpose !== "lookup" || result.matchedRows > 0,
+          )
+        )
+          throw new Error(
+            "A global absence outcome cannot discard available query facts.",
+          );
+        return notInSource();
+      }
       return notInSource();
     } catch (error) {
       if (attempt >= MAX_FINAL_REPAIRS)

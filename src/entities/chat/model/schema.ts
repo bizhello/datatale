@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const CHAT_QUESTION_MAX_LENGTH = 1_000;
-export const CHAT_ANSWER_MAX_LENGTH = 1_200;
+export const CHAT_ANSWER_MAX_LENGTH = 9_000;
+export const CHAT_PROVIDER_MESSAGE_MAX_LENGTH = 1_200;
 export const CHAT_HISTORY_MAX_MESSAGES = 12;
 export const CHAT_HISTORY_MESSAGE_MAX_LENGTH = 1_000;
 export const CHAT_REFERENCE_MAX_COUNT = 8;
@@ -59,13 +60,13 @@ export const chatResultSchema = z.discriminatedUnion("outcome", [
   z
     .object({
       outcome: z.literal("clarification"),
-      message: boundedText(CHAT_ANSWER_MAX_LENGTH),
+      message: boundedText(CHAT_PROVIDER_MESSAGE_MAX_LENGTH),
     })
     .strict(),
   z
     .object({
       outcome: z.literal("unsupported_operation"),
-      message: boundedText(CHAT_ANSWER_MAX_LENGTH),
+      message: boundedText(CHAT_PROVIDER_MESSAGE_MAX_LENGTH),
     })
     .strict(),
 ]);

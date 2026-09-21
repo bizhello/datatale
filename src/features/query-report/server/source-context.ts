@@ -17,6 +17,7 @@ const MAX_DISTINCT_VALUES = 40;
 export type QueryResultReference = {
   id: string;
   queryId?: string;
+  scopeLabel?: string;
   absenceWitness?: boolean;
   excerpt?: string;
   numericValues?: number[];
@@ -35,9 +36,20 @@ function queryScopeLabel(query: DatasetQuery, source: Dataset) {
   const labels = (query.filters ?? []).flatMap((filter) => {
     const column = source.columns.find((item) => item.id === filter.fieldId);
     const values = Array.isArray(filter.value) ? filter.value : [filter.value];
-    return filter.operator === "eq" || filter.operator === "in"
-      ? [`${column?.label ?? filter.fieldId}: ${values.join(", ")}`]
-      : [];
+    const operator = {
+      eq: "=",
+      ne: "≠",
+      in: "∈",
+      lt: "<",
+      lte: "≤",
+      gt: ">",
+      gte: "≥",
+      contains: "содержит",
+    }[filter.operator];
+    const renderedValues = values
+      .map((value) => (value === null ? "пусто" : String(value)))
+      .join(", ");
+    return [`${column?.label ?? filter.fieldId} ${operator} ${renderedValues}`];
   });
   return labels.join("; ");
 }
@@ -345,6 +357,7 @@ export function resultReferences(
     {
       id: `query-${result.queryId}`,
       queryId: result.queryId,
+      ...(scope ? { scopeLabel: scope } : {}),
       excerpt: boundedEvidence(
         `Метрики: ${JSON.stringify(result.metrics)}; найдено строк: ${result.matchedRows}; просмотрено строк: ${result.scannedRows}.`,
       ),
@@ -367,10 +380,15 @@ export function resultReferences(
       ),
     },
   ];
-  if (result.matchedRows === 0 && query.purpose === "lookup") {
+  if (
+    result.matchedRows === 0 &&
+    query.purpose === "lookup" &&
+    result.scannedRows === source.rows.length
+  ) {
     references.push({
       id: `absence-${result.queryId}`,
       queryId: result.queryId,
+      ...(scope ? { scopeLabel: scope } : {}),
       absenceWitness: true,
       excerpt: `Проверен запрос: ${scope || "полный источник"}; совпадений: 0.`,
     });
@@ -385,6 +403,7 @@ export function resultReferences(
     references.push({
       id: `group-${result.queryId}-${index}`,
       queryId: result.queryId,
+      ...(scope ? { scopeLabel: scope } : {}),
       excerpt: boundedEvidence(
         `Группа ${String(group.key)}; метрики: ${JSON.stringify(group.metrics)}.`,
       ),
