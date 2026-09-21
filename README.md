@@ -119,6 +119,7 @@ The local environment variables are:
 | `OPENAI_BASE_URL` | OpenAI-compatible gateway URL | Yes |
 | `OPENAI_API_KEY` | Gateway API credential | Yes |
 | `AI_MODEL` | Gateway model identifier | Yes |
+| `AI_TEXT_MODEL` | Optional text-extraction model; defaults to `gpt-5.6-luna` | No |
 | `SESSION_PASSWORD` | Seals guest workspace cookies; use at least 32 random characters | Yes |
 | `RATE_LIMIT_SALT` | Salts non-reversible abuse-control fingerprints | Yes |
 | `ANALYSIS_IP_DAILY_LIMIT` | Secondary daily free-analysis ceiling per salted IP | Yes; positive integer |

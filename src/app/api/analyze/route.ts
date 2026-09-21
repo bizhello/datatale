@@ -13,6 +13,8 @@ import { hasSafeAnalysisRuntime } from "@/shared/config";
 import { savedAnalysisRepository } from "../saved-analysis-runtime";
 import { createAnalyzeHandler } from "./handler";
 
+export const maxDuration = 180;
+
 const workspaceRepository = new SqlGuestWorkspaceRepository();
 
 export const POST = createAnalyzeHandler({

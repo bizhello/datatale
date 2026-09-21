@@ -11,7 +11,7 @@ Verified through 2026-09-20:
 - `bun run build:vercel` runs `bun run db:migrate` before `next build` only when `VERCEL_ENV=production` and `VERCEL_GIT_COMMIT_REF=main`. Historical migration deployment `dpl_C3edY7uwV1LTXUMGGBsRpQac9pcx` logged `Applied 1 migration.` immediately before `$ next build` and reached Ready while deploying the earlier code commit `5a10043`; it is migration evidence, not the current production release.
 - Production Neon `datatale-db` is connected in `iad1`; migrations `0001`–`0006` are applied. Migration `0005_strict_report_hero.sql` deleted reports written under the previous contract, removed the obsolete analysis-claim overload, and enabled database constraints for the current hero and calculation-provenance shapes. Migration `0006_workspace_tier_quotas.sql` replaced the shared access-code quota bucket with independent 5/20 daily analysis and chat tiers for each workspace.
 - Cloudflare is authoritative for DNS. The DNS-only `datatale` CNAME points to Vercel; apex, mail, nameservers, and unrelated records are unchanged.
-- Production uses the OpenAI-compatible gateway at `https://ai-gateway.spiro.vc/v1` with `gpt-5.6-terra`. Live Vercel requests completed table and text analysis and grounded chat successfully.
+- Production uses the OpenAI-compatible gateway at `https://ai-gateway.spiro.vc/v1`. Table analysis, narrative, and chat use `gpt-5.6-terra`; text extraction defaults to `gpt-5.6-luna`. Live Vercel acceptance must cover both routes.
 - A post-merge table analysis returned HTTP 200 with three hero statements, three metrics, and three charts. Missing-data chat returned the exact refusal with HTTP 200. Desktop Chromium and mobile WebKit onboarding smoke verified the inert welcome, deterministic local demo, Escape/replay, unique IDs, and zero analysis requests.
 
 ## Environment
@@ -30,6 +30,7 @@ Production analysis requires these server-only values:
 - `OPENAI_BASE_URL=https://ai-gateway.spiro.vc/v1`
 - `OPENAI_API_KEY`
 - `AI_MODEL=gpt-5.6-terra`
+- `AI_TEXT_MODEL=gpt-5.6-luna` (optional; this is the runtime default)
 - `SESSION_PASSWORD` with at least 32 characters
 - `RATE_LIMIT_SALT`
 - positive `ANALYSIS_IP_DAILY_LIMIT` and `ANALYSIS_GLOBAL_DAILY_LIMIT`; the product's workspace tiers are fixed at 5 free and 20 unlocked in shared application configuration
