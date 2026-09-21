@@ -237,6 +237,18 @@ describe("executeDatasetQuery", () => {
     expect(quarterly.groups.map((group) => group.key)).toEqual(["2026-Q1"]);
   });
 
+  it.each([
+    ["day", ["2026-01-31", "2026-02-28"]],
+    ["year", ["2026"]],
+  ] as const)("supports the %s date bucket", (dateBucket, expectedKeys) => {
+    const result = executeDatasetQuery(syntheticDatasetFixture, {
+      queryId: `bucket-${dateBucket}`,
+      groupBy: { fieldId: "date", dateBucket },
+      metrics: [{ id: "count", aggregation: "count" }],
+    });
+    expect(result.groups.map((group) => group.key)).toEqual(expectedKeys);
+  });
+
   it("rejects date buckets in select references", () => {
     expect(() =>
       executeDatasetQuery(syntheticDatasetFixture, {
