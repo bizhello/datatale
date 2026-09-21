@@ -84,6 +84,54 @@ export type ChatProviderStage =
   | "text_answer"
   | "query_plan"
   | "query_answer";
+export type ChatProviderReason =
+  | "structured_output"
+  | "unknown_evidence"
+  | "wrong_evidence_kind"
+  | "missing_scope"
+  | "missing_group_metric"
+  | "group_key_metric_mismatch"
+  | "missing_absence"
+  | "answer_length"
+  | "reference_limit"
+  | "invalid_outcome"
+  | "unknown";
+
+const providerReasonByMessage = new Map<string, ChatProviderReason>([
+  ["Structured provider output was invalid.", "structured_output"],
+  ["Answer cited unknown or duplicate source reference.", "unknown_evidence"],
+  ["Answer selected unknown typed evidence.", "unknown_evidence"],
+  ["Every planned query scope requires selected evidence.", "missing_scope"],
+  ["Every empty lookup query requires its absence witness.", "missing_absence"],
+  ["Grouped query requires selected metric evidence.", "missing_group_metric"],
+  [
+    "Grouped key requires selected metric from the same group.",
+    "group_key_metric_mismatch",
+  ],
+  [
+    "Absence answer requires one witness ID and no operation.",
+    "missing_absence",
+  ],
+  [
+    "A global absence outcome cannot discard available query facts.",
+    "invalid_outcome",
+  ],
+  ["Query outcome is invalid for a text answer.", "invalid_outcome"],
+  ["Query outcome is invalid for a final answer.", "invalid_outcome"],
+  ["Rendered answer exceeds the bounded answer length.", "answer_length"],
+  ["Answer exceeds the global reference limit.", "reference_limit"],
+  ["Value answer has no evidence.", "wrong_evidence_kind"],
+  ["Calculation selected non-numeric evidence.", "wrong_evidence_kind"],
+  ["Quote answer requires one source span.", "wrong_evidence_kind"],
+  ["Quote answers are only available for text sources.", "wrong_evidence_kind"],
+  ["Quote answer selected unknown text evidence.", "unknown_evidence"],
+]);
+
+export function classifyChatProviderReason(error: unknown): ChatProviderReason {
+  if (NoObjectGeneratedError.isInstance(error)) return "structured_output";
+  if (!(error instanceof Error)) return "unknown";
+  return providerReasonByMessage.get(error.message) ?? "unknown";
+}
 
 export class ChatProviderError extends Error {
   constructor(
@@ -94,6 +142,7 @@ export class ChatProviderError extends Error {
       | "provider_failure",
     message: string,
     readonly stage: ChatProviderStage = "provider",
+    readonly reason: ChatProviderReason = "unknown",
   ) {
     super(message);
   }
@@ -478,6 +527,7 @@ async function callProvider(
         "invalid_provider_output",
         "Structured provider output was invalid.",
         stage,
+        "structured_output",
       );
     throw new ChatProviderError(
       "provider_failure",
@@ -567,6 +617,7 @@ async function answerChatCore(
               ? error.message
               : "Provider returned invalid text answer.",
             "text_answer",
+            classifyChatProviderReason(error),
           );
         raw = await callProvider(
           provider,
@@ -611,6 +662,7 @@ async function answerChatCore(
         ? error.message
         : "Provider returned invalid query intent.",
       "query_plan",
+      classifyChatProviderReason(error),
     );
   }
   let queries: DatasetQuery[] = [];
@@ -637,6 +689,7 @@ async function answerChatCore(
           "invalid_provider_output",
           error instanceof Error ? error.message : "Invalid query plan.",
           "query_plan",
+          classifyChatProviderReason(error),
         );
       try {
         candidate = await callProvider(
@@ -660,6 +713,7 @@ async function answerChatCore(
             ? repairError.message
             : "Invalid repaired query plan.",
           "query_plan",
+          classifyChatProviderReason(repairError),
         );
       }
     }
@@ -771,6 +825,7 @@ async function answerChatCore(
             ? error.message
             : "Provider returned invalid query answer.",
           "query_answer",
+          classifyChatProviderReason(error),
         );
       rawAnswer = await callProvider(
         provider,

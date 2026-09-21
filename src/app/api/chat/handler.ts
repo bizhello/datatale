@@ -76,6 +76,7 @@ function providerFailure(error: ChatProviderError) {
     console.error("DataTale chat provider output rejected", {
       code: error.code,
       stage: error.stage,
+      reason: error.reason,
     });
     return privateJson({ code: "invalid-answer" }, 502);
   }

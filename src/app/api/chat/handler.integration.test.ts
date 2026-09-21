@@ -220,7 +220,11 @@ describe("POST /api/chat handler", () => {
       expect(response.status).toBe(502);
       expect(log).toHaveBeenCalledWith(
         "DataTale chat provider output rejected",
-        { code: "invalid_provider_output", stage: "query_answer" },
+        {
+          code: "invalid_provider_output",
+          stage: "query_answer",
+          reason: "unknown",
+        },
       );
       expect(JSON.stringify(log.mock.calls)).not.toContain("secret");
       log.mockClear();
