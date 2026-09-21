@@ -9,6 +9,7 @@ import {
   executeDatasetQuery,
   type TextSource,
 } from "@/entities/dataset";
+import { ArithmeticValidationError } from "./arithmetic";
 import {
   answerChat,
   type ChatContext,
@@ -175,6 +176,7 @@ describe("provider reason classification", () => {
     ],
     ["answer_length", "Rendered answer exceeds the bounded answer length."],
     ["reference_limit", "Answer exceeds the global reference limit."],
+    ["invalid_calculation", "Calculation answer has invalid IDs or operation."],
     ["invalid_outcome", "Query outcome is invalid for a final answer."],
   ] as const)("maps the static %s failure", (reason, message) => {
     expect(classifyChatProviderReason(new Error(message))).toBe(reason);
@@ -194,6 +196,11 @@ describe("provider reason classification", () => {
         new Error("Invalid arithmetic grounding: secret"),
       ),
     ).toBe("unknown");
+    expect(
+      classifyChatProviderReason(
+        new ArithmeticValidationError("Invalid arithmetic grounding: secret"),
+      ),
+    ).toBe("invalid_calculation");
   });
 });
 
@@ -505,6 +512,23 @@ describe("planned grounded chat", () => {
     ).resolves.toMatchObject({
       outcome: "answered",
       answer: "Dogs: 5; cats: 8.",
+    });
+  });
+
+  it("ignores inactive answer sentinels while preserving typed evidence", async () => {
+    const answer = typedQuote("paragraph-1");
+    await expect(
+      answerChat(request, {
+        loadContext: async () => context(text),
+        provider: vi.fn().mockResolvedValue({
+          ...answer,
+          message: "irrelevant inactive field",
+          queries: wireQuery({ select: ["unknown-field"] }).queries,
+        }),
+      }),
+    ).resolves.toMatchObject({
+      outcome: "answered",
+      answer: "Краснодарская команда победила.",
     });
   });
 
@@ -1467,6 +1491,155 @@ describe("planned grounded chat", () => {
     expect(provider).toHaveBeenCalledTimes(3);
   });
 
+  it("falls back to a broad filtered entity overview", async () => {
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce(
+        wireQuery({
+          purpose: "count",
+          filters: [
+            {
+              fieldId: "city",
+              operator: "eq",
+              valueKind: "string",
+              values: ["Краснодар"],
+            },
+          ],
+          metrics: [
+            { id: "revenue", aggregation: "sum", fieldId: "sales" },
+            { id: "rows", aggregation: "count", fieldId: "" },
+          ],
+          limit: 1,
+        }),
+      )
+      .mockResolvedValue({
+        ...emptyWire,
+        outcome: "answer",
+        answerParts: [
+          {
+            kind: "values",
+            operation: "none",
+            evidenceIds: [`query-${request.messageId}-q1`],
+          },
+        ],
+      });
+    const result = await answerChat(
+      { ...request, question: "Дай информацию по Краснодару" },
+      {
+        loadContext: async () => context(dataset),
+        provider,
+        queryExecutor: {
+          execute: async (_source, query) => ({
+            queryId: query.queryId,
+            rows: [],
+            groups: [],
+            metrics: { revenue: 10, rows: 1 },
+            matchedRows: 1,
+            scannedRows: 1,
+            returnedRows: 0,
+            truncated: false,
+            rowReferences: [],
+          }),
+        },
+      },
+    );
+    expect(result).toMatchObject({
+      outcome: "answered",
+      answer:
+        "Сумма: Продажи (Город = Краснодар): 10; Количество (Город = Краснодар): 1",
+    });
+    expect(provider).toHaveBeenCalledTimes(3);
+  });
+
+  it("falls back across grouped and multi-scope results", async () => {
+    const provider = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ...emptyWire,
+        outcome: "query",
+        queries: [
+          {
+            purpose: "count",
+            filters: [],
+            groupBy: "city",
+            groupByDateBucket: "",
+            select: [],
+            metrics: [{ id: "total", aggregation: "sum", fieldId: "sales" }],
+            orderBy: [],
+            limit: 2,
+          },
+          {
+            purpose: "count",
+            filters: [],
+            groupBy: "",
+            groupByDateBucket: "",
+            select: [],
+            metrics: [{ id: "total", aggregation: "sum", fieldId: "sales" }],
+            orderBy: [],
+            limit: 1,
+          },
+        ],
+      })
+      .mockResolvedValue({
+        ...emptyWire,
+        outcome: "answer",
+        answerParts: [
+          {
+            kind: "values",
+            operation: "none",
+            evidenceIds: [`query-${request.messageId}-q1:metric:wrong`],
+          },
+        ],
+      });
+    const result = await answerChat(request, {
+      loadContext: async () => context(dataset),
+      provider,
+      queryExecutor: {
+        execute: async (_source, query) =>
+          query.groupBy
+            ? {
+                queryId: query.queryId,
+                rows: [],
+                groups: [
+                  {
+                    key: "Краснодар",
+                    metrics: { total: 10 },
+                    rowReferences: [],
+                  },
+                  {
+                    key: "Москва",
+                    metrics: { total: 20 },
+                    rowReferences: [],
+                  },
+                ],
+                metrics: { total: 30 },
+                matchedRows: 2,
+                scannedRows: 2,
+                returnedRows: 0,
+                truncated: false,
+                rowReferences: [],
+              }
+            : {
+                queryId: query.queryId,
+                rows: [],
+                groups: [],
+                metrics: { total: 30 },
+                matchedRows: 2,
+                scannedRows: 2,
+                returnedRows: 0,
+                truncated: false,
+                rowReferences: [],
+              },
+      },
+    });
+    expect(result).toMatchObject({ outcome: "answered" });
+    if (result.outcome !== "answered") return;
+    expect(result.answer).toContain("Группа: Краснодар; Сумма: Продажи: 10");
+    expect(result.answer).toContain("Группа: Москва; Сумма: Продажи: 20");
+    expect(result.answer).toContain("Сумма: Продажи: 30");
+    expect(provider).toHaveBeenCalledTimes(3);
+  });
+
   it("rejects an answer that omits one planned query scope", async () => {
     const provider = vi
       .fn()
@@ -1791,8 +1964,11 @@ describe("planned grounded chat", () => {
   it("fails after one repeated invalid initial structured outcome", async () => {
     const invalid = {
       ...wireQuery({ select: ["city"], limit: 1 }),
-      answerParts: [
-        { kind: "values", operation: "none", evidenceIds: ["invalid"] },
+      queries: [
+        {
+          ...wireQuery({ select: ["city"], limit: 1 }).queries[0],
+          groupByDateBucket: "month",
+        },
       ],
     };
     const provider = vi.fn().mockResolvedValue(invalid);

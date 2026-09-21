@@ -21,7 +21,7 @@ import {
 } from "@/entities/dataset";
 import type { FinalReport } from "@/entities/report";
 import { getAnalysisModel } from "@/shared/lib/ai";
-import { validateArithmetic } from "./arithmetic";
+import { ArithmeticValidationError, validateArithmetic } from "./arithmetic";
 import {
   decodeOutcome,
   decodeQuery,
@@ -94,6 +94,7 @@ export type ChatProviderReason =
   | "missing_absence"
   | "answer_length"
   | "reference_limit"
+  | "invalid_calculation"
   | "invalid_outcome"
   | "unknown";
 
@@ -120,6 +121,12 @@ const providerReasonByMessage = new Map<string, ChatProviderReason>([
   ["Query outcome is invalid for a final answer.", "invalid_outcome"],
   ["Rendered answer exceeds the bounded answer length.", "answer_length"],
   ["Answer exceeds the global reference limit.", "reference_limit"],
+  ["Query outcome sentinels are invalid.", "invalid_outcome"],
+  ["Answer outcome sentinels are invalid.", "invalid_outcome"],
+  ["Non-answer outcome contains answer or query fields.", "invalid_outcome"],
+  ["Non-calculation answer has an operation.", "invalid_outcome"],
+  ["Quote answer requires one ID and no operation.", "invalid_outcome"],
+  ["Calculation answer has invalid IDs or operation.", "invalid_calculation"],
   ["Value answer has no evidence.", "wrong_evidence_kind"],
   ["Calculation selected non-numeric evidence.", "wrong_evidence_kind"],
   ["Quote answer requires one source span.", "wrong_evidence_kind"],
@@ -130,6 +137,7 @@ const providerReasonByMessage = new Map<string, ChatProviderReason>([
 export function classifyChatProviderReason(error: unknown): ChatProviderReason {
   if (NoObjectGeneratedError.isInstance(error)) return "structured_output";
   if (!(error instanceof Error)) return "unknown";
+  if (error instanceof ArithmeticValidationError) return "invalid_calculation";
   return providerReasonByMessage.get(error.message) ?? "unknown";
 }
 
@@ -385,6 +393,85 @@ function renderTypedAnswer(
     throw new Error("Rendered answer exceeds the bounded answer length.");
   return answer;
 }
+
+function deterministicAnswerFallback(
+  results: Array<{ query: DatasetQuery; result: DatasetQueryResult }>,
+  evidence: Map<string, QueryResultReference>,
+  source: Dataset,
+): ChatResult | undefined {
+  if (
+    !results.some(
+      ({ query, result }) =>
+        (query.filters?.length ?? 0) > 0 || result.groups.length > 0,
+    )
+  )
+    return undefined;
+  const parts: ProviderAnswerPart[] = [];
+  const selectedIds: string[] = [];
+
+  for (const { query, result } of results) {
+    if (result.matchedRows === 0 && query.purpose === "lookup") {
+      const absenceId = `absence-${result.queryId}`;
+      if (!evidence.get(absenceId)?.absenceWitness) return undefined;
+      parts.push({
+        kind: "not_in_source",
+        evidenceIds: [absenceId],
+        operation: "none",
+      });
+      selectedIds.push(absenceId);
+      continue;
+    }
+
+    const queryEvidence = [...evidence.values()].filter(
+      (reference) => reference.queryId === result.queryId,
+    );
+    const valueIds = queryEvidence
+      .filter((reference) => {
+        const isGroupResult = result.groups.length > 0;
+        return isGroupResult
+          ? reference.id.startsWith(`query-${result.queryId}`) ||
+              reference.id.startsWith(`group-${result.queryId}`)
+          : reference.id.startsWith(`query-${result.queryId}`) ||
+              reference.id.startsWith(`row-${result.queryId}`);
+      })
+      .flatMap((reference) =>
+        (reference.values ?? [])
+          .filter((value) => value.referenceId === reference.id)
+          .map((value) => value.id),
+      );
+    const uniqueValueIds = [...new Set(valueIds)];
+    if (uniqueValueIds.length === 0) return undefined;
+    parts.push({
+      kind: "values",
+      evidenceIds: uniqueValueIds,
+      operation: "none",
+    });
+    selectedIds.push(...uniqueValueIds);
+  }
+
+  if (parts.length === 0) return undefined;
+  try {
+    validateAnswerCompleteness(parts, results, evidence);
+    const answer = renderTypedAnswer(
+      {
+        outcome: "answer",
+        message: "",
+        answerParts: parts,
+        queries: [],
+      },
+      evidence,
+      source,
+    );
+    return chatResultSchema.parse({
+      outcome: "answered",
+      answer,
+      references: ownerReferences(selectedIds, evidence),
+    });
+  } catch {
+    return undefined;
+  }
+}
+
 function proposalReferenceIds(output: ProviderEnvelope) {
   return output.answerParts.flatMap((part) => part.evidenceIds);
 }
@@ -818,15 +905,22 @@ async function answerChatCore(
       }
       return notInSource();
     } catch (error) {
-      if (attempt >= MAX_FINAL_REPAIRS)
+      if (attempt >= MAX_FINAL_REPAIRS) {
+        const reason = classifyChatProviderReason(error);
+        const fallback =
+          reason === "unknown_evidence"
+            ? deterministicAnswerFallback(results, finalAllowed, dataset)
+            : undefined;
+        if (fallback) return fallback;
         throw new ChatProviderError(
           "invalid_provider_output",
           error instanceof Error
             ? error.message
             : "Provider returned invalid query answer.",
           "query_answer",
-          classifyChatProviderReason(error),
+          reason,
         );
+      }
       rawAnswer = await callProvider(
         provider,
         {

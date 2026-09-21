@@ -26,6 +26,8 @@ type ArithmeticReference = {
 const EPSILON = 1e-9;
 export const MAX_ARITHMETIC_OPERANDS = 8;
 
+export class ArithmeticValidationError extends Error {}
+
 function closeEnough(actual: number, expected: number) {
   return (
     Math.abs(actual - expected) <= EPSILON * Math.max(1, Math.abs(expected))
@@ -33,7 +35,9 @@ function closeEnough(actual: number, expected: number) {
 }
 
 function fail(message: string): never {
-  throw new Error(`Invalid arithmetic grounding: ${message}`);
+  throw new ArithmeticValidationError(
+    `Invalid arithmetic grounding: ${message}`,
+  );
 }
 
 export function validateArithmetic(
