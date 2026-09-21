@@ -6,7 +6,22 @@ const fixtureDirectory = path.join(process.cwd(), "tests/manual/fixtures");
 const canonicalAbsence = "В этом отчете нет такой информации";
 const accessCode = process.env.DATATALE_ACCEPTANCE_ACCESS_CODE;
 
-type Question = { prompt: string; expected: string };
+type Expected = string | number;
+type Question = { prompt: string; expected: Expected | Expected[] };
+const diagnosticsByPage = new WeakMap<Page, string[]>();
+const grouping = "[\\s\\u00a0\\u202f.,'’]*";
+
+function numericEvidencePattern(value: number) {
+  const [whole, fraction] = String(value).split(".");
+  const wholePattern = whole.split("").join(grouping);
+  const fractionPattern = fraction
+    ? `[.,]${fraction.split("").join(grouping)}`
+    : "";
+  return new RegExp(
+    `(?<![\\p{L}\\d])${wholePattern}${fractionPattern}(?![\\p{L}\\d])`,
+    "u",
+  );
+}
 
 function fixture(name: string) {
   return path.join(fixtureDirectory, name);
@@ -33,7 +48,6 @@ async function waitForReport(page: Page) {
 }
 
 async function uploadAndAnalyze(page: Page, fileName: string) {
-  await page.goto("/");
   await page
     .locator('input[aria-label="Выбрать CSV или XLSX файл"]')
     .setInputFiles(fixture(fileName));
@@ -43,7 +57,6 @@ async function uploadAndAnalyze(page: Page, fileName: string) {
 }
 
 async function pasteAndAnalyze(page: Page, fileName: string) {
-  await page.goto("/");
   const text = await readFile(fixture(fileName), "utf8");
   await page.locator("#source-text").fill(text);
   await page.getByRole("button", { name: "Проверить текст" }).click();
@@ -56,18 +69,33 @@ async function pasteAndAnalyze(page: Page, fileName: string) {
 
 async function ask(page: Page, question: Question) {
   const input = page.locator('textarea[name="ask-data-question"]');
+  const log = page.getByRole("log", { name: "История вопросов и ответов" });
+  const answers = log.locator('article[aria-label="Ответ DataTale"]');
+  const answerCount = await answers.count();
   await input.fill(question.prompt);
   await page.getByRole("button", { name: "Спросить" }).click();
   await unlockIfNeeded(page);
-  const log = page.getByRole("log", { name: "История вопросов и ответов" });
-  await expect(log).toContainText(question.expected, { timeout: 90_000 });
+  await expect(answers).toHaveCount(answerCount + 1, { timeout: 90_000 });
+  const answer = answers.nth(answerCount);
+  for (const expected of Array.isArray(question.expected)
+    ? question.expected
+    : [question.expected]) {
+    if (typeof expected === "number") {
+      await expect(answer).toContainText(numericEvidencePattern(expected));
+    } else {
+      await expect(answer).toContainText(expected);
+    }
+  }
 }
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("datatale:onboarding:v1", "skipped");
   });
+  await page.goto("/");
+  await expect(page.locator('.page-shell[data-hydrated="true"]')).toBeVisible();
   const diagnostics: string[] = [];
+  diagnosticsByPage.set(page, diagnostics);
   const recordDiagnostic = (message: string) => {
     diagnostics.push(message);
     console.error(`[manual acceptance] ${message}`);
@@ -86,19 +114,37 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test.afterEach(async ({ page }) => {
+  const diagnostics = diagnosticsByPage.get(page) ?? [];
+  expect(
+    diagnostics,
+    `Unexpected browser diagnostics:\n${diagnostics.join("\n")}`,
+  ).toEqual([]);
+});
+
+async function resetToImport(page: Page) {
+  await page.getByRole("button", { name: "Создать новый отчёт" }).click();
+  await expect(
+    page.locator('input[aria-label="Выбрать CSV или XLSX файл"]'),
+  ).toBeVisible();
+}
+
 test("runs the CSV grounded flow and rejects an absent named entity", async ({
   page,
 }) => {
   await uploadAndAnalyze(page, "regional-sales.csv");
   await expect(page.locator(".chart-card").first()).toBeVisible();
-  await ask(page, { prompt: "Какая общая выручка?", expected: "1 743 000" });
   await ask(page, {
-    prompt: "Какая выручка у Краснодара?",
-    expected: "569 000",
+    prompt: "Какая общая выручка и сколько всего заказов?",
+    expected: [1_743_000, 1_538],
+  });
+  await ask(page, {
+    prompt: "Какая выручка и сколько заказов у Краснодара?",
+    expected: [569_000, 531],
   });
   await ask(page, {
     prompt: "В каком месяце выручка была максимальной?",
-    expected: "478 000",
+    expected: 478_000,
   });
   await ask(page, {
     prompt: "Какая выручка у Владивостока?",
@@ -106,27 +152,40 @@ test("runs the CSV grounded flow and rejects an absent named entity", async ({
   });
 });
 
-test("runs quoted CSV and multi-sheet XLSX sources", async ({ page }) => {
+test("runs quoted CSV source", async ({ page }) => {
   await uploadAndAnalyze(page, "quoted-products.csv");
   await ask(page, {
     prompt: "Сколько единиц товара продано всего?",
-    expected: "175",
+    expected: 175,
   });
-  await ask(page, { prompt: "Сколько продано напитков?", expected: "59" });
+  await ask(page, { prompt: "Сколько продано напитков?", expected: 59 });
+  await ask(page, {
+    prompt: "Как называется чай с жасмином?",
+    expected: "Чай, жасминовый",
+  });
+  await ask(page, {
+    prompt: "Какой товар самый дорогой и сколько он стоит?",
+    expected: ["Мёд", 920],
+  });
   await ask(page, {
     prompt: "Есть ли молочные продукты?",
     expected: canonicalAbsence,
   });
+});
 
-  await page.getByRole("button", { name: "Создать новый отчёт" }).click();
+test("runs the sales worksheet controls", async ({ page }) => {
   await uploadAndAnalyze(page, "operations-multisheet.xlsx");
   await ask(page, {
-    prompt: "Какая общая выручка в продажах?",
-    expected: "672 000",
+    prompt: "Какая общая выручка и какова выручка Москвы и Казани?",
+    expected: [672_000, 405_000, 267_000],
   });
+  await ask(page, {
+    prompt: "В каком месяце выручка максимальна?",
+    expected: 247_000,
+  });
+});
 
-  await page.getByRole("button", { name: "Создать новый отчёт" }).click();
-  await page.goto("/");
+test("runs the support worksheet controls", async ({ page }) => {
   await page
     .locator('input[aria-label="Выбрать CSV или XLSX файл"]')
     .setInputFiles(fixture("operations-multisheet.xlsx"));
@@ -136,38 +195,48 @@ test("runs quoted CSV and multi-sheet XLSX sources", async ({ page }) => {
   await page.getByRole("option", { name: "Поддержка" }).click();
   await page.getByRole("button", { name: "Запустить AI-анализ" }).click();
   await waitForReport(page);
-  await ask(page, { prompt: "Сколько обращений поступило?", expected: "500" });
+  await ask(page, {
+    prompt: "Сколько обращений поступило и сколько решено?",
+    expected: [500, 453],
+  });
+  await ask(page, {
+    prompt: "Сколько обращений решила команда Альфа?",
+    expected: 250,
+  });
+  await ask(page, {
+    prompt: "Где был самый высокий CSAT?",
+    expected: ["Альфа", 4.8],
+  });
   await ask(page, {
     prompt: "Сколько обращений у команды Гамма?",
     expected: canonicalAbsence,
   });
 });
 
-test("runs the monthly aggregation and zero-count flow", async ({ page }) => {
+test("runs the monthly aggregation flow", async ({ page }) => {
   await uploadAndAnalyze(page, "monthly-buckets.csv");
   await expect(page.locator(".chart-card").first()).toBeVisible();
   await ask(page, {
-    prompt: "Какая выручка была в январе 2026 года?",
-    expected: "120",
-  });
-  await ask(page, {
-    prompt: "Какая выручка была в феврале 2026 года?",
-    expected: "100",
+    prompt: "Какая выручка была в январе и феврале 2026 года?",
+    expected: [120, 100],
   });
   await ask(page, {
     prompt: "Какая себестоимость была в январе 2026 года?",
-    expected: "120",
+    expected: 120,
   });
   await ask(page, {
     prompt: "Сколько заказов было в марте 2026 года?",
-    expected: "0",
+    expected: 0,
   });
+});
 
-  await page.getByRole("button", { name: "Создать новый отчёт" }).click();
+test("distinguishes a known-range zero from an absent entity", async ({
+  page,
+}) => {
   await uploadAndAnalyze(page, "known-range-zero.csv");
   await ask(page, {
     prompt: "Сколько заказов было в Москве в феврале 2026 года?",
-    expected: "0",
+    expected: 0,
   });
   await ask(page, {
     prompt: "Есть ли в данных Новосибирск?",
@@ -182,20 +251,20 @@ test("answers grounded text questions and derives a bounded total", async ({
   await expect(page.locator(".chart-card").first()).toBeVisible();
   await ask(page, {
     prompt: "Сколько продаж было 14 сентября?",
-    expected: "140",
+    expected: 140,
   });
   await ask(page, {
     prompt: "Сколько продаж было 15 сентября?",
-    expected: "150",
+    expected: 150,
   });
   await ask(page, {
     prompt: "Сколько продаж было 16 сентября?",
-    expected: "160",
+    expected: 160,
   });
 
-  await page.getByRole("button", { name: "Создать новый отчёт" }).click();
+  await resetToImport(page);
   await pasteAndAnalyze(page, "animals-without-total.txt");
-  await ask(page, { prompt: "Сколько животных всего?", expected: "21" });
+  await ask(page, { prompt: "Сколько животных всего?", expected: 21 });
   await ask(page, {
     prompt: "Сколько кроликов в приюте?",
     expected: canonicalAbsence,
@@ -207,11 +276,11 @@ test("runs the existing shelter text fixture", async ({ page }) => {
   await expect(page.locator(".chart-card").first()).toBeVisible();
   await ask(page, {
     prompt: "Сколько животных было к концу 17 сентября?",
-    expected: "21",
+    expected: 21,
   });
   await ask(page, {
     prompt: "В какой день расходы на корм были максимальными?",
-    expected: "8 900",
+    expected: 8_900,
   });
   await ask(page, {
     prompt: "Сколько кроликов в приюте?",
@@ -225,18 +294,18 @@ test("preserves localized numeric evidence and rejects malformed formats", async
   await pasteAndAnalyze(page, "localized-numbers.txt");
   await ask(page, {
     prompt: "Какой доход указан в отчёте?",
-    expected: "1 234",
+    expected: 1_234.56,
   });
   await ask(page, {
     prompt: "Какие расходы указаны в отчёте?",
-    expected: "1 234",
+    expected: 1_234.56,
   });
   await ask(page, {
     prompt: "Какие доходы у компании за прошлый год?",
     expected: canonicalAbsence,
   });
 
-  await page.getByRole("button", { name: "Создать новый отчёт" }).click();
+  await resetToImport(page);
   await page
     .locator('input[aria-label="Выбрать CSV или XLSX файл"]')
     .setInputFiles(fixture("malformed.csv"));
