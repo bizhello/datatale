@@ -77,6 +77,13 @@ export const MODEL_OUTPUT_TOKEN_LIMITS: Readonly<
   "text-extraction": 1_800,
   narrative: 1_200,
 };
+
+/** Keep exact numbers in the report, but give the narrative model readable values. */
+function formatNarrativeNumber(value: number): string {
+  return new Intl.NumberFormat("ru-RU", {
+    maximumFractionDigits: 2,
+  }).format(value);
+}
 export type ModelCall = (request: {
   stage: AnalysisStage;
   prompt: string;
@@ -797,7 +804,22 @@ async function analyzeText(
     extraction.chartGroups,
     (observationId) => observationEvidence.get(observationId) ?? "",
   );
-  const checkedNarrativePrompt = `${narrativePrompt}\n\nChecked facts, source-backed observations, calculated chart series, and evidence only:\n${JSON.stringify({ facts, observations: checkedObservations, charts, evidence })}\nEvery chart point is deterministic code output. Change observations are signed deltas: a decrease is negative, and calculated totals add the signed change once. Explain calculated current totals or change totals only when their chart provenance supports it; never invent a value or relationship.${focusContext(focus)}`;
+  const narrativeFacts = facts.map((fact) => ({
+    ...fact,
+    value: formatNarrativeNumber(fact.value),
+  }));
+  const narrativeObservations = checkedObservations.map((observation) => ({
+    ...observation,
+    value: formatNarrativeNumber(observation.value),
+  }));
+  const narrativeCharts = charts.map((chart) => ({
+    ...chart,
+    points: chart.points.map((point) => ({
+      ...point,
+      value: formatNarrativeNumber(point.value),
+    })),
+  }));
+  const checkedNarrativePrompt = `${narrativePrompt}\n\nChecked facts, source-backed observations, calculated chart series, and evidence only:\n${JSON.stringify({ facts: narrativeFacts, observations: narrativeObservations, charts: narrativeCharts, evidence })}\nEvery chart point is deterministic code output. Change observations are signed deltas: a decrease is negative, and calculated totals add the signed change once. Explain calculated current totals or change totals only when their chart provenance supports it; never invent a value or relationship.${focusContext(focus)}`;
   const narrate = (prompt: string) =>
     callModel({
       stage: "narrative",
@@ -891,6 +913,17 @@ export async function analyzeSource(
       evidenceIds: ["rows-all"],
     }));
     const charts = calculateTableCharts(source, proposal);
+    const narrativeMetrics = metrics.map((metric) => ({
+      ...metric,
+      value: formatNarrativeNumber(metric.value),
+    }));
+    const narrativeCharts = charts.map((chart) => ({
+      ...chart,
+      points: chart.points.map((point) => ({
+        ...point,
+        value: formatNarrativeNumber(point.value),
+      })),
+    }));
     const narrative = checkedNarrative(
       await callModel({
         stage: "narrative",
@@ -898,7 +931,7 @@ export async function analyzeSource(
         providerSchema: providerNarrativeResponseSchema,
         decodeProviderOutput: narrativeFromProviderOutput,
         signal: controller.signal,
-        prompt: `${narrativePrompt}\n\nChecked facts and calculated chart series only; do not add values:\n${JSON.stringify({ facts: metrics, charts, evidence: tableEvidence(source) })}\nEvery chart point is deterministic code output and may be explained when its evidence supports the statement.${focusContext(focus)}`,
+        prompt: `${narrativePrompt}\n\nChecked facts and calculated chart series only; do not add values:\n${JSON.stringify({ facts: narrativeMetrics, charts: narrativeCharts, evidence: tableEvidence(source) })}\nEvery chart point is deterministic code output and may be explained when its evidence supports the statement.${focusContext(focus)}`,
       }),
       new Set(metrics.map((metric) => metric.id)),
       new Set(["rows-all"]),

@@ -16,6 +16,7 @@ const table: Dataset = {
     { id: "region", label: "Region", scalarType: "string" },
     { id: "channel", label: "Channel", scalarType: "string" },
     { id: "revenue", label: "Revenue", scalarType: "number", unit: "RUB" },
+    { id: "csat", label: "CSAT", scalarType: "number" },
   ],
   rows: [
     {
@@ -25,6 +26,7 @@ const table: Dataset = {
         region: "North",
         channel: "Online",
         revenue: 10,
+        csat: 4,
       },
       provenance: { sourceRowNumber: 2 },
     },
@@ -35,6 +37,7 @@ const table: Dataset = {
         region: "South",
         channel: "Retail",
         revenue: 20,
+        csat: 4.4,
       },
       provenance: { sourceRowNumber: 3 },
     },
@@ -45,6 +48,7 @@ const table: Dataset = {
         region: "North",
         channel: "Online",
         revenue: 30,
+        csat: 5,
       },
       provenance: { sourceRowNumber: 4 },
     },
@@ -59,6 +63,11 @@ const proposal = {
       aggregation: { kind: "sum" as const, field: { fieldId: "revenue" } },
     },
     { id: "orders", label: "Orders", aggregation: { kind: "count" as const } },
+    {
+      id: "average-csat",
+      label: "Average CSAT",
+      aggregation: { kind: "average" as const, field: { fieldId: "csat" } },
+    },
   ],
   charts: [
     {
@@ -108,6 +117,8 @@ describe("analysis orchestration", () => {
         expect(prompt).toContain("calculated chart series");
         expect(prompt).toContain('"points"');
         expect(prompt).toContain('"North"');
+        expect(prompt).toContain('"value":"4,47"');
+        expect(prompt).not.toContain("4.466666666666667");
       }
       return stage === "narrative" ? narrative : proposal;
     };
