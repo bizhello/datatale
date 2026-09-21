@@ -16,6 +16,9 @@ const MAX_DISTINCT_VALUES = 40;
 
 export type QueryResultReference = {
   id: string;
+  queryId?: string;
+  scopeLabel?: string;
+  absenceWitness?: boolean;
   excerpt?: string;
   numericValues?: number[];
   numericEvidence?: NumericEvidence[];
@@ -28,6 +31,28 @@ export type QueryResultReference = {
     referenceId: string;
   }>;
 };
+
+function queryScopeLabel(query: DatasetQuery, source: Dataset) {
+  const labels = (query.filters ?? []).flatMap((filter) => {
+    const column = source.columns.find((item) => item.id === filter.fieldId);
+    const values = Array.isArray(filter.value) ? filter.value : [filter.value];
+    const operator = {
+      eq: "=",
+      ne: "≠",
+      in: "∈",
+      lt: "<",
+      lte: "≤",
+      gt: ">",
+      gte: "≥",
+      contains: "содержит",
+    }[filter.operator];
+    const renderedValues = values
+      .map((value) => (value === null ? "пусто" : String(value)))
+      .join(", ");
+    return [`${column?.label ?? filter.fieldId} ${operator} ${renderedValues}`];
+  });
+  return labels.join("; ");
+}
 
 export function boundedHistory(history: ChatMessage[]) {
   return history.slice(-CHAT_HISTORY_MAX_MESSAGES).map((message) => ({
@@ -310,6 +335,10 @@ export function resultReferences(
       ] as const;
     }),
   );
+  const scope = queryScopeLabel(query, source);
+  if (scope)
+    for (const [id, label] of metricLabels)
+      metricLabels.set(id, `${label} (${scope})`);
   const metricEvidence = (metrics: Record<string, number | null>) =>
     Object.entries(metrics).flatMap(([id, value]) =>
       value === null
@@ -327,6 +356,8 @@ export function resultReferences(
   const references: QueryResultReference[] = [
     {
       id: `query-${result.queryId}`,
+      queryId: result.queryId,
+      ...(scope ? { scopeLabel: scope } : {}),
       excerpt: boundedEvidence(
         `Метрики: ${JSON.stringify(result.metrics)}; найдено строк: ${result.matchedRows}; просмотрено строк: ${result.scannedRows}.`,
       ),
@@ -349,6 +380,19 @@ export function resultReferences(
       ),
     },
   ];
+  if (
+    result.matchedRows === 0 &&
+    query.purpose === "lookup" &&
+    result.scannedRows === source.rows.length
+  ) {
+    references.push({
+      id: `absence-${result.queryId}`,
+      queryId: result.queryId,
+      ...(scope ? { scopeLabel: scope } : {}),
+      absenceWitness: true,
+      excerpt: `Проверен запрос: ${scope || "полный источник"}; совпадений: 0.`,
+    });
+  }
   references[0]?.numericValues?.push(result.matchedRows, result.scannedRows);
   references[0]?.numericEvidence?.push(
     { value: result.matchedRows },
@@ -358,6 +402,8 @@ export function resultReferences(
     const groupNumericEvidence = metricEvidence(group.metrics);
     references.push({
       id: `group-${result.queryId}-${index}`,
+      queryId: result.queryId,
+      ...(scope ? { scopeLabel: scope } : {}),
       excerpt: boundedEvidence(
         `Группа ${String(group.key)}; метрики: ${JSON.stringify(group.metrics)}.`,
       ),
@@ -409,6 +455,7 @@ export function resultReferences(
     if (!rowEvidence?.excerpt) continue;
     references.push({
       id: `row-${row.id}`,
+      queryId: result.queryId,
       excerpt: rowEvidence.excerpt,
       ...(rowEvidence.numericValues
         ? { numericValues: rowEvidence.numericValues }
@@ -432,6 +479,7 @@ export function resultReferences(
       if (references.length >= 4_000) break;
       references.push({
         id: value.id,
+        ...(reference.queryId ? { queryId: reference.queryId } : {}),
         excerpt: `${value.label}: ${String(value.value)}`,
         values: [value],
         ...(typeof value.value === "string" &&
