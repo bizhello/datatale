@@ -4,13 +4,14 @@
 
 ## Production status
 
-Verified through 2026-09-21:
+Verified through 2026-09-22:
 
 - Vercel project `datatale` deploys `bizhello/datatale` from `main`. The latest behavior-changing release and smoke evidence are recorded in [DELIVERY.md](DELIVERY.md); documentation-only merges may produce newer deployment SHAs without changing runtime behavior. [datatale.bizhov.ru](https://datatale.bizhov.ru) and [datatale.vercel.app](https://datatale.vercel.app) return HTTPS 200.
-- The current production deployment is `dpl_HprGYCveCa9PGYAgj6BimFNkPAZF`, built from commit `579645b`.
+- `main` is at commit `b5ec79a` (PR #86, merged 2026-09-22). This update did not re-query the Vercel deployment API for the exact live `dpl_…` id or its built commit — that check is blocked by this session's own production-deploy guardrail; confirm in the Vercel dashboard before relying on a specific deployment id.
 - `vercel.json` allows Git builds only for `main`. Pull-request and branch builds are reported as ignored; historical and canceled preview deployments were removed, leaving no preview deployments.
 - `bun run build:vercel` runs `bun run db:migrate` before `next build` only when `VERCEL_ENV=production` and `VERCEL_GIT_COMMIT_REF=main`. Historical migration deployment `dpl_C3edY7uwV1LTXUMGGBsRpQac9pcx` logged `Applied 1 migration.` immediately before `$ next build` and reached Ready while deploying the earlier code commit `5a10043`; it is migration evidence, not the current production release.
 - Production Neon `datatale-db` is connected in `iad1`; migrations `0001`–`0006` are applied. Migration `0005_strict_report_hero.sql` deleted reports written under the previous contract, removed the obsolete analysis-claim overload, and enabled database constraints for the current hero and calculation-provenance shapes. Migration `0006_workspace_tier_quotas.sql` replaced the shared access-code quota bucket with independent 5/20 daily analysis and chat tiers for each workspace.
+- **Pending:** migration `0007_direct_source_chart_provenance.sql` (forward-only, widens the chart-kind constraint to cover `direct-source` text charts) ships in [PR #87](https://github.com/bizhello/datatale/pull/87), open with all CI checks green but not yet merged. It is not applied to production. Until it merges, new text-report analyses that select a chart can fail at the persistence step in production; see DELIVERY.md for the fix and the merge command.
 - Cloudflare is authoritative for DNS. The DNS-only `datatale` CNAME points to Vercel; apex, mail, nameservers, and unrelated records are unchanged.
 - Production uses the OpenAI-compatible gateway at `https://ai-gateway.spiro.vc/v1`. Table analysis, narrative, and chat use `gpt-5.6-terra`; the combined text-report proposal defaults to `gpt-5.6-luna`. Live Vercel acceptance must cover both routes.
 - A post-merge table analysis returned HTTP 200 with three hero statements, three metrics, and three charts. Missing-data chat returned the exact refusal with HTTP 200. Desktop Chromium and mobile WebKit onboarding smoke verified the inert welcome, deterministic local demo, Escape/replay, unique IDs, and zero analysis requests.
