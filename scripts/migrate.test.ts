@@ -27,6 +27,7 @@ describe("database migration runner", () => {
       "0004_chat_inference_leases.sql",
       "0005_strict_report_hero.sql",
       "0006_workspace_tier_quotas.sql",
+      "0007_direct_source_chart_provenance.sql",
     ]);
   });
 

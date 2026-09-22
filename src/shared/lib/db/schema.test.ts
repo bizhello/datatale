@@ -126,4 +126,23 @@ describe("analysis Drizzle schema parity", () => {
     expect(migration).toContain("@.aggregation.dimensionFieldId.type()");
     expect(migration).toContain("@.aggregation.fieldId.type()");
   });
+
+  it("keeps direct-source text charts inside the durable provenance contract", async () => {
+    const migration = await readFile(
+      "migrations/0007_direct_source_chart_provenance.sql",
+      "utf8",
+    );
+    expect(migration).toContain(
+      "DROP CONSTRAINT saved_analyses_report_provenance_check",
+    );
+    expect(migration).toContain(
+      "DROP CONSTRAINT analysis_runs_report_provenance_check",
+    );
+    expect(
+      migration.match(/@\.aggregation\.kind == "direct-source"/g),
+    ).toHaveLength(2);
+    expect(
+      migration.match(/@\.aggregation\.dimensionLabel\.type\(\)/g),
+    ).toHaveLength(2);
+  });
 });
