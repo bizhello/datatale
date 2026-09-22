@@ -36,6 +36,8 @@ export function formatDerivation(
 export function formatChartDerivation(
   aggregation: FinalReport["charts"][number]["aggregation"],
 ) {
+  if (aggregation.kind === "direct-source")
+    return `Значения из исходного текста по полю «${aggregation.dimensionLabel}»`;
   if (aggregation.kind === "count")
     return `Количество строк по полю «${aggregation.dimensionLabel}»`;
   const labels = {

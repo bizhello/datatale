@@ -217,6 +217,12 @@ const reportChartCountCalculationSchema = z
     dimensionLabel: labelString,
   })
   .strict();
+const reportChartDirectSourceCalculationSchema = z
+  .object({
+    kind: z.literal("direct-source"),
+    dimensionLabel: labelString,
+  })
+  .strict();
 const reportChartNumericCalculationSchema = z
   .object({
     kind: z.enum(["sum", "average", "min", "max"]),
@@ -228,6 +234,7 @@ const reportChartNumericCalculationSchema = z
   .strict();
 export const reportChartCalculationSchema = z.discriminatedUnion("kind", [
   reportChartCountCalculationSchema,
+  reportChartDirectSourceCalculationSchema,
   reportChartNumericCalculationSchema,
 ]);
 export const reportFactSchema = z

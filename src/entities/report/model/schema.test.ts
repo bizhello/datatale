@@ -188,7 +188,7 @@ describe("chartCapabilityCatalog", () => {
     expect(
       chartCapabilityCatalog.map((capability) => capability.limits),
     ).toEqual([
-      { minItems: 1, maxItems: 12 },
+      { minItems: 2, maxItems: 12 },
       { minItems: 2, maxItems: 24 },
       { minItems: 2, maxItems: 6 },
     ]);

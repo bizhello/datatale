@@ -36,6 +36,7 @@ import {
   calculateMetric,
   reportChartCalculation,
 } from "../model/calculate";
+import { createFallbackTableProposal } from "../model/fallback-proposal";
 import {
   FinalReportValidationError,
   validateFinalReportReferences,
@@ -1195,16 +1196,17 @@ export async function analyzeSource(
         );
         validateTableProposal(source, proposal);
       } catch (repairError) {
-        if (repairError instanceof SemanticValidationError)
-          throw new AnalysisError("unsupported-plan", repairError.message);
-        if (repairableModelOutput(repairError))
+        if (!repairableModelOutput(repairError)) throw repairError;
+        proposal = createFallbackTableProposal(source);
+        if (!proposal)
           throw new AnalysisError(
-            "invalid-model-output",
+            repairError instanceof SemanticValidationError
+              ? "unsupported-plan"
+              : "invalid-model-output",
             repairError instanceof Error
               ? repairError.message
               : "Repaired proposal is invalid.",
           );
-        throw repairError;
       }
     }
     if (!proposal)
