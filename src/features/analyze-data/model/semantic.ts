@@ -117,6 +117,11 @@ function chartIssues(
         path,
         message: "bar charts require a categorical dimension.",
       });
+    if (labels.length < 2)
+      issues.push({
+        path,
+        message: "bar charts require at least two categories.",
+      });
     if (labels.length > chart.categoryLimit && !chart.topN)
       issues.push({
         path,
@@ -166,6 +171,13 @@ function chartIssues(
       });
   }
   return issues;
+}
+
+export function isChartSpecificationSupported(
+  source: Dataset,
+  chart: ChartSpecification,
+): boolean {
+  return chartIssues(source, chart, "chart").length === 0;
 }
 
 function chartStorySignature(chart: ChartSpecification) {

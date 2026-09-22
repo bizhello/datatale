@@ -36,6 +36,7 @@ import {
   resultReferences as buildResultReferences,
   sourceReferences as buildSourceReferences,
   textEvidence as buildTextEvidence,
+  normalizedWords,
   type QueryResultReference,
 } from "./source-context";
 
@@ -163,6 +164,60 @@ const notInSource = (): ChatResult => ({
   outcome: "not_in_source",
   message: CHAT_REFUSAL,
 });
+
+const textQuestionStopWords = new Set([
+  "данн",
+  "информац",
+  "источник",
+  "отчет",
+  "покаж",
+  "расскаж",
+  "скольк",
+  "каков",
+  "какой",
+  "котор",
+  "есть",
+  "был",
+  "стал",
+]);
+
+function deterministicTextAnswerFallback(
+  question: string,
+  source: TextSource,
+): ChatResult {
+  const questionWords = new Set(
+    normalizedWords(question).filter(
+      (word) => !textQuestionStopWords.has(word),
+    ),
+  );
+  const ranked = buildTextEvidence(source)
+    .map((paragraph) => ({
+      ...paragraph,
+      score: normalizedWords(paragraph.text).filter((word) =>
+        questionWords.has(word),
+      ).length,
+    }))
+    .sort((left, right) => right.score - left.score);
+  const best = ranked[0];
+  if (!best || best.score === 0) return notInSource();
+  return chatResultSchema.parse({
+    outcome: "answered",
+    answer: best.text.slice(0, CHAT_ANSWER_MAX_LENGTH),
+    references: [{ id: best.id, excerpt: best.text }],
+  });
+}
+
+function canFallbackTextAnswer(error: unknown) {
+  if (NoObjectGeneratedError.isInstance(error)) return true;
+  if (!(error instanceof Error)) return false;
+  return new Set([
+    "Query outcome is invalid for a text answer.",
+    "Query outcome sentinels are invalid.",
+    "Answer outcome sentinels are invalid.",
+    "Non-answer outcome contains answer or query fields.",
+    "Absence answer requires one witness ID and no operation.",
+  ]).has(error.message);
+}
 const unsupported = (
   message = "Эта операция не поддерживается для данного источника.",
 ): ChatResult => ({ outcome: "unsupported_operation", message });
@@ -662,18 +717,28 @@ async function answerChatCore(
       return unsupported(
         "Текстовый источник слишком велик для прямого чтения.",
       );
-    let raw = await callProvider(
-      provider,
-      {
-        kind: "text",
-        paragraphs: buildTextEvidence(context.source),
-        question: parsed.question,
-        history,
-      },
-      signal,
-      "outcome",
-      "text_answer",
-    );
+    let raw: unknown;
+    try {
+      raw = await callProvider(
+        provider,
+        {
+          kind: "text",
+          paragraphs: buildTextEvidence(context.source),
+          question: parsed.question,
+          history,
+        },
+        signal,
+        "outcome",
+        "text_answer",
+      );
+    } catch (error) {
+      if (
+        error instanceof ChatProviderError &&
+        error.code === "invalid_provider_output"
+      )
+        return deterministicTextAnswerFallback(parsed.question, context.source);
+      throw error;
+    }
     for (let attempt = 0; ; attempt += 1) {
       try {
         const output = decodeOutcome(raw);
@@ -697,15 +762,22 @@ async function answerChatCore(
           throw new Error("Query outcome is invalid for a text answer.");
         return notInSource();
       } catch (error) {
-        if (attempt >= MAX_FINAL_REPAIRS)
+        if (attempt >= MAX_FINAL_REPAIRS) {
+          const reason = classifyChatProviderReason(error);
+          if (canFallbackTextAnswer(error))
+            return deterministicTextAnswerFallback(
+              parsed.question,
+              context.source,
+            );
           throw new ChatProviderError(
             "invalid_provider_output",
             error instanceof Error
               ? error.message
               : "Provider returned invalid text answer.",
             "text_answer",
-            classifyChatProviderReason(error),
+            reason,
           );
+        }
         raw = await callProvider(
           provider,
           {

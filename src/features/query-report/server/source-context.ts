@@ -232,7 +232,7 @@ export function sourceReferences(
 
 const russianWordEndings =
   /(ами|ями|ого|ему|ому|ее|ие|ые|ой|ий|ый|ая|яя|ое|ее|ие|ые|ам|ям|ом|ем|ым|им|ах|ях|ов|ев|ей|ью|ою|ею|ов|ев|ью|ю|я|а|ы|и|е|о|у|э|ь|й)$/u;
-function normalizedWords(value: string) {
+export function normalizedWords(value: string) {
   return (
     value
       .toLocaleLowerCase("ru-RU")

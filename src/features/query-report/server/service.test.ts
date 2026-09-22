@@ -515,6 +515,55 @@ describe("planned grounded chat", () => {
     });
   });
 
+  it("falls back to the most relevant source paragraph after repeated invalid text outcomes", async () => {
+    const source: TextSource = {
+      ...text,
+      rawText:
+        "В приюте 10 собак. Сведений о кроликах, возрасте животных и доходах приюта в отчёте нет.",
+      paragraphs: [
+        { index: 1, text: "В приюте 10 собак." },
+        {
+          index: 2,
+          text: "Сведений о кроликах, возрасте животных и доходах приюта в отчёте нет.",
+        },
+      ],
+    };
+    const provider = vi.fn().mockResolvedValue(wireQuery({ select: [] }));
+
+    await expect(
+      answerChat(
+        { ...request, question: "Сколько кроликов было в приюте?" },
+        { loadContext: async () => context(source), provider },
+      ),
+    ).resolves.toEqual({
+      outcome: "answered",
+      answer:
+        "Сведений о кроликах, возрасте животных и доходах приюта в отчёте нет.",
+      references: [
+        {
+          id: "paragraph-2",
+          excerpt:
+            "Сведений о кроликах, возрасте животных и доходах приюта в отчёте нет.",
+        },
+      ],
+    });
+    expect(provider).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns canonical absence when the safe text fallback finds no matching source words", async () => {
+    const provider = vi.fn().mockResolvedValue(wireQuery({ select: [] }));
+
+    await expect(
+      answerChat(
+        { ...request, question: "Какова стоимость автомобиля?" },
+        { loadContext: async () => context(text), provider },
+      ),
+    ).resolves.toEqual({
+      outcome: "not_in_source",
+      message: "В этом отчете нет такой информации",
+    });
+  });
+
   it("ignores inactive answer sentinels while preserving typed evidence", async () => {
     const answer = typedQuote("paragraph-1");
     await expect(

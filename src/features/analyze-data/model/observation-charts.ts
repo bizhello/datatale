@@ -6,8 +6,7 @@ export type ObservationChart = {
   title: string;
   rationale: string;
   aggregation: {
-    kind: "count";
-    dimensionFieldId: string;
+    kind: "direct-source";
     dimensionLabel: string;
   };
   observationIds: string[];
@@ -271,9 +270,8 @@ export function calculateObservationCharts(
       title,
       rationale,
       aggregation: {
-        kind: "count",
-        dimensionFieldId: "observation",
-        dimensionLabel: group.kind === "line" ? "Период" : "Категория",
+        kind: "direct-source",
+        dimensionLabel: group.kind === "line" ? "Период" : "Показатель",
       },
       observationIds: items.map((item) => item.id),
       points,

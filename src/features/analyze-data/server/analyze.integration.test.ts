@@ -153,7 +153,7 @@ describe("analysis orchestration", () => {
     expect(prompts[1]).toContain("UNTRUSTED TABLE SAMPLE");
   });
 
-  it("fails with a normalized model-output error after an invalid table repair", async () => {
+  it("falls back to a deterministic plan and still fails closed on an invalid narrative", async () => {
     const stages: string[] = [];
     const call: ModelCall = async ({ stage }) => {
       stages.push(stage);
@@ -163,7 +163,12 @@ describe("analysis orchestration", () => {
     await expect(
       analyzeSource(table, { callModel: call }),
     ).rejects.toMatchObject({ code: "invalid-model-output" });
-    expect(stages).toEqual(["table-plan", "table-repair"]);
+    expect(stages).toEqual([
+      "table-plan",
+      "table-repair",
+      "narrative",
+      "narrative",
+    ]);
   });
 
   it("repairs narrative citations without rerunning the validated plan or calculations", async () => {
@@ -299,7 +304,7 @@ describe("analysis orchestration", () => {
     expect(report.noChartReason).toBeUndefined();
   });
 
-  it("repairs once with concrete source errors and fails closed after a bad repair", async () => {
+  it("uses a deterministic plan after a semantically invalid repair", async () => {
     const stages: string[] = [];
     const invalid = {
       ...proposal,
@@ -310,6 +315,24 @@ describe("analysis orchestration", () => {
     };
     const call: ModelCall = async ({ stage, prompt }) => {
       stages.push(stage);
+      if (stage === "narrative")
+        return {
+          hero: [
+            {
+              text: "Проверенный резервный итог.",
+              factIds: ["fallback-metric-1"],
+              evidenceIds: [],
+              kind: "observation",
+            },
+            {
+              text: "Проверенный дополнительный итог.",
+              factIds: ["fallback-metric-2"],
+              evidenceIds: [],
+              kind: "observation",
+            },
+          ],
+          recommendations: [],
+        };
       if (stage === "table-repair") {
         expect(prompt).toContain("unknown dimension");
         expect(prompt).toContain("required flat wire shape");
@@ -327,8 +350,10 @@ describe("analysis orchestration", () => {
     };
     await expect(
       analyzeSource(table, { callModel: call }),
-    ).rejects.toMatchObject({ code: "unsupported-plan" });
-    expect(stages).toEqual(["table-plan", "table-repair"]);
+    ).resolves.toMatchObject({
+      charts: expect.any(Array),
+    });
+    expect(stages).toEqual(["table-plan", "table-repair", "narrative"]);
   });
 
   it("propagates focus as an untrusted preference through table planning, repair, and narrative", async () => {

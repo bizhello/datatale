@@ -35,7 +35,7 @@ export const chartCapabilityCatalog = [
       "More categories than the selected limit without a documented top-N and Other policy.",
     ],
     limits: {
-      minItems: 1,
+      minItems: 2,
       maxItems: BAR_MAX_CATEGORIES,
     },
     presentationRequirements: ["Use an honest baseline."],
