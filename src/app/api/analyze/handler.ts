@@ -172,6 +172,23 @@ function failure(error: unknown) {
   return { receiptCode: code, status: 502, code: "provider" };
 }
 
+function logAnalysisFailure(
+  stage: "analysis" | "receipt" | "storage",
+  error?: unknown,
+) {
+  console.error("DataTale analysis request failed", {
+    stage,
+    code:
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof error.code === "string"
+        ? error.code
+        : undefined,
+    errorName: error instanceof Error ? error.name : undefined,
+  });
+}
+
 export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
   return async function handleAnalyze(request: Request) {
     if (!dependencies.runtimeSafe())
@@ -291,33 +308,46 @@ export function createAnalyzeHandler(dependencies: AnalyzeHandlerDependencies) {
       report = parsedReport.data;
     } catch (error) {
       const mapped = failure(error);
+      logAnalysisFailure("analysis", error);
       try {
         await gate.fail(workspace.id, receiptId, true, mapped.receiptCode);
       } catch {}
       return privateJson({ code: mapped.code }, mapped.status);
     }
 
+    let receiptSucceeded: boolean;
     try {
-      if (await gate.succeed(workspace.id, receiptId, report)) {
-        const saved = await dependencies.saveAnalysis({
-          analysisId: key,
-          workspaceId: workspace.id,
-          source,
-          report,
-        });
-        if (!saved) return privateJson({ code: "unavailable" }, 503);
-        return privateJson({
-          analysisId: key,
-          report,
-          expiresAt: saved.expiresAt.toISOString(),
-        });
-      }
-    } catch {
+      receiptSucceeded = await gate.succeed(workspace.id, receiptId, report);
+    } catch (error) {
+      logAnalysisFailure("receipt", error);
       return privateJson({ code: "unavailable" }, 503);
     }
+    if (!receiptSucceeded) {
+      logAnalysisFailure("receipt");
+      try {
+        await gate.fail(workspace.id, receiptId, true, "indeterminate");
+      } catch {}
+      return privateJson({ code: "indeterminate" }, 503);
+    }
     try {
-      await gate.fail(workspace.id, receiptId, true, "indeterminate");
-    } catch {}
-    return privateJson({ code: "indeterminate" }, 503);
+      const saved = await dependencies.saveAnalysis({
+        analysisId: key,
+        workspaceId: workspace.id,
+        source,
+        report,
+      });
+      if (!saved) {
+        logAnalysisFailure("storage");
+        return privateJson({ code: "unavailable" }, 503);
+      }
+      return privateJson({
+        analysisId: key,
+        report,
+        expiresAt: saved.expiresAt.toISOString(),
+      });
+    } catch (error) {
+      logAnalysisFailure("storage", error);
+      return privateJson({ code: "unavailable" }, 503);
+    }
   };
 }
